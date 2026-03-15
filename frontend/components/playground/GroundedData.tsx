@@ -25,15 +25,15 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const t = trace.tokenization;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">Tokenizer Output</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">Tokenizer Output</div>
         <div className="text-[10px] text-gray-500 mb-1">Input text is lowercased, cleaned, and split. Stopwords are removed.</div>
-        <div className="p-1.5 bg-[#050510] rounded text-[10px] font-mono text-gray-400">
+        <div className="p-1.5 bg-[#111] rounded text-[10px] font-mono text-gray-400">
           &quot;{t.input}&quot;
         </div>
         <div className="text-[10px] text-gray-600">↓ becomes ↓</div>
         <div className="flex flex-wrap gap-1">
           {t.tokens.map((tok, i) => (
-            <span key={i} className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 rounded text-[10px] font-mono border border-emerald-500/20">{tok}</span>
+            <span key={i} className="px-1.5 py-0.5 bg-emerald-500/15 text-[#e88a1a] rounded text-[10px] font-mono border border-emerald-500/20">{tok}</span>
           ))}
         </div>
         {t.stopwords_removed.length > 0 && (
@@ -52,7 +52,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const t = trace.index_lookup;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">Inverted Index</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">Inverted Index</div>
         <div className="text-[10px] text-gray-500">
           {t.corpus_stats.total_docs.toLocaleString()} docs indexed, avg {Math.round(t.corpus_stats.avg_doc_length)} tokens/doc
         </div>
@@ -60,11 +60,11 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
           {Object.entries(t.terms_found).map(([term, info]) => (
             <div key={term} className="p-1.5 bg-blue-500/5 border border-blue-500/20 rounded">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-blue-400 text-[11px]">{term}</span>
+                <span className="font-mono text-[#e88a1a] text-[11px]">{term}</span>
                 <span className="text-[10px] text-gray-500">id:{info.term_id}</span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <div className="flex-1 h-1 bg-[#1a1a3a] rounded-full overflow-hidden">
+                <div className="flex-1 h-1 bg-[#222] rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500/40 rounded-full" style={{ width: `${Math.min((info.doc_freq / t.corpus_stats.total_docs) * 100 * 5, 100)}%` }} />
                 </div>
                 <span className="text-[9px] text-gray-600">{info.doc_freq} docs</span>
@@ -88,21 +88,21 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const maxScore = t.top_scores[0]?.score || 1;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">BM25 Scored Pages</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">BM25 Scored Pages</div>
         <div className="text-[10px] text-gray-500">
           k1={t.params.k1} b={t.params.b} | {t.total_matched} pages matched
         </div>
         <div className="space-y-0.5">
           {t.top_scores.slice(0, 8).map((s, i) => (
-            <div key={i} className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-rose-500/5">
+            <div key={i} className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-[#e88a1a]/5">
               <span className="text-[9px] text-gray-600 w-3">#{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] text-gray-400 truncate">{s.title.replace(" - Wikipedia", "")}</div>
-                <div className="h-1 bg-[#1a1a3a] rounded-full overflow-hidden mt-0.5">
-                  <div className="h-full bg-rose-500/50 rounded-full" style={{ width: `${(s.score / maxScore) * 100}%` }} />
+                <div className="h-1 bg-[#222] rounded-full overflow-hidden mt-0.5">
+                  <div className="h-full bg-[#e88a1a]/50 rounded-full" style={{ width: `${(s.score / maxScore) * 100}%` }} />
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-rose-400 w-8 text-right">{s.score.toFixed(1)}</span>
+              <span className="text-[10px] font-mono text-[#e88a1a] w-8 text-right">{s.score.toFixed(1)}</span>
             </div>
           ))}
         </div>
@@ -116,7 +116,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const maxScore = t.top_scores[0]?.score || 1;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">PageRank Scores</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">PageRank Scores</div>
         <div className="text-[10px] text-gray-500">Authority from link graph (d={t.damping})</div>
         <div className="space-y-0.5">
           {t.top_scores.slice(0, 8).map((s, i) => (
@@ -124,11 +124,11 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
               <span className="text-[9px] text-gray-600 w-3">#{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] text-gray-400 truncate">{s.title.replace(" - Wikipedia", "")}</div>
-                <div className="h-1 bg-[#1a1a3a] rounded-full overflow-hidden mt-0.5">
+                <div className="h-1 bg-[#222] rounded-full overflow-hidden mt-0.5">
                   <div className="h-full bg-indigo-500/50 rounded-full" style={{ width: `${(s.score / maxScore) * 100}%` }} />
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-indigo-400 w-14 text-right">{s.score.toFixed(6)}</span>
+              <span className="text-[10px] font-mono text-[#e88a1a] w-14 text-right">{s.score.toFixed(6)}</span>
             </div>
           ))}
         </div>
@@ -141,17 +141,17 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const t = trace.combination;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">Combined Rankings</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">Combined Rankings</div>
         <div className="text-[10px] text-gray-500">{t.formula}</div>
         <div className="space-y-0.5">
           {t.rank_changes.slice(0, 8).map((rc, i) => {
             const changed = rc.bm25_rank !== rc.final_rank;
             return (
               <div key={i} className={`flex items-center gap-1.5 py-1 px-1.5 rounded ${changed ? "bg-amber-500/5 border border-amber-500/15" : ""}`}>
-                <span className="text-[10px] text-amber-400 w-4">#{rc.final_rank}</span>
+                <span className="text-[10px] text-[#e88a1a] w-4">#{rc.final_rank}</span>
                 <span className="text-[10px] text-gray-400 truncate flex-1">{rc.title.replace(" - Wikipedia", "")}</span>
                 {changed ? (
-                  <span className="text-[9px] text-amber-400">← was #{rc.bm25_rank}</span>
+                  <span className="text-[9px] text-[#e88a1a]">← was #{rc.bm25_rank}</span>
                 ) : (
                   <span className="text-[9px] text-gray-700">same</span>
                 )}
@@ -168,11 +168,11 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const f = overviewTrace.fanout;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">Query Fan-out</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">Query Fan-out</div>
         <div className="text-[10px] text-gray-500">LLM generates alternative queries for broader retrieval</div>
         <div className="space-y-1">
           {f.expanded.map((q, i) => (
-            <div key={i} className={`p-1.5 rounded text-[10px] font-mono ${i === 0 ? "bg-amber-500/10 border border-amber-500/20 text-amber-400" : "bg-[#0d0d20] text-gray-500"}`}>
+            <div key={i} className={`p-1.5 rounded text-[10px] font-mono ${i === 0 ? "bg-amber-500/10 border border-amber-500/20 text-[#e88a1a]" : "bg-[#111] text-gray-500"}`}>
               {i === 0 && <span className="text-[8px] text-amber-600 block mb-0.5">ORIGINAL</span>}
               {i > 0 && <span className="text-[8px] text-gray-700 block mb-0.5">GENERATED</span>}
               {q}
@@ -188,13 +188,13 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const r = overviewTrace.retrieval;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">Retrieved Chunks</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">Retrieved Chunks</div>
         <div className="text-[10px] text-gray-500">{r.chunks_retrieved} chunks via vector + keyword search</div>
         <div className="space-y-1">
           {r.chunks.slice(0, 4).map((c, i) => (
             <div key={i} className="p-1.5 bg-purple-500/5 border border-purple-500/15 rounded">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[9px] text-purple-400">[{i + 1}]</span>
+                <span className="text-[9px] text-[#e88a1a]">[{i + 1}]</span>
                 <span className="text-[10px] text-gray-400 truncate">{c.title.replace(" - Wikipedia", "")}</span>
               </div>
               <div className="text-[9px] text-gray-600 line-clamp-2">{c.content_preview}</div>
@@ -213,9 +213,9 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
   if (activeStep === "ai_synthesis" && overviewTrace?.synthesis) {
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-rose-400 font-medium">LLM Synthesis</div>
+        <div className="text-[10px] text-[#e88a1a] font-medium">LLM Synthesis</div>
         <div className="text-[10px] text-gray-500">Model: {overviewTrace.synthesis.model}</div>
-        <div className="p-2 bg-[#050510] rounded text-[10px] text-gray-600 leading-relaxed">
+        <div className="p-2 bg-[#111] rounded text-[10px] text-gray-600 leading-relaxed">
           The model reads the retrieved chunks and generates a concise 2-3 sentence summary with source citations [1], [2], etc.
         </div>
       </div>

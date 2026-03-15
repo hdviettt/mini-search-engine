@@ -1,41 +1,45 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import SearchBar from "@/components/SearchBar";
+import CanvasLayout from "@/components/canvas/CanvasLayout";
+import DetailPanel from "@/components/canvas/DetailPanel";
 import AIOverview from "@/components/AIOverview";
-import ResultCard from "@/components/ResultCard";
-import QueryFlow from "@/components/playground/QueryFlow";
-import AIOverviewFlow from "@/components/playground/AIOverviewFlow";
-import PageJourney from "@/components/playground/PageJourney";
-import StatsRibbon from "@/components/playground/StatsRibbon";
-import OperationsTab from "@/components/playground/OperationsTab";
-import GroundedData from "@/components/playground/GroundedData";
-import type { ActiveStep } from "@/components/playground/GroundedData";
-import { searchExplain, getStats, getOverviewStreamUrl, OverviewSource, OverviewTrace } from "@/lib/api";
+import type { FlowPhase } from "@/components/canvas/types";
+import { searchExplain, getStats, getOverviewStreamUrl } from "@/lib/api";
+import type { OverviewSource, OverviewTrace } from "@/lib/api";
 import { useWebSocket } from "@/lib/useWebSocket";
-import type { ExplainResponse, Stats, SearchParams, PipelineTrace, CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
+import type { ExplainResponse, Stats, SearchParams, CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
 
 const DEFAULT_PARAMS: SearchParams = { bm25_k1: 1.2, bm25_b: 0.75, rank_alpha: 0.7 };
+
+// Phase sequence for animating the search pipeline
+const SEARCH_PHASES: { phase: FlowPhase; delay: number }[] = [
+  { phase: "tokenizing", delay: 0 },
+  { phase: "indexLookup", delay: 250 },
+  { phase: "bm25", delay: 500 },
+  { phase: "pagerank", delay: 750 },
+  { phase: "combining", delay: 1000 },
+  { phase: "results", delay: 1250 },
+];
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [searchData, setSearchData] = useState<ExplainResponse | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [phase, setPhase] = useState<FlowPhase>("idle");
 
+  // AI Overview
   const [overviewText, setOverviewText] = useState("");
   const [overviewSources, setOverviewSources] = useState<OverviewSource[]>([]);
   const [overviewTrace, setOverviewTrace] = useState<OverviewTrace | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewStreaming, setOverviewStreaming] = useState(false);
 
+  // UI
   const [stats, setStats] = useState<Stats | null>(null);
-  const [params] = useState<SearchParams>(DEFAULT_PARAMS);
-  const [trace, setTrace] = useState<PipelineTrace | null>(null);
-  const [expandedPageId, setExpandedPageId] = useState<number | null>(null);
-  const [activeStep, setActiveStep] = useState<ActiveStep>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [dockVisible, setDockVisible] = useState(false);
 
-  const [rightTab, setRightTab] = useState<"pipeline" | "ops">("pipeline");
-
+  // Jobs
   const [crawlProgress, setCrawlProgress] = useState<CrawlProgressData | null>(null);
   const [indexProgress, setIndexProgress] = useState<IndexProgressData | null>(null);
   const [embedProgress, setEmbedProgress] = useState<EmbedProgressData | null>(null);
@@ -44,9 +48,11 @@ export default function Home() {
 
   const { lastMessage } = useWebSocket();
   const abortRef = useRef<AbortController | null>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => { getStats().then(setStats).catch(() => {}); }, []);
 
+  // WebSocket handler
   useEffect(() => {
     if (!lastMessage) return;
     const { type, data } = lastMessage;
@@ -59,21 +65,19 @@ export default function Home() {
       setCrawlProgress(null);
       getStats().then(setStats);
     } else if (type === "index_progress") {
-      const d = data as IndexProgressData;
-      setIndexProgress(d);
-      setLogEntries((prev) => [...prev.slice(-200), `Index: ${d.pages_done}/${d.pages_total} | ${d.unique_terms} terms`]);
+      setIndexProgress(data as IndexProgressData);
     } else if (type === "index_complete") {
-      setLogEntries((prev) => [...prev, "Index complete."]);
       setIndexProgress(null);
       getStats().then(setStats);
-    } else if (type === "embed_progress") { setEmbedProgress(data as EmbedProgressData); }
-    else if (type === "embed_complete") {
-      setLogEntries((prev) => [...prev, "Embedding complete."]);
+    } else if (type === "embed_progress") {
+      setEmbedProgress(data as EmbedProgressData);
+    } else if (type === "embed_complete") {
       setEmbedProgress(null);
       getStats().then(setStats);
     }
   }, [lastMessage]);
 
+  // Stream AI overview
   const streamOverview = useCallback(async (q: string) => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -110,9 +114,9 @@ export default function Home() {
               setOverviewSources(msg.sources);
               setOverviewLoading(false);
             } else if (msg.type === "trace") {
-              if (msg.step === "fanout") traceData.fanout = msg.data;
-              if (msg.step === "retrieval") traceData.retrieval = msg.data;
-              if (msg.step === "synthesis") traceData.synthesis = msg.data;
+              if (msg.step === "fanout") { traceData.fanout = msg.data; setPhase("aiFanout"); }
+              if (msg.step === "retrieval") { traceData.retrieval = msg.data; setPhase("aiRetrieval"); }
+              if (msg.step === "synthesis") { traceData.synthesis = msg.data; setPhase("aiSynthesis"); }
               setOverviewTrace({ ...traceData });
             } else if (msg.type === "token") {
               setOverviewLoading(false);
@@ -123,6 +127,7 @@ export default function Home() {
               setOverviewText(msg.content);
             } else if (msg.type === "done") {
               setOverviewStreaming(false);
+              setPhase("aiComplete");
               if (msg.total_ms) {
                 traceData.total_ms = msg.total_ms;
                 setOverviewTrace({ ...traceData });
@@ -139,148 +144,157 @@ export default function Home() {
     }
   }, []);
 
+  // Main search handler
   const handleSearch = useCallback(async (q: string) => {
     setQuery(q);
-    setSearching(true);
-    setExpandedPageId(null);
+    setPhase("idle");
+    setSelectedNode(null);
+
+    // Clear old timers
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+
+    // Reset AI overview
     setOverviewText("");
     setOverviewSources([]);
     setOverviewTrace(null);
-    setActiveStep(null);
 
     try {
-      const data = await searchExplain(q, params);
+      // Fetch results
+      const data = await searchExplain(q, DEFAULT_PARAMS);
       setSearchData(data);
-      setTrace(data.pipeline);
-      setSearching(false);
-      setRightTab("pipeline");
+      setDockVisible(true);
 
-      if (data.total_results >= 3) {
-        streamOverview(q);
+      // Animate phases sequentially
+      for (const { phase: p, delay } of SEARCH_PHASES) {
+        const timer = setTimeout(() => setPhase(p), delay);
+        timersRef.current.push(timer);
       }
-    } catch { setSearching(false); }
-  }, [params, streamOverview]);
 
-  const maxBm25 = searchData ? Math.max(...searchData.results.map((r) => r.bm25_score), 0) : 0;
-  const maxPr = searchData ? Math.max(...searchData.results.map((r) => r.pagerank_score), 0) : 0;
+      // Start AI overview stream after search animation
+      if (data.total_results >= 3) {
+        const timer = setTimeout(() => streamOverview(q), 1500);
+        timersRef.current.push(timer);
+      }
+    } catch { /* */ }
+  }, [streamOverview]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-20 bg-[#0a0a1a]/95 backdrop-blur border-b border-[#1a1a3a]">
-        <StatsRibbon stats={stats} />
-      </header>
+    <div className="flex w-screen h-screen overflow-hidden bg-[#0d0d0d]">
+      {/* LEFT: Canvas */}
+      <div className="w-[55%] h-full relative">
+        <CanvasLayout
+          onSearch={handleSearch}
+          query={query}
+          phase={phase}
+          stats={stats}
+          searchData={searchData}
+          overviewText={overviewText}
+          overviewTrace={overviewTrace}
+          onNodeClick={setSelectedNode}
+        />
+      </div>
 
-      <div className="flex flex-1">
-        {/* LEFT: Search */}
-        <div className="flex-1 min-w-0 border-r border-[#1a1a3a]">
-          <div className="p-4 border-b border-[#1a1a3a]">
-            <div className="flex items-center gap-3 mb-3">
-              <h1 className="text-xl font-bold text-rose-500">VietSearch</h1>
-              <span className="text-[10px] text-gray-600 px-2 py-0.5 border border-[#1a1a3a] rounded-full">playground</span>
-            </div>
-            <SearchBar onSearch={handleSearch} initialQuery={query} compact />
-          </div>
-
-          <div className="p-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 130px)" }}>
-            {!searchData && !searching && (
-              <div className="text-center mt-16">
-                <div className="text-3xl text-rose-500 font-bold mb-2">VietSearch</div>
-                <p className="text-gray-600 text-sm mb-6">Search football. See how it works.</p>
-                <div className="flex flex-wrap justify-center gap-2 text-[10px] text-gray-700">
-                  {["Messi", "Champions League", "World Cup 2022", "Premier League", "Ronaldo transfer"].map((q) => (
-                    <button key={q} onClick={() => handleSearch(q)} className="px-3 py-1 border border-[#1a1a3a] rounded-full hover:border-rose-500/30 hover:text-gray-400 cursor-pointer transition-colors">
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {searching && <div className="text-gray-500 text-center mt-12">Searching...</div>}
-
-            {searchData && !searching && (
-              <>
-                <div className="text-sm text-gray-600 mb-3">
-                  {searchData.total_results} results in {searchData.time_ms.toFixed(1)}ms
-                </div>
-
-                <AIOverview text={overviewText} sources={overviewSources} loading={overviewLoading} streaming={overviewStreaming} />
-
-                {searchData.results.map((result, i) => {
-                  const pageId = searchData.pipeline?.bm25_scoring.top_scores.find(
-                    (s) => s.title === result.title
-                  )?.page_id;
-                  return (
-                    <div key={i}>
-                      <ResultCard
-                        result={result} rank={i + 1} maxBm25={maxBm25} maxPr={maxPr}
-                        isExpanded={expandedPageId === pageId}
-                        onToggleJourney={() => { if (pageId) setExpandedPageId(expandedPageId === pageId ? null : pageId); }}
-                      />
-                      {expandedPageId === pageId && pageId && (
-                        <PageJourney pageId={pageId} onClose={() => setExpandedPageId(null)} />
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
+      {/* RIGHT: Search + Results */}
+      <div className="w-[45%] h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col">
+        {/* Search bar */}
+        <div className="p-4 border-b border-[#222] shrink-0">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = (e.target as HTMLFormElement).querySelector("input") as HTMLInputElement;
+              const q = input.value.trim();
+              if (q) handleSearch(q);
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              defaultValue={query}
+              placeholder="> search football..."
+              className="flex-1 bg-[#111] border border-[#222] px-4 py-2.5 text-sm text-[#e0e0e0] placeholder-[#444] outline-none focus:border-[#e88a1a]/50 font-mono"
+            />
+            <button
+              type="submit"
+              className="bg-[#e88a1a] hover:bg-[#d07a10] text-[#0d0d0d] px-6 py-2.5 text-sm font-medium cursor-pointer transition-colors"
+            >
+              Search
+            </button>
+          </form>
         </div>
 
-        {/* RIGHT: Playground */}
-        <div className="w-[520px] shrink-0 bg-[#08081a] flex flex-col overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-[#1a1a3a] shrink-0">
-            {([
-              { key: "pipeline" as const, label: "Pipeline + Data" },
-              { key: "ops" as const, label: "Operations" },
-            ]).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setRightTab(tab.key)}
-                className={`flex-1 text-[11px] py-2 font-medium cursor-pointer transition-colors ${
-                  rightTab === tab.key ? "text-rose-400 border-b-2 border-rose-500" : "text-gray-600 hover:text-gray-400"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {rightTab === "pipeline" && (
-              <div className="flex h-full">
-                {/* Pipeline column */}
-                <div className="flex-1 p-2 overflow-y-auto border-r border-[#1a1a3a]">
-                  {!trace && !overviewLoading && !overviewTrace ? (
-                    <div className="text-[10px] text-gray-700 text-center py-8">
-                      Search something to see the pipeline.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <AIOverviewFlow trace={overviewTrace} loading={overviewLoading || overviewStreaming} activeStep={activeStep} onHoverStep={setActiveStep} />
-                      <QueryFlow trace={trace} query={query} activeStep={activeStep} onHoverStep={setActiveStep} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Grounded data column */}
-                <div className="w-[220px] shrink-0 overflow-y-auto bg-[#060614]">
-                  <GroundedData activeStep={activeStep} trace={trace} overviewTrace={overviewTrace} />
-                </div>
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto">
+          {!searchData ? (
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center h-full px-6">
+              <p className="text-[#555] text-sm mb-4 text-center font-mono">try a search to see the pipeline in action</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => handleSearch(q)}
+                    className="text-[11px] px-3 py-1.5 border border-[#222] text-[#555] hover:text-[#e88a1a] hover:border-[#e88a1a]/30 cursor-pointer transition-colors font-mono"
+                  >
+                    {q}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="p-4">
+              {/* Results header */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-sm text-[#888]">
+                  {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms
+                </span>
+                <span className="text-[10px] text-[#444]">for &ldquo;{query}&rdquo;</span>
+              </div>
 
-            {rightTab === "ops" && (
-              <OperationsTab
-                crawlProgress={crawlProgress} indexProgress={indexProgress} embedProgress={embedProgress}
-                logEntries={logEntries} activeCrawlJobId={activeCrawlJobId} onCrawlStarted={setActiveCrawlJobId}
-              />
-            )}
-          </div>
+              {/* AI Overview */}
+              <AIOverview text={overviewText} sources={overviewSources} loading={overviewLoading} streaming={overviewStreaming} />
+
+              {/* Results */}
+              <div className="space-y-2">
+                {searchData.results.map((r, i) => (
+                  <a
+                    key={i}
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 bg-[#111] border border-[#222] hover:border-[#e88a1a]/30 transition-colors group"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] text-gray-600">#{i + 1}</span>
+                      <span className="text-xs text-[#e88a1a] group-hover:underline truncate">{r.title}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">{r.snippet}</p>
+                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-gray-700">
+                      <span>BM25: {r.bm25_score}</span>
+                      <span>PR: {r.pagerank_score}</span>
+                      <span className="text-gray-500">= {r.final_score}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Detail panel (on node click) */}
+      <DetailPanel
+        nodeId={selectedNode}
+        onClose={() => setSelectedNode(null)}
+        trace={searchData?.pipeline || null}
+        overviewTrace={overviewTrace}
+        crawlProgress={crawlProgress}
+        indexProgress={indexProgress}
+        embedProgress={embedProgress}
+        logEntries={logEntries}
+        activeCrawlJobId={activeCrawlJobId}
+        onCrawlStarted={setActiveCrawlJobId}
+      />
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "VietSearch — Football Search Engine",
-  description: "A mini search engine with AI Overviews, built from scratch",
+  title: "Search Engine Playground",
+  description: "Interactive search engine with AI Overviews — built from scratch",
 };
 
 export default function RootLayout({
@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} bg-[#0a0a1a] text-gray-200 min-h-screen`}>
+      <body className={`${mono.variable} bg-[#0d0d0d] text-[#e0e0e0] min-h-screen font-mono`}>
         {children}
       </body>
     </html>

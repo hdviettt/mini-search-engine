@@ -58,21 +58,21 @@ export default function OperationsTab({
           value={seedUrl}
           onChange={(e) => setSeedUrl(e.target.value)}
           placeholder="Seed URL"
-          className="w-full text-xs bg-[#0d0d20] border border-[#2a2a4a] rounded px-2 py-1.5 text-gray-300 outline-none focus:border-rose-500"
+          className="w-full text-xs bg-[#111] border border-[#222] rounded px-2 py-1.5 text-gray-300 outline-none focus:border-rose-500"
         />
         <div className="flex items-center gap-2">
           <input
             type="number"
             value={maxPages}
             onChange={(e) => setMaxPages(parseInt(e.target.value) || 50)}
-            className="w-20 text-xs bg-[#0d0d20] border border-[#2a2a4a] rounded px-2 py-1.5 text-gray-300 outline-none"
+            className="w-20 text-xs bg-[#111] border border-[#222] rounded px-2 py-1.5 text-gray-300 outline-none"
           />
           <span className="text-[11px] text-gray-600">max pages</span>
           <div className="ml-auto flex gap-1">
             {!crawling ? (
-              <button onClick={handleStartCrawl} className="text-xs px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded cursor-pointer">Start</button>
+              <button onClick={handleStartCrawl} className="text-xs px-3 py-1 bg-[#e88a1a] hover:bg-[#d07a10] text-white rounded cursor-pointer">Start</button>
             ) : (
-              <button onClick={handleStopCrawl} className="text-xs px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer">Stop</button>
+              <button onClick={handleStopCrawl} className="text-xs px-3 py-1 bg-[#aa2222] hover:bg-[#881818] text-white rounded cursor-pointer">Stop</button>
             )}
           </div>
         </div>
@@ -82,9 +82,9 @@ export default function OperationsTab({
               <span>{crawlProgress.pages_crawled}/{crawlProgress.max_pages} pages</span>
               <span>{crawlProgress.queue_size.toLocaleString()} queued</span>
             </div>
-            <div className="w-full h-1.5 bg-[#1a1a3a] rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-[#222] rounded-full overflow-hidden">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
+                className="h-full bg-[#e88a1a] rounded-full transition-all"
                 style={{ width: `${(crawlProgress.pages_crawled / crawlProgress.max_pages) * 100}%` }}
               />
             </div>
@@ -99,7 +99,7 @@ export default function OperationsTab({
           <button
             onClick={handleRebuildIndex}
             disabled={indexing}
-            className="text-xs px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded cursor-pointer"
+            className="text-xs px-3 py-1 bg-[#e88a1a] hover:bg-[#d07a10] disabled:opacity-50 text-white rounded cursor-pointer"
           >
             {indexing ? "Building..." : "Rebuild"}
           </button>
@@ -118,7 +118,7 @@ export default function OperationsTab({
           <button
             onClick={handleRebuildEmbeddings}
             disabled={embedding}
-            className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded cursor-pointer"
+            className="text-xs px-3 py-1 bg-[#e88a1a] hover:bg-[#d07a10] disabled:opacity-50 text-white rounded cursor-pointer"
           >
             {embedding ? "Embedding..." : "Rebuild"}
           </button>
@@ -128,9 +128,9 @@ export default function OperationsTab({
             <div className="text-[11px] text-gray-500">
               {embedProgress.chunks_done}/{embedProgress.chunks_total} chunks
             </div>
-            <div className="w-full h-1.5 bg-[#1a1a3a] rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-[#222] rounded-full overflow-hidden">
               <div
-                className="h-full bg-purple-500 rounded-full transition-all"
+                className="h-full bg-[#e88a1a] rounded-full transition-all"
                 style={{ width: `${(embedProgress.chunks_done / embedProgress.chunks_total) * 100}%` }}
               />
             </div>

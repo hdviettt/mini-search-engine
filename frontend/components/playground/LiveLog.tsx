@@ -16,7 +16,7 @@ export default function LiveLog({ entries, maxHeight = "200px" }: LiveLogProps) 
 
   return (
     <div
-      className="bg-[#050510] rounded-lg border border-[#1a1a3a] font-mono text-[11px] text-gray-500 overflow-y-auto p-2"
+      className="bg-[#111] rounded-lg border border-[#222] font-mono text-[11px] text-gray-500 overflow-y-auto p-2"
       style={{ maxHeight }}
     >
       {entries.length === 0 ? (

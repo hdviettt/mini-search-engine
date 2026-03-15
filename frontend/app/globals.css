@@ -1,6 +1,96 @@
 @import "tailwindcss";
 
-/* Custom scrollbars — thin, dark, only visible on hover */
+/* ================================
+   THEME — Terminal / Brutalist
+   ================================ */
+
+:root {
+  --bg: #0d0d0d;
+  --bg-card: #111111;
+  --bg-elevated: #161616;
+  --border: #222222;
+  --border-hover: #333333;
+  --text: #e0e0e0;
+  --text-muted: #888888;
+  --text-dim: #555555;
+  --accent: #e88a1a;
+  --accent-muted: rgba(232, 138, 26, 0.15);
+}
+
+/* Force sharp corners everywhere */
+* {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* ================================
+   REACT FLOW OVERRIDES
+   ================================ */
+
+.react-flow__node,
+.react-flow__node.selected,
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node-output,
+.react-flow__node-default,
+.react-flow__node-system,
+.react-flow__node-pipeline {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  color: inherit !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5;
+  animation: edge-flow 0.5s linear infinite;
+}
+
+@keyframes edge-flow {
+  to { stroke-dashoffset: -10; }
+}
+
+/* ================================
+   DETAIL PANEL ANIMATION
+   ================================ */
+
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-in {
+  animation: slide-in-from-right 0.15s ease-out;
+}
+
+/* ================================
+   SCROLLBAR — Terminal style
+   ================================ */
+
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -12,36 +102,18 @@
 
 ::-webkit-scrollbar-thumb {
   background: transparent;
-  border-radius: 4px;
-  transition: background 0.2s;
 }
 
 *:hover > ::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a2a4a;
+  background: #333;
 }
 
-::-webkit-scrollbar-thumb:active {
-  background: #3a3a6a;
-}
-
-/* Show scrollbar thumb when container is hovered */
-.overflow-y-auto:hover::-webkit-scrollbar-thumb,
-.overflow-auto:hover::-webkit-scrollbar-thumb {
-  background: #1a1a3a;
-}
-
-.overflow-y-auto:hover::-webkit-scrollbar-thumb:hover,
-.overflow-auto:hover::-webkit-scrollbar-thumb:hover {
-  background: #2a2a5a;
-}
-
-/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
 
 *:hover {
-  scrollbar-color: #1a1a3a transparent;
+  scrollbar-color: #333 transparent;
 }
