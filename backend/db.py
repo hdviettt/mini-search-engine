@@ -2,6 +2,8 @@ import psycopg
 from config import DATABASE_URL
 
 SCHEMA_SQL = """
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS pages (
     id           SERIAL PRIMARY KEY,
     url          TEXT UNIQUE NOT NULL,
@@ -56,6 +58,16 @@ CREATE TABLE IF NOT EXISTS pagerank (
     score   REAL NOT NULL DEFAULT 0.0
 );
 
+-- Chunks: pages split into ~300-token paragraphs with vector embeddings
+CREATE TABLE IF NOT EXISTS chunks (
+    id        SERIAL PRIMARY KEY,
+    page_id   INTEGER NOT NULL REFERENCES pages(id),
+    chunk_idx INTEGER NOT NULL,
+    content   TEXT NOT NULL,
+    embedding vector(768),
+    UNIQUE(page_id, chunk_idx)
+);
+
 CREATE TABLE IF NOT EXISTS ai_cache (
     query_normalized TEXT PRIMARY KEY,
     overview_text    TEXT NOT NULL,
@@ -67,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_postings_page ON postings(page_id);
 CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_id);
 CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_queue_status ON crawl_queue(status);
+CREATE INDEX IF NOT EXISTS idx_chunks_page ON chunks(page_id);
 """
 
 

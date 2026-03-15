@@ -169,16 +169,8 @@ def api_search(q: str = Query(""), page: int = 1, per_page: int = 10):
 @app.get("/api/overview")
 def api_overview(q: str = Query("")):
     conn = get_connection()
-    result = search(conn, q, page=1, per_page=5)
-    overview = None
-    if result["results"]:
-        page_ids = [r.url for r in result["results"]]
-        # Get page IDs from URLs
-        ids = []
-        for r in result["results"]:
-            row = conn.execute("SELECT id FROM pages WHERE url = %s", (r.url,)).fetchone()
-            if row:
-                ids.append(row[0])
-        overview = generate_overview(conn, q, ids)
+    result = generate_overview(conn, q)
     conn.close()
-    return {"query": q, "overview": overview}
+    if result:
+        return {"query": q, "overview": result["overview"], "sources": result["sources"]}
+    return {"query": q, "overview": None, "sources": []}
