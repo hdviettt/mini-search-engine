@@ -1,0 +1,18 @@
+[project]
+name = "mini-search-engine"
+version = "0.1.0"
+description = "A mini search engine with AI Overviews — built from scratch to learn how search works"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "lxml>=5.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "pydantic>=2.10",
+    "anthropic>=0.79",
+    "psycopg[binary]>=3.2",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.9"]
