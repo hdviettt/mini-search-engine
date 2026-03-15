@@ -1,4 +1,6 @@
 """Generate AI Overviews from top search results using Ollama (Qwen3)."""
+import re
+
 import httpx
 import psycopg
 
@@ -49,8 +51,8 @@ def generate_overview(conn: psycopg.Connection, query: str, page_ids: list[int])
     if cached:
         return cached
 
-    # Fetch page content for top 5 results
-    top_ids = page_ids[:5]
+    # Fetch page content for top 3 results (keep prompt small for local models)
+    top_ids = page_ids[:3]
     placeholders = ",".join(["%s"] * len(top_ids))
     rows = conn.execute(
         f"SELECT id, title, body_text FROM pages WHERE id IN ({placeholders})",
@@ -64,14 +66,14 @@ def generate_overview(conn: psycopg.Connection, query: str, page_ids: list[int])
     # Build context from top results
     context = ""
     for i, (pid, title, body_text) in enumerate(ordered, 1):
-        truncated = (body_text or "")[:1000]
+        truncated = (body_text or "")[:200]
         context += f"\n\n[Source {i}: {title}]\n{truncated}"
 
-    prompt = f"""Based on the following search results for the query "{query}", provide a concise, informative overview that directly answers the query. Use 2-4 sentences. Cite sources as [1], [2], etc. Only use information from the provided sources. If the sources don't contain enough information to answer the query, say so briefly. Do not use any thinking tags or reasoning blocks - just provide the overview directly.
+    prompt = f"""Summarize these search results for "{query}" in 2-3 sentences. Cite as [1], [2]. Be concise.
 
-Sources:{context}
+{context}
 
-Overview:"""
+Summary:"""
 
     try:
         response = httpx.post(
@@ -81,14 +83,17 @@ Overview:"""
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "num_predict": AI_OVERVIEW_MAX_TOKENS,
+                    "num_predict": 2048,
                     "temperature": 0.3,
                 },
             },
-            timeout=60,
+            timeout=180,
         )
         response.raise_for_status()
-        overview = response.json()["response"].strip()
+        raw = response.json()["response"].strip()
+
+        # Strip thinking tags if present (Qwen3 thinking mode)
+        overview = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
 
         # Cache the result
         _set_cache(conn, query, overview)
