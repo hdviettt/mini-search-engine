@@ -1,36 +1,51 @@
 "use client";
 
 import { Handle, Position } from "@xyflow/react";
-import NodeIcon from "../NodeIcon";
 import type { StoreNodeData } from "../types";
 
+// Database cylinder shape using SVG
 export default function StoreNode({ data }: { data: StoreNodeData }) {
+  const active = data.reading;
+
   return (
-    <div className={`w-[170px] p-3 cursor-pointer transition-colors border ${
-      data.reading
-        ? "bg-[#e88a1a]/5 border-[#e88a1a]/40 border-dashed"
-        : "bg-[#0d0d0d] border-[#333] border-dashed hover:border-[#e88a1a]/30"
-    }`}>
-      <Handle type="target" position={Position.Top} className="!bg-[#333] !border-[#111] !w-2 !h-2" />
-      <Handle type="source" position={Position.Bottom} className="!bg-[#333] !border-[#111] !w-2 !h-2" />
+    <div className="relative cursor-pointer group" style={{ width: 160, height: 100 }}>
+      <Handle type="target" position={Position.Top} className="!bg-[#333] !border-[#111] !w-2 !h-2" style={{ top: -4 }} />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#333] !border-[#111] !w-2 !h-2" style={{ bottom: -4 }} />
 
-      <div className="flex items-center gap-2 mb-1.5">
-        <NodeIcon icon={data.icon} color={data.color} />
-        <span className="text-[11px] font-medium text-[#aaa]">{data.label}</span>
+      {/* Cylinder SVG */}
+      <svg viewBox="0 0 160 100" className="absolute inset-0 w-full h-full">
+        {/* Body */}
+        <path
+          d="M 10 20 L 10 75 Q 10 90 80 90 Q 150 90 150 75 L 150 20"
+          fill={active ? "rgba(232,138,26,0.06)" : "#111"}
+          stroke={active ? "#e88a1a" : "#333"}
+          strokeWidth="1"
+          strokeDasharray={active ? "none" : "4,3"}
+        />
+        {/* Top ellipse */}
+        <ellipse
+          cx="80" cy="20" rx="70" ry="14"
+          fill={active ? "rgba(232,138,26,0.08)" : "#161616"}
+          stroke={active ? "#e88a1a" : "#333"}
+          strokeWidth="1"
+          strokeDasharray={active ? "none" : "4,3"}
+        />
+      </svg>
+
+      {/* Content overlay */}
+      <div className="relative z-10 px-5 pt-6 pb-2 text-center">
+        <div className="text-[11px] font-medium text-[#aaa] mb-0.5">{data.label}</div>
+        <div className="text-[9px] text-[#555]">{data.description}</div>
+        {data.stats.length > 0 && (
+          <div className="mt-1 space-y-0">
+            {data.stats.map((s, i) => (
+              <div key={i} className="text-[9px] text-[#666] font-mono">
+                {s.label}: {s.value}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      <p className="text-[10px] text-[#555] leading-tight mb-1.5">{data.description}</p>
-
-      {data.stats.length > 0 && (
-        <div className="space-y-0.5 border-t border-dashed border-[#222] pt-1.5">
-          {data.stats.map((s, i) => (
-            <div key={i} className="flex items-center justify-between text-[10px]">
-              <span className="text-[#555]">{s.label}</span>
-              <span className="text-[#888] font-mono">{s.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

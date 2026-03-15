@@ -223,10 +223,23 @@ export default function Home() {
           </form>
         </div>
 
+        {/* Node detail panel (collapsible, inline) */}
+        <DetailPanel
+          nodeId={selectedNode}
+          onClose={() => setSelectedNode(null)}
+          trace={searchData?.pipeline || null}
+          overviewTrace={overviewTrace}
+          crawlProgress={crawlProgress}
+          indexProgress={indexProgress}
+          embedProgress={embedProgress}
+          logEntries={logEntries}
+          activeCrawlJobId={activeCrawlJobId}
+          onCrawlStarted={setActiveCrawlJobId}
+        />
+
         {/* Content area */}
         <div className="flex-1 overflow-y-auto">
           {!searchData ? (
-            /* Empty state */
             <div className="flex flex-col items-center justify-center h-full px-6">
               <p className="text-[#555] text-sm mb-4 text-center font-mono">try a search to see the pipeline in action</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -243,7 +256,6 @@ export default function Home() {
             </div>
           ) : (
             <div className="p-4">
-              {/* Results header */}
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-sm text-[#888]">
                   {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms
@@ -251,10 +263,8 @@ export default function Home() {
                 <span className="text-[10px] text-[#444]">for &ldquo;{query}&rdquo;</span>
               </div>
 
-              {/* AI Overview */}
               <AIOverview text={overviewText} sources={overviewSources} loading={overviewLoading} streaming={overviewStreaming} />
 
-              {/* Results */}
               <div className="space-y-2">
                 {searchData.results.map((r, i) => (
                   <a
@@ -265,14 +275,14 @@ export default function Home() {
                     className="block p-3 bg-[#111] border border-[#222] hover:border-[#e88a1a]/30 transition-colors group"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] text-gray-600">#{i + 1}</span>
+                      <span className="text-[10px] text-[#555]">#{i + 1}</span>
                       <span className="text-xs text-[#e88a1a] group-hover:underline truncate">{r.title}</span>
                     </div>
-                    <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">{r.snippet}</p>
-                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-gray-700">
+                    <p className="text-[10px] text-[#555] line-clamp-2 leading-relaxed">{r.snippet}</p>
+                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[#444]">
                       <span>BM25: {r.bm25_score}</span>
                       <span>PR: {r.pagerank_score}</span>
-                      <span className="text-gray-500">= {r.final_score}</span>
+                      <span>= {r.final_score}</span>
                     </div>
                   </a>
                 ))}
@@ -281,20 +291,6 @@ export default function Home() {
           )}
         </div>
       </div>
-
-      {/* Detail panel (on node click) */}
-      <DetailPanel
-        nodeId={selectedNode}
-        onClose={() => setSelectedNode(null)}
-        trace={searchData?.pipeline || null}
-        overviewTrace={overviewTrace}
-        crawlProgress={crawlProgress}
-        indexProgress={indexProgress}
-        embedProgress={embedProgress}
-        logEntries={logEntries}
-        activeCrawlJobId={activeCrawlJobId}
-        onCrawlStarted={setActiveCrawlJobId}
-      />
     </div>
   );
 }
