@@ -9,12 +9,17 @@ import type { OverviewTrace } from "@/lib/api";
 // Map node IDs to ActiveStep for GroundedData
 const nodeToStep: Record<string, ActiveStep> = {
   indexer: "index",
+  inverted_index: "index",
   bm25: "bm25",
-  pagerank: "pagerank",
+  pr_lookup: "pagerank",
+  pr_scores: "pagerank",
   combine: "combine",
   fanout: "ai_fanout",
-  retriever: "ai_retrieval",
+  vector_search: "ai_retrieval",
+  vector_store: "ai_retrieval",
+  llm: "ai_synthesis",
   ai_overview: "ai_synthesis",
+  tokenize: "tokenize",
 };
 
 interface DetailPanelProps {
@@ -36,7 +41,7 @@ export default function DetailPanel({
 }: DetailPanelProps) {
   if (!nodeId) return null;
 
-  const isOpsNode = ["crawler", "chunker", "embedder"].includes(nodeId);
+  const isOpsNode = ["crawler", "chunker", "embedder", "pages_db", "pr_compute"].includes(nodeId);
   const step = nodeToStep[nodeId] || null;
 
   return (

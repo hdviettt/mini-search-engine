@@ -16,8 +16,9 @@ import "@xyflow/react/dist/style.css";
 import SystemNode from "./nodes/SystemNode";
 import PipelineNode from "./nodes/PipelineNode";
 import OutputNode from "./nodes/OutputNode";
-import SearchOverlay from "./SearchOverlay";
-import { initialNodes, initialEdges, phaseEdgeMap, phaseNodeMap } from "./nodeDefinitions";
+import StoreNode from "./nodes/StoreNode";
+import LabelNode from "./nodes/LabelNode";
+import { initialNodes, initialEdges, phaseEdgeMap, phaseNodeMap, phaseStoreMap } from "./nodeDefinitions";
 import type { FlowPhase, PipelineNodeData, OutputNodeData, SystemNodeData } from "./types";
 import type { ExplainResponse, Stats, PipelineTrace } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
@@ -26,6 +27,8 @@ const nodeTypes: NodeTypes = {
   system: SystemNode,
   pipeline: PipelineNode,
   output: OutputNode,
+  store: StoreNode,
+  label: LabelNode,
 };
 
 interface CanvasLayoutProps {
@@ -50,21 +53,19 @@ export default function CanvasLayout({
     if (!stats) return;
     setNodes((nds) =>
       nds.map((n) => {
-        if (n.id === "crawler") {
-          return { ...n, data: { ...n.data, stats: [{ label: "Pages", value: stats.pages_crawled.toLocaleString() }] } };
-        }
-        if (n.id === "indexer") {
-          return { ...n, data: { ...n.data, stats: [
-            { label: "Terms", value: stats.total_terms.toLocaleString() },
-            { label: "Postings", value: stats.total_postings.toLocaleString() },
-          ] } };
-        }
-        if (n.id === "chunker") {
-          return { ...n, data: { ...n.data, stats: [{ label: "Chunks", value: stats.total_chunks.toLocaleString() }] } };
-        }
-        if (n.id === "embedder") {
-          return { ...n, data: { ...n.data, stats: [{ label: "Embedded", value: stats.chunks_embedded.toLocaleString() }] } };
-        }
+        // Build zone stats
+        if (n.id === "crawler") return { ...n, data: { ...n.data, stats: [{ label: "Pages", value: stats.pages_crawled.toLocaleString() }] } };
+        if (n.id === "indexer") return { ...n, data: { ...n.data, stats: [{ label: "Terms", value: stats.total_terms.toLocaleString() }] } };
+        if (n.id === "chunker") return { ...n, data: { ...n.data, stats: [{ label: "Chunks", value: stats.total_chunks.toLocaleString() }] } };
+        if (n.id === "embedder") return { ...n, data: { ...n.data, stats: [{ label: "Vectors", value: stats.chunks_embedded.toLocaleString() }] } };
+        // Store stats
+        if (n.id === "pages_db") return { ...n, data: { ...n.data, stats: [{ label: "Rows", value: stats.pages_crawled.toLocaleString() }] } };
+        if (n.id === "inverted_index") return { ...n, data: { ...n.data, stats: [
+          { label: "Terms", value: stats.total_terms.toLocaleString() },
+          { label: "Postings", value: stats.total_postings.toLocaleString() },
+        ] } };
+        if (n.id === "pr_scores") return { ...n, data: { ...n.data, stats: [{ label: "Pages", value: stats.pages_crawled.toLocaleString() }] } };
+        if (n.id === "vector_store") return { ...n, data: { ...n.data, stats: [{ label: "Vectors", value: stats.chunks_embedded.toLocaleString() }] } };
         return n;
       })
     );
@@ -77,13 +78,21 @@ export default function CanvasLayout({
 
     setNodes((nds) =>
       nds.map((n) => {
+        if (n.id === "query_input" && n.type === "pipeline") {
+          return { ...n, data: { ...n.data, state: "completed",
+            summary: `"${searchData.query}"` } };
+        }
+        if (n.id === "tokenize" && n.type === "pipeline") {
+          return { ...n, data: { ...n.data, state: "completed", timeMs: t.tokenization.time_ms,
+            summary: `[${t.tokenization.tokens.join(", ")}]` } };
+        }
         if (n.id === "bm25" && n.type === "pipeline") {
           return { ...n, data: { ...n.data, state: "completed", timeMs: t.bm25_scoring.time_ms,
-            summary: `${t.bm25_scoring.total_matched} docs matched (k1=${t.bm25_scoring.params.k1})` } };
+            summary: `${t.bm25_scoring.total_matched} docs scored` } };
         }
-        if (n.id === "pagerank" && n.type === "pipeline") {
+        if (n.id === "pr_lookup" && n.type === "pipeline") {
           return { ...n, data: { ...n.data, state: "completed", timeMs: t.pagerank.time_ms,
-            summary: `Top: ${t.pagerank.top_scores[0]?.title.replace(" - Wikipedia", "").slice(0, 25) || ""}` } };
+            summary: `Top: ${t.pagerank.top_scores[0]?.title.replace(" - Wikipedia", "").slice(0, 20) || ""}` } };
         }
         if (n.id === "combine" && n.type === "pipeline") {
           return { ...n, data: { ...n.data, state: "completed", timeMs: t.combination.time_ms,
@@ -106,9 +115,13 @@ export default function CanvasLayout({
           return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.fanout.time_ms,
             summary: `${overviewTrace.fanout.expanded.length} queries` } };
         }
-        if (n.id === "retriever" && n.type === "pipeline" && overviewTrace?.retrieval) {
+        if (n.id === "vector_search" && n.type === "pipeline" && overviewTrace?.retrieval) {
           return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.retrieval.time_ms,
-            summary: `${overviewTrace.retrieval.chunks_retrieved} chunks retrieved` } };
+            summary: `${overviewTrace.retrieval.chunks_retrieved} chunks` } };
+        }
+        if (n.id === "llm" && n.type === "pipeline" && overviewTrace?.synthesis) {
+          return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.synthesis.time_ms,
+            summary: overviewTrace.synthesis.model } };
         }
         if (n.id === "ai_overview" && n.type === "output") {
           if (overviewText) {
@@ -124,27 +137,35 @@ export default function CanvasLayout({
   useEffect(() => {
     const activeEdges = phaseEdgeMap[phase] || [];
     setEdges((eds) =>
-      eds.map((e) => ({
-        ...e,
-        animated: activeEdges.includes(e.id),
-        style: activeEdges.includes(e.id)
-          ? { stroke: "#e88a1a", strokeWidth: 2 }
-          : { stroke: "#222", strokeWidth: 1 },
-      }))
+      eds.map((e) => {
+        const isBuildEdge = e.id.startsWith("b-");
+        const isActive = activeEdges.includes(e.id);
+        return {
+          ...e,
+          animated: isActive,
+          style: isActive
+            ? { stroke: "#e88a1a", strokeWidth: 2 }
+            : isBuildEdge
+              ? { strokeDasharray: "4,4", stroke: "#333", strokeWidth: 1 }
+              : { stroke: "#222", strokeWidth: 1 },
+        };
+      })
     );
 
-    // Glow active node
+    // Glow active node + highlight stores being read
     const activeNode = phaseNodeMap[phase];
-    if (activeNode) {
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id === activeNode && (n.type === "pipeline" || n.type === "output")) {
-            return { ...n, data: { ...n.data, state: "active" } };
-          }
-          return n;
-        })
-      );
-    }
+    const activeStores = phaseStoreMap[phase] || [];
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === activeNode && (n.type === "pipeline" || n.type === "output")) {
+          return { ...n, data: { ...n.data, state: "active" } };
+        }
+        if (n.type === "store") {
+          return { ...n, data: { ...n.data, reading: activeStores.includes(n.id) } };
+        }
+        return n;
+      })
+    );
   }, [phase, setEdges, setNodes]);
 
   // Reset pipeline nodes on new search
@@ -155,6 +176,7 @@ export default function CanvasLayout({
         nds.map((n) => {
           if (n.type === "pipeline") return { ...n, data: { ...n.data, state: "idle", timeMs: null, summary: null } };
           if (n.type === "output") return { ...n, data: { ...n.data, state: "idle", content: null } };
+          if (n.type === "store") return { ...n, data: { ...n.data, reading: false } };
           return n;
         })
       );

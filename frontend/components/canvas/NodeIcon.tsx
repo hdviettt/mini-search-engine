@@ -115,6 +115,72 @@ function Icon({ icon, color }: { icon: string; color: string }) {
           <circle cx="10" cy="17" r="1" fill={c} />
         </svg>
       );
+    case "database":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <ellipse cx="10" cy="4" rx="7" ry="2.5" />
+          <path d="M3 4v12c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V4" />
+          <path d="M3 10c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5" />
+        </svg>
+      );
+    case "inverted_index":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <rect x="2" y="2" width="16" height="16" />
+          <line x1="2" y1="7" x2="18" y2="7" />
+          <line x1="2" y1="12" x2="18" y2="12" />
+          <line x1="8" y1="2" x2="8" y2="18" />
+        </svg>
+      );
+    case "vector_store":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <circle cx="5" cy="15" r="1.5" fill={c} opacity={0.4} />
+          <circle cx="10" cy="5" r="1.5" fill={c} opacity={0.4} />
+          <circle cx="15" cy="12" r="1.5" fill={c} opacity={0.4} />
+          <circle cx="7" cy="9" r="1.5" fill={c} opacity={0.4} />
+          <circle cx="14" cy="6" r="1.5" fill={c} opacity={0.4} />
+          <line x1="5" y1="15" x2="7" y2="9" strokeDasharray="2,2" />
+          <line x1="7" y1="9" x2="10" y2="5" strokeDasharray="2,2" />
+          <line x1="10" y1="5" x2="14" y2="6" strokeDasharray="2,2" />
+          <line x1="14" y1="6" x2="15" y2="12" strokeDasharray="2,2" />
+        </svg>
+      );
+    case "scores":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <circle cx="6" cy="6" r="3" />
+          <circle cx="14" cy="8" r="2" />
+          <circle cx="8" cy="14" r="2.5" />
+          <line x1="6" y1="6" x2="14" y2="8" />
+          <line x1="6" y1="6" x2="8" y2="14" />
+          <line x1="14" y1="8" x2="8" y2="14" />
+        </svg>
+      );
+    case "query":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <circle cx="9" cy="9" r="6" />
+          <line x1="13.5" y1="13.5" x2="18" y2="18" />
+        </svg>
+      );
+    case "tokenize":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <rect x="1" y="7" width="5" height="6" />
+          <rect x="7.5" y="7" width="5" height="6" />
+          <rect x="14" y="7" width="5" height="6" />
+        </svg>
+      );
+    case "llm":
+      return (
+        <svg viewBox="0 0 20 20" fill="none" stroke={c} strokeWidth="1.5" className="w-4 h-4">
+          <rect x="3" y="3" width="14" height="14" />
+          <circle cx="8" cy="9" r="1.5" fill={c} opacity={0.5} />
+          <circle cx="12" cy="9" r="1.5" fill={c} opacity={0.5} />
+          <path d="M7 13 Q10 15 13 13" />
+        </svg>
+      );
     default:
       return <div className="w-4 h-4" />;
   }

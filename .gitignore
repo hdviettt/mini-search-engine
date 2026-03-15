@@ -13,3 +13,4 @@ node_modules/
 ideas/
 .claude/
 backup.sql
+full_backup.sql
