@@ -101,6 +101,120 @@ def list_jobs():
     return job_manager.get_jobs()
 
 
+@router.get("/explore/pages")
+def explore_pages(limit: int = 20, offset: int = 0):
+    """Browse crawled pages."""
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT p.id, p.url, p.domain, p.title, p.status_code,
+                  LENGTH(p.body_text) as text_length, p.crawled_at,
+                  (SELECT COUNT(*) FROM links WHERE source_id = p.id) as outlinks
+           FROM pages p ORDER BY p.id DESC LIMIT %s OFFSET %s""",
+        (limit, offset),
+    ).fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
+    conn.close()
+
+    return {
+        "total": total,
+        "pages": [
+            {
+                "id": r[0], "url": r[1], "domain": r[2], "title": r[3],
+                "status_code": r[4], "text_length": r[5],
+                "crawled_at": str(r[6]) if r[6] else None, "outlinks": r[7],
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/explore/index")
+def explore_index(limit: int = 30):
+    """Browse the inverted index — top terms by document frequency."""
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT t.term,
+                  COUNT(p.page_id) as doc_freq,
+                  SUM(p.term_freq) as total_freq
+           FROM terms t
+           JOIN postings p ON t.id = p.term_id
+           GROUP BY t.id, t.term
+           ORDER BY doc_freq DESC
+           LIMIT %s""",
+        (limit,),
+    ).fetchall()
+
+    corpus = conn.execute("SELECT value FROM corpus_stats WHERE key = 'total_docs'").fetchone()
+    total_docs = int(corpus[0]) if corpus else 0
+    total_terms = conn.execute("SELECT COUNT(*) FROM terms").fetchone()[0]
+    conn.close()
+
+    return {
+        "total_docs": total_docs,
+        "total_terms": total_terms,
+        "terms": [
+            {"term": r[0], "doc_freq": r[1], "total_freq": r[2]}
+            for r in rows
+        ],
+    }
+
+
+@router.get("/explore/pagerank")
+def explore_pagerank(limit: int = 20):
+    """Top pages by PageRank score."""
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT p.id, p.title, p.url, pr.score,
+                  (SELECT COUNT(*) FROM links l JOIN pages p2 ON p2.url = l.target_url WHERE p2.id = p.id) as inlinks
+           FROM pagerank pr
+           JOIN pages p ON pr.page_id = p.id
+           ORDER BY pr.score DESC
+           LIMIT %s""",
+        (limit,),
+    ).fetchall()
+    conn.close()
+
+    return {
+        "pages": [
+            {"id": r[0], "title": r[1], "url": r[2], "score": round(r[3], 6), "inlinks": r[4]}
+            for r in rows
+        ],
+    }
+
+
+@router.get("/explore/chunks")
+def explore_chunks(page_id: int | None = None, limit: int = 10):
+    """Browse chunks — optionally filtered by page."""
+    conn = get_connection()
+    if page_id:
+        rows = conn.execute(
+            """SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
+                      c.embedding IS NOT NULL as has_embedding
+               FROM chunks c JOIN pages p ON c.page_id = p.id
+               WHERE c.page_id = %s ORDER BY c.chunk_idx LIMIT %s""",
+            (page_id, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
+                      c.embedding IS NOT NULL as has_embedding
+               FROM chunks c JOIN pages p ON c.page_id = p.id
+               ORDER BY c.id DESC LIMIT %s""",
+            (limit,),
+        ).fetchall()
+    conn.close()
+
+    return {
+        "chunks": [
+            {
+                "id": r[0], "page_id": r[1], "chunk_idx": r[2],
+                "content": r[3][:300], "title": r[4], "has_embedding": r[5],
+            }
+            for r in rows
+        ],
+    }
+
+
 # --- WebSocket for live progress ---
 
 async def websocket_jobs(websocket: WebSocket):

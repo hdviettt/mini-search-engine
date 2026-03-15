@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchResult } from "@/lib/api";
+import { SearchResult } from "@/lib/types";
 
 interface ResultCardProps {
   result: SearchResult;
