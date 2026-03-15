@@ -10,10 +10,19 @@ export interface OverviewSource {
   keyword_score: number;
 }
 
+export interface OverviewTrace {
+  fanout?: { original: string; expanded: string[]; time_ms: number };
+  retrieval?: { chunks_retrieved: number; chunks: { title: string; content_preview: string; vector_score: number; keyword_score: number; combined_score: number }[]; time_ms: number };
+  synthesis?: { model: string; time_ms: number };
+  total_ms?: number;
+}
+
 export interface OverviewResponse {
   query: string;
   overview: string | null;
   sources: OverviewSource[];
+  trace: OverviewTrace;
+  from_cache: boolean;
 }
 
 export async function searchExplain(q: string, params?: Partial<SearchParams>): Promise<ExplainResponse> {
@@ -31,6 +40,10 @@ export async function getOverview(q: string): Promise<OverviewResponse> {
   const res = await fetch(`${API_BASE}/api/overview?${params}`);
   if (!res.ok) throw new Error("Overview failed");
   return res.json();
+}
+
+export function getOverviewStreamUrl(q: string): string {
+  return `${API_BASE}/api/overview/stream?q=${encodeURIComponent(q)}`;
 }
 
 export async function getStats(): Promise<Stats> {

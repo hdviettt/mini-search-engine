@@ -182,6 +182,84 @@ def explore_pagerank(limit: int = 20):
     }
 
 
+@router.get("/explore/page/{page_id}")
+def explore_page_journey(page_id: int):
+    """Full journey of a single page through the search engine pipeline."""
+    conn = get_connection()
+
+    # Page info
+    page = conn.execute(
+        "SELECT id, url, domain, title, body_text, status_code, crawled_at FROM pages WHERE id = %s",
+        (page_id,),
+    ).fetchone()
+    if not page:
+        conn.close()
+        return {"error": "Page not found"}
+
+    body_text = page[4] or ""
+
+    # Tokenization sample
+    from indexer.tokenizer import tokenize
+    tokens = tokenize(body_text[:2000])
+    from collections import Counter
+    top_terms = Counter(tokens).most_common(15)
+
+    # Doc stats
+    doc_stat = conn.execute("SELECT doc_length FROM doc_stats WHERE page_id = %s", (page_id,)).fetchone()
+
+    # PageRank
+    pr = conn.execute("SELECT score FROM pagerank WHERE page_id = %s", (page_id,)).fetchone()
+
+    # Outlinks
+    outlinks = conn.execute(
+        """SELECT l.target_url, p2.title
+           FROM links l LEFT JOIN pages p2 ON p2.url = l.target_url
+           WHERE l.source_id = %s LIMIT 10""",
+        (page_id,),
+    ).fetchall()
+
+    # Inlinks
+    inlinks = conn.execute(
+        """SELECT p2.id, p2.title
+           FROM links l JOIN pages p2 ON p2.id = l.source_id
+           WHERE l.target_url = (SELECT url FROM pages WHERE id = %s) LIMIT 10""",
+        (page_id,),
+    ).fetchall()
+
+    # Chunks
+    chunks = conn.execute(
+        """SELECT id, chunk_idx, content, embedding IS NOT NULL as has_embedding
+           FROM chunks WHERE page_id = %s ORDER BY chunk_idx""",
+        (page_id,),
+    ).fetchall()
+
+    conn.close()
+
+    return {
+        "page": {
+            "id": page[0], "url": page[1], "domain": page[2], "title": page[3],
+            "text_preview": body_text[:500],
+            "text_length": len(body_text),
+            "status_code": page[5],
+            "crawled_at": str(page[6]) if page[6] else None,
+        },
+        "tokenization": {
+            "doc_length": doc_stat[0] if doc_stat else 0,
+            "top_terms": [{"term": t, "freq": f} for t, f in top_terms],
+            "sample_tokens": tokens[:20],
+        },
+        "pagerank": {
+            "score": round(pr[0], 6) if pr else 0,
+            "inlinks": [{"id": r[0], "title": r[1][:50]} for r in inlinks],
+            "outlinks": [{"url": r[0], "title": (r[1] or "")[:50]} for r in outlinks],
+        },
+        "chunks": [
+            {"id": c[0], "chunk_idx": c[1], "content": c[2][:200], "has_embedding": c[3]}
+            for c in chunks[:8]
+        ],
+    }
+
+
 @router.get("/explore/chunks")
 def explore_chunks(page_id: int | None = None, limit: int = 10):
     """Browse chunks — optionally filtered by page."""

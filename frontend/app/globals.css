@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+/* Custom scrollbars — thin, dark, only visible on hover */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+*:hover > ::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2a4a;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #3a3a6a;
+}
+
+/* Show scrollbar thumb when container is hovered */
+.overflow-y-auto:hover::-webkit-scrollbar-thumb,
+.overflow-auto:hover::-webkit-scrollbar-thumb {
+  background: #1a1a3a;
+}
+
+.overflow-y-auto:hover::-webkit-scrollbar-thumb:hover,
+.overflow-auto:hover::-webkit-scrollbar-thumb:hover {
+  background: #2a2a5a;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: #1a1a3a transparent;
+}

@@ -5,9 +5,11 @@ from fastapi import FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from fastapi.responses import StreamingResponse
+
 from db import get_connection
 from search.engine import search
-from ai_overview.generator import generate_overview
+from ai_overview.generator import generate_overview, generate_overview_stream
 from api.playground import router as playground_router, websocket_jobs
 
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -200,5 +202,24 @@ async def api_overview(q: str = Query("")):
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(_executor, _run_overview, q)
     if result:
-        return {"query": q, "overview": result["overview"], "sources": result["sources"]}
-    return {"query": q, "overview": None, "sources": []}
+        return {
+            "query": q,
+            "overview": result["overview"],
+            "sources": result["sources"],
+            "trace": result.get("trace", {}),
+            "from_cache": result.get("from_cache", False),
+        }
+    return {"query": q, "overview": None, "sources": [], "trace": {}, "from_cache": False}
+
+
+@app.get("/api/overview/stream")
+def api_overview_stream(q: str = Query("")):
+    conn = get_connection()
+
+    def event_stream():
+        try:
+            yield from generate_overview_stream(conn, q)
+        finally:
+            conn.close()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
