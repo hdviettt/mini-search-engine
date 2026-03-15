@@ -1,14 +1,10 @@
-"""Generate AI Overviews using the full RAG pipeline.
-
-Pipeline: query fan-out → hybrid retrieval (vector + BM25) → LLM synthesis
-"""
+"""Generate AI Overviews using Groq API + hybrid RAG retrieval."""
 import re
 
 import httpx
 import psycopg
 
-from config import OLLAMA_BASE_URL, OLLAMA_MODEL, AI_OVERVIEW_MAX_TOKENS, AI_CACHE_TTL_HOURS
-from rag.fanout import expand_query
+from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS, AI_CACHE_TTL_HOURS
 from rag.retriever import hybrid_retrieve
 
 
@@ -41,25 +37,22 @@ def _set_cache(conn: psycopg.Connection, query: str, overview: str):
 
 
 def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
-    """Generate an AI Overview using the full RAG pipeline.
+    """Generate an AI Overview using Groq + hybrid RAG retrieval."""
+    if not GROQ_API_KEY:
+        return None
 
-    Returns dict with 'overview' text and 'sources' list, or None.
-    """
     # Check cache first
     cached = _get_cached(conn, query)
     if cached:
         return {"overview": cached, "sources": [], "from_cache": True}
 
-    # Step 1: Query fan-out
-    queries = expand_query(query)
-
-    # Step 2: Hybrid retrieval (vector + keyword)
-    chunks = hybrid_retrieve(conn, queries, top_k=5)
+    # Step 1: Hybrid retrieval (vector + keyword)
+    chunks = hybrid_retrieve(conn, [query], top_k=5)
 
     if len(chunks) < 2:
         return None
 
-    # Step 3: Build context from retrieved chunks
+    # Step 2: Build context from retrieved chunks
     context = ""
     sources = []
     for i, chunk in enumerate(chunks[:5], 1):
@@ -72,37 +65,34 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
             "keyword_score": round(chunk.get("keyword_score", 0), 4),
         })
 
-    # Step 4: LLM synthesis
-    prompt = f"""Summarize these search results for "{query}" in 2-3 sentences. Cite as [1], [2], etc. Be concise and factual.
-
-{context}
-
-Summary:"""
-
+    # Step 3: LLM synthesis via Groq
     try:
         response = httpx.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": 2048,
-                    "temperature": 0.3,
-                },
+                "model": GROQ_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You summarize search results concisely. Cite sources as [1], [2], etc. Use 2-3 sentences. Be factual.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Summarize these search results for \"{query}\":\n{context}",
+                    },
+                ],
+                "max_tokens": AI_OVERVIEW_MAX_TOKENS,
+                "temperature": 0.3,
             },
-            timeout=180,
+            timeout=15,
         )
         response.raise_for_status()
-        raw = response.json()["response"].strip()
-
-        # Strip thinking tags
-        overview = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+        overview = response.json()["choices"][0]["message"]["content"].strip()
 
         if not overview:
             return None
 
-        # Cache the result
         _set_cache(conn, query, overview)
 
         return {"overview": overview, "sources": sources, "from_cache": False}

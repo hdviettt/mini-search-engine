@@ -1,11 +1,24 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from db import get_connection
 from search.engine import search
 from ai_overview.generator import generate_overview
 
+_executor = ThreadPoolExecutor(max_workers=2)
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 SEARCH_PAGE = """
 <!DOCTYPE html>
@@ -166,11 +179,17 @@ def api_search(q: str = Query(""), page: int = 1, per_page: int = 10):
     return result
 
 
-@app.get("/api/overview")
-def api_overview(q: str = Query("")):
+def _run_overview(q: str):
     conn = get_connection()
     result = generate_overview(conn, q)
     conn.close()
+    return result
+
+
+@app.get("/api/overview")
+async def api_overview(q: str = Query("")):
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(_executor, _run_overview, q)
     if result:
         return {"query": q, "overview": result["overview"], "sources": result["sources"]}
     return {"query": q, "overview": None, "sources": []}

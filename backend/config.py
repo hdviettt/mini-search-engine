@@ -67,8 +67,14 @@ RANK_ALPHA = 0.7
 PAGERANK_DAMPING = 0.85
 PAGERANK_ITERATIONS = 20
 
-# AI Overview (Ollama + Qwen3)
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+# AI Overview (Groq)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+# Embeddings (Voyage AI)
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
+VOYAGE_MODEL = os.getenv("VOYAGE_MODEL", "voyage-3-lite")
+VOYAGE_DIMENSIONS = 512
+
 AI_OVERVIEW_MAX_TOKENS = 300
 AI_CACHE_TTL_HOURS = 24

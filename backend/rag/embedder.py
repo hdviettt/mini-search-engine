@@ -1,9 +1,8 @@
-"""Generate embeddings for chunks using Ollama (nomic-embed-text) with batching."""
+"""Generate embeddings using Ollama (nomic-embed-text) with batching."""
 import httpx
 import psycopg
 
-from config import OLLAMA_BASE_URL
-
+OLLAMA_BASE_URL = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"
 BATCH_SIZE = 50
 
