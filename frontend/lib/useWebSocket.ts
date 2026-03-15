@@ -8,7 +8,7 @@ export function useWebSocket() {
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const connect = useCallback(() => {
     try {
