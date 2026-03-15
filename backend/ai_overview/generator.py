@@ -5,6 +5,7 @@ import httpx
 import psycopg
 
 from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS, AI_CACHE_TTL_HOURS
+from rag.fanout import expand_query
 from rag.retriever import hybrid_retrieve
 
 
@@ -46,8 +47,11 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     if cached:
         return {"overview": cached, "sources": [], "from_cache": True}
 
-    # Step 1: Hybrid retrieval (vector + keyword)
-    chunks = hybrid_retrieve(conn, [query], top_k=5)
+    # Step 1: Query fan-out via Groq (~1s)
+    queries = expand_query(query)
+
+    # Step 2: Hybrid retrieval (vector + keyword)
+    chunks = hybrid_retrieve(conn, queries, top_k=5)
 
     if len(chunks) < 2:
         return None

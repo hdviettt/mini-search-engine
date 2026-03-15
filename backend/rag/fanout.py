@@ -1,49 +1,46 @@
 """Query fan-out: expand a user query into multiple sub-queries for better retrieval."""
-import re
-
 import httpx
 
-from config import OLLAMA_BASE_URL, OLLAMA_MODEL
+from config import GROQ_API_KEY, GROQ_MODEL
 
 
 def expand_query(query: str) -> list[str]:
-    """Expand a user query into 2-3 sub-queries using the LLM.
+    """Expand a user query into 2-3 sub-queries using Groq.
 
     Returns the original query plus generated variants.
-    Falls back to just the original query if LLM fails.
+    Falls back to just the original query if API fails.
     """
-    prompt = f"""Generate 2 alternative search queries for: "{query}"
-Each should find different relevant information. One line per query. No numbering, no explanation. Just the queries.
-
-Queries:"""
+    if not GROQ_API_KEY:
+        return [query]
 
     try:
         response = httpx.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": 512,
-                    "temperature": 0.5,
-                },
+                "model": GROQ_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Generate exactly 2 alternative search queries. One per line. No numbering, no explanation, just the queries.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Alternative search queries for: {query}",
+                    },
+                ],
+                "max_tokens": 100,
+                "temperature": 0.5,
             },
-            timeout=60,
+            timeout=5,
         )
         response.raise_for_status()
-        raw = response.json()["response"].strip()
+        raw = response.json()["choices"][0]["message"]["content"].strip()
 
-        # Strip thinking tags
-        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-
-        # Parse lines into queries
-        lines = [line.strip().strip("-•*123.") .strip() for line in raw.split("\n")]
+        lines = [line.strip().strip("-•*123.)") .strip() for line in raw.split("\n")]
         sub_queries = [line for line in lines if line and len(line) > 3 and len(line) < 200]
 
-        # Always include original query first
-        result = [query] + sub_queries[:2]
-        return result
+        return [query] + sub_queries[:2]
 
     except Exception as e:
         print(f"  Fan-out error: {e}")
