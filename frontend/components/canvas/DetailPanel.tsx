@@ -29,6 +29,8 @@ const storeEndpoints: Record<string, string> = {
   inverted_index: "/api/explore/index?limit=15",
   pr_scores: "/api/explore/pagerank?limit=10",
   vector_store: "/api/explore/chunks?limit=6",
+  chunker_preview: "/api/explore/chunks?limit=5",
+  embedder_preview: "/api/explore/chunks?limit=5",
 };
 
 function StorePreview({ nodeId }: { nodeId: string }) {
@@ -104,9 +106,56 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     );
   }
 
-  // Vector Store (chunks)
-  if (nodeId === "vector_store") {
+  // Vector Store / Chunker / Embedder — all use chunks endpoint but show differently
+  if (nodeId === "vector_store" || nodeId === "chunker_preview" || nodeId === "embedder_preview") {
     const chunks = (data as { chunks: { id: number; page_id: number; chunk_idx: number; content: string; has_embedding: boolean; title: string }[] }).chunks || [];
+
+    if (nodeId === "chunker_preview") {
+      // Chunker: focus on how pages are split into chunks
+      return (
+        <div className="p-3">
+          <div className="text-[10px] text-[#888] mb-2">Pages are split at paragraph/sentence boundaries into ~300-token chunks:</div>
+          <div className="space-y-1.5">
+            {chunks.map((c) => (
+              <div key={c.id} className="p-2 bg-[#111] border border-[#1a1a1a] text-[10px]">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-[#e88a1a]">chunk {c.chunk_idx}</span>
+                  <span className="text-[#333]">|</span>
+                  <span className="text-[#555] truncate">{(c.title || "").replace(" - Wikipedia", "")}</span>
+                </div>
+                <div className="text-[9px] text-[#666] leading-relaxed">{c.content}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (nodeId === "embedder_preview") {
+      // Embedder: focus on embedding status
+      const embedded = chunks.filter((c) => c.has_embedding).length;
+      return (
+        <div className="p-3">
+          <div className="text-[10px] text-[#888] mb-2">Each chunk is converted to a 768-dim vector for similarity search:</div>
+          <div className="flex items-center gap-2 text-[10px] mb-2 p-2 border border-dashed border-[#222]">
+            <span className="text-[#e88a1a] font-mono">{embedded}/{chunks.length}</span>
+            <span className="text-[#555]">chunks in sample have embeddings</span>
+          </div>
+          <div className="space-y-1">
+            {chunks.map((c) => (
+              <div key={c.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[#1a1a1a]">
+                <span className={`w-2 h-2 ${c.has_embedding ? "bg-[#e88a1a]" : "bg-[#333]"}`} />
+                <span className="text-[#555]">p{c.page_id}:c{c.chunk_idx}</span>
+                <span className="text-[#444] truncate flex-1">{c.content.slice(0, 50)}...</span>
+                <span className="text-[9px] text-[#333]">{c.has_embedding ? "768-dim" : "pending"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Default vector store view
     return (
       <div className="p-3 space-y-1.5">
         {chunks.map((c) => (
@@ -149,8 +198,8 @@ export default function DetailPanel({
   const buildToStore: Record<string, string> = {
     indexer: "inverted_index",
     pr_compute: "pr_scores",
-    chunker: "vector_store",
-    embedder: "vector_store",
+    chunker: "chunker_preview",
+    embedder: "embedder_preview",
   };
 
   const isOpsNode = nodeId === "crawler";

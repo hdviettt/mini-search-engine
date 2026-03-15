@@ -37,6 +37,7 @@ export default function Home() {
   // UI
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [dockVisible, setDockVisible] = useState(false);
 
   // Jobs
@@ -181,8 +182,8 @@ export default function Home() {
 
   return (
     <div className="flex w-screen h-screen overflow-hidden bg-[#0d0d0d]">
-      {/* LEFT: Canvas */}
-      <div className="w-[55%] h-full relative">
+      {/* LEFT: Canvas — takes remaining space */}
+      <div className="flex-1 h-full relative min-w-0">
         <CanvasLayout
           onSearch={handleSearch}
           query={query}
@@ -195,10 +196,19 @@ export default function Home() {
         />
       </div>
 
-      {/* RIGHT: Search + Results */}
-      <div className="w-[45%] h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col">
+      {/* RIGHT: Search + Results (collapsible) */}
+      <div className={`h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col shrink-0 transition-all duration-200 ${panelOpen ? "w-[45%]" : "w-8"}`}>
+        {!panelOpen ? (
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-[#161616] transition-colors"
+          >
+            <span className="text-[10px] text-[#555] font-mono" style={{ writingMode: "vertical-rl" }}>search panel</span>
+          </button>
+        ) : (
+          <>
         {/* Search bar */}
-        <div className="p-4 border-b border-[#222] shrink-0">
+        <div className="p-3 border-b border-[#222] shrink-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -208,15 +218,23 @@ export default function Home() {
             }}
             className="flex gap-2"
           >
+            <button
+              type="button"
+              onClick={() => setPanelOpen(false)}
+              className="text-[#444] hover:text-[#e88a1a] cursor-pointer text-lg px-1 shrink-0"
+              title="Collapse panel"
+            >
+              &rsaquo;
+            </button>
             <input
               type="text"
               defaultValue={query}
               placeholder="> search football..."
-              className="flex-1 bg-[#111] border border-[#222] px-4 py-2.5 text-sm text-[#e0e0e0] placeholder-[#444] outline-none focus:border-[#e88a1a]/50 font-mono"
+              className="flex-1 bg-[#111] border border-[#222] px-3 py-2 text-sm text-[#e0e0e0] placeholder-[#444] outline-none focus:border-[#e88a1a]/50 font-mono"
             />
             <button
               type="submit"
-              className="bg-[#e88a1a] hover:bg-[#d07a10] text-[#0d0d0d] px-6 py-2.5 text-sm font-medium cursor-pointer transition-colors"
+              className="bg-[#e88a1a] hover:bg-[#d07a10] text-[#0d0d0d] px-5 py-2 text-sm font-medium cursor-pointer transition-colors"
             >
               Search
             </button>
@@ -290,6 +308,8 @@ export default function Home() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
