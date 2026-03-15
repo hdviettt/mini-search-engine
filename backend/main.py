@@ -1,13 +1,14 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from db import get_connection
 from search.engine import search
 from ai_overview.generator import generate_overview
+from api.playground import router as playground_router, websocket_jobs
 
 _executor = ThreadPoolExecutor(max_workers=2)
 
@@ -17,9 +18,16 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://*.up.railway.app"],
     allow_origin_regex=r"https://.*\.up\.railway\.app",
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(playground_router)
+
+
+@app.websocket("/ws/jobs")
+async def ws_jobs(websocket: WebSocket):
+    await websocket_jobs(websocket)
 
 SEARCH_PAGE = """
 <!DOCTYPE html>

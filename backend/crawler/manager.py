@@ -116,15 +116,28 @@ class CrawlManager:
         )
         self.conn.commit()
 
-    def crawl(self):
+    def _count_pending(self) -> int:
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM crawl_queue WHERE status = 'pending'"
+        ).fetchone()
+        return row[0]
+
+    def crawl(self, stop_event=None, max_pages_override=None, max_depth_override=None, progress_callback=None):
         """Main crawl loop — BFS through the queue until limits are hit."""
-        print(f"Starting crawl (max {MAX_PAGES} pages, max depth {MAX_DEPTH})...")
+        max_pages = max_pages_override or MAX_PAGES
+        max_depth = max_depth_override or MAX_DEPTH
+        print(f"Starting crawl (max {max_pages} pages, max depth {max_depth})...")
         print(f"Domains: {', '.join(ALLOWED_DOMAINS)}")
 
         while True:
+            # Check stop signal
+            if stop_event and stop_event.is_set():
+                print("\nCrawl stopped by user.")
+                break
+
             crawled_count = self._count_crawled()
-            if crawled_count >= MAX_PAGES:
-                print(f"\nReached page limit ({MAX_PAGES}). Stopping.")
+            if crawled_count >= max_pages:
+                print(f"\nReached page limit ({max_pages}). Stopping.")
                 break
 
             next_item = self._get_next_url()
@@ -134,17 +147,32 @@ class CrawlManager:
 
             url, depth = next_item
 
+            if depth > max_depth:
+                self._mark_queue_status(url, "skipped")
+                continue
+
             if self._page_already_crawled(url):
                 self._mark_queue_status(url, "skipped")
                 continue
 
             # Fetch
             domain = urlparse(url).netloc
-            print(f"[{crawled_count + 1}/{MAX_PAGES}] depth={depth} [{domain}] {url}")
+            print(f"[{crawled_count + 1}/{max_pages}] depth={depth} [{domain}] {url}")
             response = self.fetcher.fetch(url)
 
             if response is None:
                 self._mark_queue_status(url, "failed")
+                if progress_callback:
+                    progress_callback({
+                        "pages_crawled": crawled_count,
+                        "queue_size": self._count_pending(),
+                        "current_url": url,
+                        "title": "",
+                        "text_length": 0,
+                        "links_found": 0,
+                        "status_code": 0,
+                        "status": "failed",
+                    })
                 continue
 
             # Parse
@@ -159,6 +187,20 @@ class CrawlManager:
             # Mark as crawled
             self._mark_queue_status(url, "crawled")
             self.conn.commit()
+
+            # Report progress
+            if progress_callback:
+                progress_callback({
+                    "pages_crawled": crawled_count + 1,
+                    "max_pages": max_pages,
+                    "queue_size": self._count_pending(),
+                    "current_url": url,
+                    "title": parsed["title"][:80],
+                    "text_length": len(parsed["body_text"]),
+                    "links_found": len(parsed["links"]),
+                    "status_code": response.status_code,
+                    "status": "ok",
+                })
 
         self.fetcher.close()
         final_count = self._count_crawled()

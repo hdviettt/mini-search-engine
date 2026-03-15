@@ -7,7 +7,7 @@ import psycopg
 from indexer.tokenizer import tokenize
 
 
-def build_index(conn: psycopg.Connection):
+def build_index(conn: psycopg.Connection, progress_callback=None):
     """Build inverted index from all pages in the database.
 
     Uses COPY for bulk loading — orders of magnitude faster than INSERT.
@@ -44,6 +44,19 @@ def build_index(conn: psycopg.Connection):
 
         if (i + 1) % 100 == 0:
             print(f"    Tokenized {i + 1}/{len(pages)} pages...")
+
+        if progress_callback and (i + 1) % 10 == 0:
+            sample_tokens = list(term_counts.keys())[:8]
+            progress_callback({
+                "phase": "tokenizing",
+                "page_id": page_id,
+                "title": (title or "")[:60],
+                "tokens_sample": sample_tokens,
+                "token_count": doc_length,
+                "pages_done": i + 1,
+                "pages_total": len(pages),
+                "unique_terms": len(all_terms),
+            })
 
     print(f"  {len(all_terms)} unique terms found.")
 

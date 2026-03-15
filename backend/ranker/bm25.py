@@ -22,11 +22,15 @@ from config import BM25_K1, BM25_B
 from indexer.tokenizer import tokenize
 
 
-def search_bm25(conn: psycopg.Connection, query: str) -> dict[int, float]:
+def search_bm25(conn: psycopg.Connection, query: str, k1: float | None = None, b: float | None = None) -> dict[int, float]:
     """Score all matching documents for a query using BM25.
 
     Returns {page_id: bm25_score} for all documents containing at least one query term.
+    Optional k1 and b params allow live tuning from the playground.
     """
+    k1 = k1 if k1 is not None else BM25_K1
+    b = b if b is not None else BM25_B
+
     query_terms = tokenize(query)
     if not query_terms:
         return {}
@@ -67,8 +71,8 @@ def search_bm25(conn: psycopg.Connection, query: str) -> dict[int, float]:
 
         for page_id, tf, doc_length in postings:
             # BM25 formula
-            numerator = tf * (BM25_K1 + 1)
-            denominator = tf + BM25_K1 * (1 - BM25_B + BM25_B * (doc_length / avg_doc_length))
+            numerator = tf * (k1 + 1)
+            denominator = tf + k1 * (1 - b + b * (doc_length / avg_doc_length))
             term_score = idf * (numerator / denominator)
 
             scores[page_id] = scores.get(page_id, 0) + term_score

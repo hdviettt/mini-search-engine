@@ -28,7 +28,7 @@ def embed_query(text: str) -> list[float] | None:
     return result[0] if result else None
 
 
-def embed_all_chunks(conn: psycopg.Connection):
+def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
     """Generate embeddings for all chunks that don't have one yet, using batched requests."""
     print("Generating embeddings (batched)...")
 
@@ -36,9 +36,10 @@ def embed_all_chunks(conn: psycopg.Connection):
         "SELECT id, content FROM chunks WHERE embedding IS NULL ORDER BY id"
     ).fetchall()
 
-    print(f"  {len(chunks)} chunks to embed (batch size {BATCH_SIZE})...")
+    total = len(chunks)
+    print(f"  {total} chunks to embed (batch size {BATCH_SIZE})...")
 
-    for batch_start in range(0, len(chunks), BATCH_SIZE):
+    for batch_start in range(0, total, BATCH_SIZE):
         batch = chunks[batch_start:batch_start + BATCH_SIZE]
         texts = [content[:1500] for _, content in batch]
         ids = [chunk_id for chunk_id, _ in batch]
@@ -54,8 +55,16 @@ def embed_all_chunks(conn: psycopg.Connection):
             )
 
         conn.commit()
-        done = min(batch_start + BATCH_SIZE, len(chunks))
-        print(f"  Embedded {done}/{len(chunks)} chunks...")
+        done = min(batch_start + BATCH_SIZE, total)
+        print(f"  Embedded {done}/{total} chunks...")
+
+        if progress_callback:
+            preview = texts[0][:80] if texts else ""
+            progress_callback({
+                "chunks_done": done,
+                "chunks_total": total,
+                "current_chunk_preview": preview,
+            })
 
     embedded_count = conn.execute(
         "SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL"
