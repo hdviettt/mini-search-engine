@@ -177,6 +177,11 @@ SEARCH_PAGE = """
 """
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return SEARCH_PAGE
