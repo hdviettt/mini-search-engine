@@ -26,9 +26,14 @@ class Fetcher:
             parser = RobotFileParser()
             parser.set_url(robots_url)
             try:
-                parser.read()
+                # Fetch robots.txt with our User-Agent (urllib's default gets blocked by some sites)
+                resp = self.client.get(robots_url)
+                if resp.status_code == 200:
+                    parser.parse(resp.text.splitlines())
+                else:
+                    # No robots.txt or error → allow everything
+                    parser.allow_all = True
             except Exception:
-                # If we can't read robots.txt, allow everything
                 parser.allow_all = True
             self._robots_cache[domain] = parser
         return self._robots_cache[domain]

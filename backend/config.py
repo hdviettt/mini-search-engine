@@ -17,7 +17,7 @@ ALLOWED_DOMAINS = ["en.wikipedia.org"]
 MAX_PAGES = 1000
 MAX_DEPTH = 4
 CRAWL_DELAY = 1.5  # seconds between requests to same domain
-USER_AGENT = "VietSearchBot/1.0 (learning project; github.com/viet)"
+USER_AGENT = "Mozilla/5.0 (compatible; VietSearchBot/1.0; +https://github.com/hdviettt/mini-search-engine)"
 REQUEST_TIMEOUT = 10  # seconds
 
 # BM25 parameters
