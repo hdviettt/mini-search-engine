@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 import psycopg
 
-from config import ALLOWED_DOMAINS, MAX_PAGES, MAX_DEPTH
+from config import ALLOWED_DOMAINS, ALLOWED_PATH_PATTERNS, BLOCKED_DOMAINS, MAX_PAGES, MAX_DEPTH
 from crawler.fetcher import Fetcher
 from crawler.parser import parse_page
 
@@ -23,9 +23,25 @@ class CrawlManager:
         print(f"Seeded {len(urls)} URLs.")
 
     def _is_in_scope(self, url: str) -> bool:
-        """Check if URL belongs to an allowed domain."""
-        domain = urlparse(url).netloc
-        return domain in ALLOWED_DOMAINS
+        """Check if URL belongs to an allowed domain and matches allowed paths."""
+        parsed = urlparse(url)
+        domain = parsed.netloc
+        path = parsed.path
+
+        # Block spam domains
+        if domain in BLOCKED_DOMAINS:
+            return False
+
+        # Must be in allowed domains
+        if domain not in ALLOWED_DOMAINS:
+            return False
+
+        # Must match at least one allowed path pattern
+        for pattern in ALLOWED_PATH_PATTERNS:
+            if pattern in path:
+                return True
+
+        return False
 
     def _get_next_url(self) -> tuple[str, int] | None:
         """Pop the next pending URL from the queue."""
@@ -70,7 +86,6 @@ class CrawlManager:
             ),
         ).fetchone()
         if row is None:
-            # Already existed
             row = self.conn.execute(
                 "SELECT id FROM pages WHERE url = %s", (url,)
             ).fetchone()
@@ -104,6 +119,7 @@ class CrawlManager:
     def crawl(self):
         """Main crawl loop — BFS through the queue until limits are hit."""
         print(f"Starting crawl (max {MAX_PAGES} pages, max depth {MAX_DEPTH})...")
+        print(f"Domains: {', '.join(ALLOWED_DOMAINS)}")
 
         while True:
             crawled_count = self._count_crawled()
@@ -123,7 +139,8 @@ class CrawlManager:
                 continue
 
             # Fetch
-            print(f"[{crawled_count + 1}/{MAX_PAGES}] depth={depth} {url}")
+            domain = urlparse(url).netloc
+            print(f"[{crawled_count + 1}/{MAX_PAGES}] depth={depth} [{domain}] {url}")
             response = self.fetcher.fetch(url)
 
             if response is None:

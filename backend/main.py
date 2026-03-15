@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 
 from db import get_connection
 from search.engine import search
+from ai_overview.generator import generate_overview
 
 app = FastAPI()
 
@@ -49,6 +50,14 @@ SEARCH_PAGE = """
         .bm25-bar { background: #e94560; }
         .pr-bar { background: #0f3460; }
 
+        .ai-overview {
+            margin-bottom: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, #1a1a3e, #16213e);
+            border-radius: 8px; border: 1px solid #3a3a6a; line-height: 1.6;
+        }
+        .ai-overview .ai-label { font-size: 0.75rem; color: #e94560; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .ai-overview .ai-text { font-size: 0.95rem; color: #d0d0d0; }
+        .ai-overview .ai-loading { color: #888; font-style: italic; }
+
         .empty { text-align: center; color: #888; margin-top: 3rem; }
         .loading { text-align: center; color: #888; margin-top: 3rem; }
     </style>
@@ -64,7 +73,7 @@ SEARCH_PAGE = """
                 <div class="home">
                     <h1>VietSearch</h1>
                     <form class="search-box" onsubmit="doSearch(event)">
-                        <input type="text" id="q" placeholder="Search 750 Wikipedia pages..." autofocus>
+                        <input type="text" id="q" placeholder="Search football..." autofocus>
                         <button type="submit">Search</button>
                     </form>
                 </div>`;
@@ -89,6 +98,18 @@ SEARCH_PAGE = """
             const resp = await fetch('/api/search?q=' + encodeURIComponent(q));
             const data = await resp.json();
             renderResults(data);
+
+            // Fetch AI Overview async (don't block results)
+            if (data.total_results >= 3) {
+                const aiResp = await fetch('/api/overview?q=' + encodeURIComponent(q));
+                const aiData = await aiResp.json();
+                if (aiData.overview) {
+                    const overviewEl = document.querySelector('.ai-overview');
+                    if (overviewEl) {
+                        overviewEl.innerHTML = `<div class="ai-label">AI Overview</div><div class="ai-text">${aiData.overview}</div>`;
+                    }
+                }
+            }
         }
 
         function renderResults(data) {
@@ -101,7 +122,11 @@ SEARCH_PAGE = """
             const maxBm25 = Math.max(...data.results.map(r => r.bm25_score));
             const maxPr = Math.max(...data.results.map(r => r.pagerank_score));
 
-            let html = `<div class="meta">${data.total_results} results in ${data.time_ms.toFixed(1)}ms</div>`;
+            let html = '';
+            if (data.total_results >= 3) {
+                html += `<div class="ai-overview"><div class="ai-label">AI Overview</div><div class="ai-loading">Generating...</div></div>`;
+            }
+            html += `<div class="meta">${data.total_results} results in ${data.time_ms.toFixed(1)}ms</div>`;
             for (const r of data.results) {
                 const bm25w = maxBm25 > 0 ? (r.bm25_score / maxBm25 * 100) : 0;
                 const prw = maxPr > 0 ? (r.pagerank_score / maxPr * 80) : 0;
@@ -139,3 +164,21 @@ def api_search(q: str = Query(""), page: int = 1, per_page: int = 10):
     result = search(conn, q, page, per_page)
     conn.close()
     return result
+
+
+@app.get("/api/overview")
+def api_overview(q: str = Query("")):
+    conn = get_connection()
+    result = search(conn, q, page=1, per_page=5)
+    overview = None
+    if result["results"]:
+        page_ids = [r.url for r in result["results"]]
+        # Get page IDs from URLs
+        ids = []
+        for r in result["results"]:
+            row = conn.execute("SELECT id FROM pages WHERE url = %s", (r.url,)).fetchone()
+            if row:
+                ids.append(row[0])
+        overview = generate_overview(conn, q, ids)
+    conn.close()
+    return {"query": q, "overview": overview}
