@@ -31,14 +31,15 @@ export default function AIOverviewFlow({ trace, loading, activeStep, onHoverStep
 
   if (!hasData) return null;
 
-  const steps: { id: ActiveStep; label: string; color: string; time: number | null; summary: string; show: boolean }[] = [
-    { id: "ai_fanout", label: "Fan-out", color: "bg-amber-500", time: trace?.fanout?.time_ms || null,
+  const allSteps: { id: ActiveStep; label: string; color: string; time: number | null; summary: string; show: boolean }[] = [
+    { id: "ai_fanout" as ActiveStep, label: "Fan-out", color: "bg-amber-500", time: trace?.fanout?.time_ms ?? null,
       summary: trace?.fanout ? `${trace.fanout.expanded.length} queries` : "", show: !!trace?.fanout },
-    { id: "ai_retrieval", label: "Hybrid Retrieval", color: "bg-purple-500", time: trace?.retrieval?.time_ms || null,
+    { id: "ai_retrieval" as ActiveStep, label: "Hybrid Retrieval", color: "bg-purple-500", time: trace?.retrieval?.time_ms ?? null,
       summary: trace?.retrieval ? `${trace.retrieval.chunks_retrieved} chunks (vector + keyword)` : "", show: !!trace?.retrieval },
-    { id: "ai_synthesis", label: "LLM Synthesis", color: "bg-emerald-500", time: trace?.synthesis?.time_ms || null,
+    { id: "ai_synthesis" as ActiveStep, label: "LLM Synthesis", color: "bg-emerald-500", time: trace?.synthesis?.time_ms ?? null,
       summary: trace?.synthesis ? trace.synthesis.model : "generating...", show: !!trace?.synthesis || loading },
-  ].filter((s) => s.show);
+  ];
+  const steps = allSteps.filter((s) => s.show);
 
   return (
     <div className="border border-[#1a1a3a] rounded-lg overflow-hidden bg-[#0a0a18] mb-2">
