@@ -1,267 +1,236 @@
 import type { Node, Edge } from "@xyflow/react";
 
 /*
-  3-zone architecture with group containers:
+  BUILD ZONE:
+                    Crawler
+                   /       \
+          Indexer  PR_Compute  Chunker → Embedder
 
-  ┌─── BUILD ZONE ──────────────────────────────────────────────┐
-  │  Crawler → Indexer, PageRank Compute, Chunker → Embedder    │
-  └─────────────────────────────────────────────────────────────┘
-                              ↓ writes to
-  ┌─── DATA STORES ────────────────────────────────────────────┐
-  │  Pages DB | Inverted Index | PageRank Scores | Vector Store │
-  └─────────────────────────────────────────────────────────────┘
-                              ↓ reads from
-  ┌─── QUERY ZONE ─────────────────────────────────────────────┐
-  │  [Query] → Tokenize → BM25 + PR Lookup → Combine → Results │
-  │  [Query] → Embed → Fan-out → Vector Search → LLM → AI Ovw  │
-  └─────────────────────────────────────────────────────────────┘
+  DATA STORES:
+    Pages DB | Inverted Index | PR Scores | Vector Store
+
+  QUERY ZONE:
+    ┌─ SEARCH PATH ──────────────────────────┐
+    │ Query → Tokenize → BM25 + PR → Combine │
+    │                                → Results│
+    └────────────────────────────────────────┘
+    ┌─ AI OVERVIEW PATH ─────────────────────┐
+    │ Query → Embed → Fan-out → Vector Search│
+    │                       → LLM → AI Ovw   │
+    └────────────────────────────────────────┘
 */
 
+const BUILD_ROW1 = 30;
+const BUILD_ROW2 = 130;
+const STORE_Y = 30;
+const Q_ROW1 = 30;
+const Q_ROW2 = 140;
+const Q_ROW3 = 250;
+const Q_ROW4 = 350;
+
 export const initialNodes: Node[] = [
-  // ============================================================
-  // ZONE LABELS (standalone, not children of groups)
-  // ============================================================
+  // ZONE LABELS
   { id: "label_build", type: "label", position: { x: 8, y: -18 }, draggable: false, selectable: false, connectable: false, data: { label: "BUILD (offline)" } },
-  { id: "label_stores", type: "label", position: { x: 8, y: 152 }, draggable: false, selectable: false, connectable: false, data: { label: "DATA STORES" } },
-  { id: "label_query", type: "label", position: { x: 8, y: 322 }, draggable: false, selectable: false, connectable: false, data: { label: "QUERY (per search)" } },
+  { id: "label_stores", type: "label", position: { x: 8, y: 282 }, draggable: false, selectable: false, connectable: false, data: { label: "DATA STORES" } },
+  { id: "label_query", type: "label", position: { x: 8, y: 462 }, draggable: false, selectable: false, connectable: false, data: { label: "QUERY (per search)" } },
 
   // ============================================================
-  // GROUP: BUILD ZONE
+  // BUILD ZONE — Crawler on top, branches down
   // ============================================================
   {
     id: "group_build",
     type: "group",
     position: { x: 0, y: 0 },
     data: { label: "" },
-    style: {
-      width: 960,
-      height: 130,
-      background: "rgba(232, 138, 26, 0.02)",
-      border: "1px dashed #2a2a2a",
-      borderRadius: 0,
-      padding: 0,
-    },
+    style: { width: 900, height: 260, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
   },
+  // Row 1: Crawler centered
   {
     id: "crawler",
     type: "system",
-    position: { x: 20, y: 25 },
+    position: { x: 350, y: BUILD_ROW1 },
     parentId: "group_build",
     data: { label: "Crawler", icon: "crawler", description: "Fetches pages via BFS", stats: [], status: "ready", color: "emerald" },
   },
+  // Row 2: branches
   {
     id: "indexer",
     type: "system",
-    position: { x: 220, y: 25 },
+    position: { x: 50, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Indexer", icon: "indexer", description: "Builds inverted index", stats: [], status: "ready", color: "blue" },
   },
   {
     id: "pr_compute",
     type: "system",
-    position: { x: 420, y: 25 },
+    position: { x: 280, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "PageRank", icon: "pagerank", description: "Computes link authority", stats: [], status: "ready", color: "indigo" },
   },
   {
     id: "chunker",
     type: "system",
-    position: { x: 600, y: 25 },
+    position: { x: 510, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Chunker", icon: "chunker", description: "~300-token chunks", stats: [], status: "ready", color: "violet" },
   },
   {
     id: "embedder",
     type: "system",
-    position: { x: 780, y: 25 },
+    position: { x: 710, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Embedder", icon: "embedder", description: "768-dim vectors", stats: [], status: "ready", color: "purple" },
   },
 
   // ============================================================
-  // GROUP: DATA STORES
+  // DATA STORES
   // ============================================================
   {
     id: "group_stores",
     type: "group",
-    position: { x: 0, y: 170 },
+    position: { x: 0, y: 300 },
     data: { label: "" },
-    style: {
-      width: 960,
-      height: 130,
-      background: "rgba(232, 138, 26, 0.02)",
-      border: "1px dashed #2a2a2a",
-      borderRadius: 0,
-    },
+    style: { width: 900, height: 140, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
   },
   {
     id: "pages_db",
     type: "store",
-    position: { x: 20, y: 25 },
+    position: { x: 20, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Pages DB", icon: "database", description: "Crawled pages", stats: [], color: "emerald", reading: false },
   },
   {
     id: "inverted_index",
     type: "store",
-    position: { x: 220, y: 25 },
+    position: { x: 210, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Inverted Index", icon: "inverted_index", description: "term → [docs...]", stats: [], color: "blue", reading: false },
   },
   {
     id: "pr_scores",
     type: "store",
-    position: { x: 450, y: 25 },
+    position: { x: 420, y: STORE_Y },
     parentId: "group_stores",
-    data: { label: "PageRank Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", reading: false },
+    data: { label: "PR Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", reading: false },
   },
   {
     id: "vector_store",
     type: "store",
-    position: { x: 680, y: 25 },
+    position: { x: 650, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", reading: false },
   },
 
   // ============================================================
-  // GROUP: QUERY ZONE
+  // QUERY ZONE — two labeled sub-paths
   // ============================================================
   {
     id: "group_query",
     type: "group",
-    position: { x: 0, y: 340 },
+    position: { x: 0, y: 480 },
     data: { label: "" },
-    style: {
-      width: 960,
-      height: 390,
-      background: "rgba(232, 138, 26, 0.02)",
-      border: "1px dashed #2a2a2a",
-      borderRadius: 0,
-    },
+    style: { width: 900, height: 430, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
   },
 
-  // -- Query entry point --
+  // Path labels inside query zone
+  { id: "label_search_path", type: "label", position: { x: 10, y: 8 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> SEARCH PATH" } },
+  { id: "label_ai_path", type: "label", position: { x: 470, y: 8 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> AI OVERVIEW PATH" } },
+
+  // Query entry
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 20, y: 25 },
+    position: { x: 200, y: Q_ROW1 },
     parentId: "group_query",
-    data: {
-      label: "Search Query", icon: "query", description: "User enters a query",
-      color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
 
-  // -- Left track: keyword search --
+  // -- SEARCH PATH (left) --
   {
     id: "tokenize",
     type: "pipeline",
-    position: { x: 20, y: 130 },
+    position: { x: 30, y: Q_ROW2 },
     parentId: "group_query",
-    data: {
-      label: "Tokenize", icon: "tokenize", description: "Query → tokens",
-      color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "Tokenize", icon: "tokenize", description: "Query → tokens", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "bm25",
     type: "pipeline",
-    position: { x: 20, y: 220 },
+    position: { x: 30, y: Q_ROW3 },
     parentId: "group_query",
-    data: {
-      label: "BM25 Scoring", icon: "bm25", description: "TF × IDF × length",
-      color: "amber", phase: "bm25", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "BM25 Scoring", icon: "bm25", description: "TF × IDF × length", color: "amber", phase: "bm25", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "pr_lookup",
     type: "pipeline",
-    position: { x: 220, y: 220 },
+    position: { x: 230, y: Q_ROW3 },
     parentId: "group_query",
-    data: {
-      label: "PR Lookup", icon: "pagerank", description: "Fetch scores",
-      color: "amber", phase: "pagerank", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "PR Lookup", icon: "pagerank", description: "Fetch scores", color: "amber", phase: "pagerank", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "combine",
     type: "pipeline",
-    position: { x: 120, y: 310 },
+    position: { x: 130, y: Q_ROW4 },
     parentId: "group_query",
-    data: {
-      label: "Combine", icon: "combine", description: "α×BM25 + (1-α)×PR",
-      color: "amber", phase: "combining", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "Combine", icon: "combine", description: "α×BM25 + (1-α)×PR", color: "amber", phase: "combining", timeMs: null, summary: null, detail: null, state: "idle" },
+  },
+  {
+    id: "results",
+    type: "output",
+    position: { x: 30, y: Q_ROW4 + 100 },
+    parentId: "group_query",
+    data: { type: "results", label: "Ranked Results", color: "amber", content: null, state: "idle" },
   },
 
-  // -- Right track: AI overview --
-  {
-    id: "embed_query",
-    type: "pipeline",
-    position: { x: 500, y: 25 },
-    parentId: "group_query",
-    data: {
-      label: "Embed Query", icon: "embedder", description: "Query → vector",
-      color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle",
-    },
-  },
+  // -- AI OVERVIEW PATH (right) --
   {
     id: "fanout",
     type: "pipeline",
-    position: { x: 500, y: 130 },
+    position: { x: 480, y: Q_ROW2 },
     parentId: "group_query",
-    data: {
-      label: "Fan-out", icon: "fanout", description: "Expand via LLM",
-      color: "amber", phase: "aiFanout", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "Fan-out", icon: "fanout", description: "Expand via LLM", color: "amber", phase: "aiFanout", timeMs: null, summary: null, detail: null, state: "idle" },
+  },
+  {
+    id: "embed_query",
+    type: "pipeline",
+    position: { x: 680, y: Q_ROW2 },
+    parentId: "group_query",
+    data: { label: "Embed Query", icon: "embedder", description: "Query → vector", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "vector_search",
     type: "pipeline",
-    position: { x: 700, y: 130 },
+    position: { x: 580, y: Q_ROW3 },
     parentId: "group_query",
-    data: {
-      label: "Vector Search", icon: "retriever", description: "Cosine similarity",
-      color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle",
-    },
+    data: { label: "Vector Search", icon: "retriever", description: "Cosine similarity", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "llm",
     type: "pipeline",
-    position: { x: 600, y: 220 },
+    position: { x: 580, y: Q_ROW4 },
     parentId: "group_query",
-    data: {
-      label: "LLM Synthesis", icon: "llm", description: "Groq — Llama 3.3 70B",
-      color: "amber", phase: "aiSynthesis", timeMs: null, summary: null, detail: null, state: "idle",
-    },
-  },
-
-  // -- Outputs (inside query zone) --
-  {
-    id: "results",
-    type: "output",
-    position: { x: 20, y: 310 },
-    parentId: "group_query",
-    data: { type: "results", label: "Ranked Results", color: "amber", content: null, state: "idle" },
+    data: { label: "LLM Synthesis", icon: "llm", description: "Groq — Llama 3.3 70B", color: "amber", phase: "aiSynthesis", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "ai_overview",
     type: "output",
-    position: { x: 500, y: 310 },
+    position: { x: 500, y: Q_ROW4 + 100 },
     parentId: "group_query",
     data: { type: "ai_overview", label: "AI Overview", color: "amber", content: null, state: "idle" },
   },
 ];
 
 export const initialEdges: Edge[] = [
-  // BUILD → STORE (dashed, write paths)
-  { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "#333" } },
+  // BUILD: Crawler branches down
   { id: "b-crawler-indexer", source: "crawler", target: "indexer", style: { stroke: "#333" } },
-  { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "#333" } },
   { id: "b-crawler-pr", source: "crawler", target: "pr_compute", style: { stroke: "#333" } },
-  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "#333" } },
   { id: "b-crawler-chunker", source: "crawler", target: "chunker", style: { stroke: "#333" } },
   { id: "b-chunker-embedder", source: "chunker", target: "embedder", style: { stroke: "#333" } },
+
+  // BUILD → STORE (dashed write paths)
+  { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "#333" } },
+  { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "#333" } },
+  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "#333" } },
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "#333" } },
 
   // STORE → QUERY (read paths)
@@ -269,7 +238,7 @@ export const initialEdges: Edge[] = [
   { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", style: { stroke: "#222" } },
   { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", style: { stroke: "#222" } },
 
-  // QUERY flow — left track (keyword search)
+  // SEARCH PATH
   { id: "q-input-tokenize", source: "query_input", target: "tokenize", style: { stroke: "#222" } },
   { id: "q-token-bm25", source: "tokenize", target: "bm25", style: { stroke: "#222" } },
   { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", style: { stroke: "#222" } },
@@ -277,17 +246,17 @@ export const initialEdges: Edge[] = [
   { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", style: { stroke: "#222" } },
   { id: "q-combine-results", source: "combine", target: "results", style: { stroke: "#222" } },
 
-  // QUERY flow — right track (AI overview)
-  { id: "q-input-embed", source: "query_input", target: "embed_query", style: { stroke: "#222" } },
-  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", style: { stroke: "#222" } },
-  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", style: { stroke: "#222" } },
+  // AI OVERVIEW PATH
   { id: "q-input-fanout", source: "query_input", target: "fanout", style: { stroke: "#222" } },
+  { id: "q-input-embed", source: "query_input", target: "embed_query", style: { stroke: "#222" } },
+  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", style: { stroke: "#222" } },
+  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", style: { stroke: "#222" } },
   { id: "q-vsearch-llm", source: "vector_search", target: "llm", style: { stroke: "#222" } },
   { id: "q-llm-ai", source: "llm", target: "ai_overview", style: { stroke: "#222" } },
 ];
 
 export const phaseEdgeMap: Record<string, string[]> = {
-  tokenizing: ["q-input-tokenize", "q-input-embed", "q-input-fanout"],
+  tokenizing: ["q-input-tokenize", "q-input-fanout", "q-input-embed"],
   indexLookup: ["q-index-bm25", "q-token-bm25"],
   bm25: ["q-index-bm25", "q-token-bm25"],
   pagerank: ["q-scores-prlookup", "q-token-prlookup"],

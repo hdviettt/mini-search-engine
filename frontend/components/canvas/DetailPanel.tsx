@@ -145,7 +145,16 @@ export default function DetailPanel({
 }: DetailPanelProps) {
   if (!nodeId) return null;
 
-  const isOpsNode = ["crawler", "chunker", "embedder", "pr_compute"].includes(nodeId);
+  // Build nodes map to their related store for preview
+  const buildToStore: Record<string, string> = {
+    indexer: "inverted_index",
+    pr_compute: "pr_scores",
+    chunker: "vector_store",
+    embedder: "vector_store",
+  };
+
+  const isOpsNode = nodeId === "crawler";
+  const storeId = buildToStore[nodeId] || null;
   const isStoreNode = !!storeEndpoints[nodeId];
   const step = nodeToStep[nodeId] || null;
 
@@ -153,16 +162,16 @@ export default function DetailPanel({
 
   return (
     <div className="border-t border-[#222] bg-[#0d0d0d]">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
         <span className="text-[11px] font-medium text-[#888] uppercase tracking-wider">{nodeLabel}</span>
         <button onClick={onClose} className="text-[#555] hover:text-[#e88a1a] cursor-pointer text-sm">&times;</button>
       </div>
 
-      {/* Content */}
       <div className="max-h-[250px] overflow-y-auto">
         {isStoreNode ? (
           <StorePreview nodeId={nodeId} />
+        ) : storeId ? (
+          <StorePreview nodeId={storeId} />
         ) : isOpsNode ? (
           <OperationsTab
             crawlProgress={crawlProgress as never}
