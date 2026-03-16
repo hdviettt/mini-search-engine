@@ -211,23 +211,31 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
   }
 
   // AI Fan-out
-  if (activeStep === "ai_fanout" && overviewTrace?.fanout) {
-    const f = overviewTrace.fanout;
+  if (activeStep === "ai_fanout") {
+    const f = overviewTrace?.fanout;
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Query Fan-out</div>
         <Intro>LLM rewrites your query into alternative phrasings for broader retrieval. This captures synonyms and related concepts the original query might miss.</Intro>
-        <div className="space-y-1">
-          {f.expanded.map((q, i) => (
-            <div key={i} className={`p-1.5 text-[10px] font-mono ${i === 0 ? "bg-[var(--accent-muted)] border border-[var(--accent)]/20 text-[var(--accent)]" : "bg-[var(--bg-card)] text-[var(--text-dim)]"}`}>
-              {i === 0 && <span className="text-[8px] text-[var(--accent)] block mb-0.5">ORIGINAL</span>}
-              {i > 0 && <span className="text-[8px] text-[var(--text-dim)] block mb-0.5">GENERATED</span>}
-              {q}
+        {f ? (
+          <>
+            <div className="space-y-1">
+              {f.expanded.map((q, i) => (
+                <div key={i} className={`p-1.5 text-[10px] font-mono ${i === 0 ? "bg-[var(--accent-muted)] border border-[var(--accent)]/20 text-[var(--accent)]" : "bg-[var(--bg-card)] text-[var(--text-dim)]"}`}>
+                  {i === 0 && <span className="text-[8px] text-[var(--accent)] block mb-0.5">ORIGINAL</span>}
+                  {i > 0 && <span className="text-[8px] text-[var(--text-dim)] block mb-0.5">GENERATED</span>}
+                  {q}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        {f.time_ms && (
-          <div className="text-[9px] text-[var(--text-dim)]">Fan-out took {f.time_ms?.toFixed(0)}ms</div>
+            {f.time_ms && (
+              <div className="text-[9px] text-[var(--text-dim)]">Fan-out took {f.time_ms?.toFixed(0)}ms</div>
+            )}
+          </>
+        ) : (
+          <div className="text-[9px] text-[var(--text-dim)] font-mono p-1.5 border-l-2 border-[var(--accent)]/30">
+            query &rarr; LLM &rarr; [original, variant1, variant2, ...]
+          </div>
         )}
       </div>
     );
@@ -261,43 +269,50 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
   }
 
   // Vector Search / AI Retrieval
-  if (activeStep === "ai_retrieval" && overviewTrace?.retrieval) {
-    const r = overviewTrace.retrieval;
-    const maxCombined = Math.max(...r.chunks.map((c) => c.combined_score || 0), 0.01);
+  if (activeStep === "ai_retrieval") {
+    const r = overviewTrace?.retrieval;
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Retrieved Chunks</div>
         <Intro>Hybrid retrieval: 60% vector similarity (semantic meaning) + 40% keyword overlap (exact terms) for comprehensive recall.</Intro>
-        <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
-          {r.chunks_retrieved} chunks retrieved{r.time_ms ? ` in ${r.time_ms.toFixed(0)}ms` : ""}
-        </div>
-        <div className="space-y-1.5">
-          {r.chunks.slice(0, 5).map((c, i) => (
-            <div key={i} className="border border-[var(--border)] p-2">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[9px] text-[var(--accent)] font-mono">[{i + 1}]</span>
-                <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{c.title.replace(" - Wikipedia", "")}</span>
-              </div>
-              <div className="text-[9px] text-[var(--text-dim)] leading-relaxed line-clamp-2 pl-4 mb-1.5">{c.content_preview}</div>
-              <div className="pl-4 space-y-0.5">
-                <div className="flex items-center gap-2 text-[8px]">
-                  <span className="text-[var(--text-dim)] w-12">semantic</span>
-                  <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
-                    <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(c.vector_score || 0) * 100}%` }} />
-                  </div>
-                  <span className="text-[var(--accent)] font-mono w-8 text-right">{(c.vector_score || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[8px]">
-                  <span className="text-[var(--text-dim)] w-12">keyword</span>
-                  <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
-                    <div className="h-full bg-indigo-500/40" style={{ width: `${(c.keyword_score || 0) * 100}%` }} />
-                  </div>
-                  <span className="text-[var(--text-muted)] font-mono w-8 text-right">{(c.keyword_score || 0).toFixed(2)}</span>
-                </div>
-              </div>
+        {r ? (
+          <>
+            <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+              {r.chunks_retrieved} chunks retrieved{r.time_ms ? ` in ${r.time_ms.toFixed(0)}ms` : ""}
             </div>
-          ))}
-        </div>
+            <div className="space-y-1.5">
+              {r.chunks.slice(0, 5).map((c, i) => (
+                <div key={i} className="border border-[var(--border)] p-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] text-[var(--accent)] font-mono">[{i + 1}]</span>
+                    <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{c.title.replace(" - Wikipedia", "")}</span>
+                  </div>
+                  <div className="text-[9px] text-[var(--text-dim)] leading-relaxed line-clamp-2 pl-4 mb-1.5">{c.content_preview}</div>
+                  <div className="pl-4 space-y-0.5">
+                    <div className="flex items-center gap-2 text-[8px]">
+                      <span className="text-[var(--text-dim)] w-12">semantic</span>
+                      <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                        <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(c.vector_score || 0) * 100}%` }} />
+                      </div>
+                      <span className="text-[var(--accent)] font-mono w-8 text-right">{(c.vector_score || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[8px]">
+                      <span className="text-[var(--text-dim)] w-12">keyword</span>
+                      <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                        <div className="h-full bg-indigo-500/40" style={{ width: `${(c.keyword_score || 0) * 100}%` }} />
+                      </div>
+                      <span className="text-[var(--text-muted)] font-mono w-8 text-right">{(c.keyword_score || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="text-[9px] text-[var(--text-dim)] font-mono p-1.5 border-l-2 border-[var(--accent)]/30">
+            query vectors + fan-out queries &rarr; cosine similarity &rarr; top-K chunks
+          </div>
+        )}
       </div>
     );
   }
