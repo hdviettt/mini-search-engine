@@ -590,12 +590,12 @@ export default function DetailPanel({
 
     // Pipeline nodes — GroundedData
     if (step && (trace || overviewTrace)) {
-      return <GroundedData activeStep={step} trace={trace} overviewTrace={overviewTrace} />;
+      return <GroundedData activeStep={step} trace={trace} overviewTrace={overviewTrace} overviewText={overviewText} />;
     }
 
     // Pipeline node but no data yet
     if (step) {
-      return <GroundedData activeStep={step} trace={null} overviewTrace={null} />;
+      return <GroundedData activeStep={step} trace={null} overviewTrace={null} overviewText="" />;
     }
 
     return (

@@ -9,6 +9,7 @@ interface GroundedDataProps {
   activeStep: ActiveStep;
   trace: PipelineTrace | null;
   overviewTrace: OverviewTrace | null;
+  overviewText?: string;
 }
 
 function Intro({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,7 @@ function Intro({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function GroundedData({ activeStep, trace, overviewTrace }: GroundedDataProps) {
+export default function GroundedData({ activeStep, trace, overviewTrace, overviewText }: GroundedDataProps) {
   if (!activeStep) {
     return (
       <div className="flex items-center justify-center h-full text-[10px] text-[var(--text-dim)] px-3 text-center">
@@ -350,9 +351,29 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
             </div>
           )}
         </div>
-        <div className="text-[9px] text-[var(--text-dim)] font-mono p-1.5 border-l-2 border-[var(--accent)]/30">
-          retrieved chunks &rarr; system prompt &rarr; LLM &rarr; cited summary
-        </div>
+        {/* Input: retrieved chunks fed to LLM */}
+        {overviewTrace?.retrieval && (
+          <div>
+            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Input &mdash; {overviewTrace.retrieval.chunks_retrieved} chunks</div>
+            <div className="space-y-0.5">
+              {overviewTrace.retrieval.chunks.slice(0, 4).map((c, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-[9px] pl-2 border-l border-[var(--border)]">
+                  <span className="text-[var(--accent)] font-mono">[{i + 1}]</span>
+                  <span className="text-[var(--text-muted)] truncate">{c.title.replace(" - Wikipedia", "")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Output: generated text */}
+        {overviewText ? (
+          <div>
+            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Output</div>
+            <div className="p-2 bg-[var(--bg-card)] border border-[var(--border)] text-[9px] text-[var(--text-muted)] leading-relaxed">
+              {overviewText.slice(0, 300)}{overviewText.length > 300 ? "..." : ""}
+            </div>
+          </div>
+        ) : null}
         {overviewTrace?.total_ms != null && (
           <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms.toFixed(0)}ms</div>
         )}
