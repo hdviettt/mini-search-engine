@@ -67,16 +67,32 @@ function StorePreview({ nodeId }: { nodeId: string }) {
   // Pages DB
   if (nodeId === "pages_db") {
     const pages = (data as { pages: { id: number; title: string; domain: string; text_length: number; outlinks: number; status_code: number }[] }).pages || [];
+    const total = (data as { total?: number }).total || pages.length;
     return (
-      <div className="p-3 space-y-1">
-        {pages.map((p) => (
-          <div key={p.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[var(--border)]">
-            <span className="text-[var(--text-dim)] w-5">#{p.id}</span>
-            <span className={`w-1.5 h-1.5 ${p.status_code === 200 ? "bg-green-600" : "bg-red-600"}`} />
-            <span className="text-[var(--text-muted)] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 35)}</span>
-            <span className="text-[var(--text-dim)]">{(p.text_length / 1000).toFixed(0)}K</span>
-          </div>
-        ))}
+      <div className="p-3 space-y-2">
+        <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)] pb-1.5 border-b border-dashed border-[var(--border)]">
+          <span>{total.toLocaleString()} pages total</span>
+        </div>
+        <div className="space-y-1.5">
+          {pages.map((p) => (
+            <div key={p.id} className="border border-[var(--border)] p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-2 h-2 ${p.status_code === 200 ? "bg-emerald-500" : "bg-red-500"}`} title={`HTTP ${p.status_code}`} />
+                <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{(p.title || "Untitled").replace(" - Wikipedia", "")}</span>
+                <span className="text-[9px] text-[var(--text-dim)] font-mono">#{p.id}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[9px] pl-4">
+                <span className="text-[var(--text-dim)]">
+                  <span className="text-[var(--text-muted)] font-mono">{(p.text_length / 1000).toFixed(0)}K</span> chars
+                </span>
+                <span className="text-[var(--text-dim)]">
+                  <span className="text-[var(--text-muted)] font-mono">{p.outlinks}</span> outlinks
+                </span>
+                <span className="text-[var(--text-dim)] truncate">{p.domain}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -126,17 +142,35 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     const pages = (data as { pages: { title: string; score: number; inlinks: number }[] }).pages || [];
     const maxScore = pages[0]?.score || 1;
     return (
-      <div className="p-3 space-y-1">
-        {pages.map((p, i) => (
-          <div key={i} className="flex items-center gap-2 text-[10px] py-0.5">
-            <span className="text-[var(--text-dim)] w-4">#{i + 1}</span>
-            <span className="text-[var(--text-muted)] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 25)}</span>
-            <div className="w-12 h-1 bg-[var(--score-bar-bg)]">
-              <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(p.score / maxScore) * 100}%` }} />
+      <div className="p-3 space-y-2">
+        <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-2 text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+          <span></span>
+          <span>Page</span>
+          <span className="text-right">Score</span>
+          <span className="text-right">Inlinks</span>
+        </div>
+        <div className="space-y-1.5">
+          {pages.map((p, i) => (
+            <div key={i} className="border border-[var(--border)] p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[var(--accent)] font-mono text-[10px] w-4">#{i + 1}</span>
+                <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "")}</span>
+              </div>
+              <div className="flex items-center gap-2 pl-6">
+                <div className="flex-1 h-1.5 bg-[var(--score-bar-bg)]">
+                  <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(p.score / maxScore) * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-[var(--accent)] font-mono w-16 text-right">{p.score.toFixed(6)}</span>
+              </div>
+              <div className="flex items-center gap-1 pl-6 mt-0.5 text-[9px] text-[var(--text-dim)]">
+                <span className="text-[var(--text-muted)] font-mono">{p.inlinks}</span>
+                <span>pages link here</span>
+                <span className="text-[var(--text-dim)]">&rarr;</span>
+                <span>votes for authority</span>
+              </div>
             </div>
-            <span className="text-[var(--text-dim)] w-5 text-right">{p.inlinks}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -146,20 +180,33 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     const chunks = (data as { chunks: { id: number; page_id: number; chunk_idx: number; content: string; has_embedding: boolean; title: string }[] }).chunks || [];
 
     if (nodeId === "chunker_preview") {
+      // Group chunks by page to show the splitting
+      const byPage: Record<number, typeof chunks> = {};
+      for (const c of chunks) {
+        (byPage[c.page_id] ||= []).push(c);
+      }
       return (
-        <div className="p-3">
-          <div className="space-y-1.5">
-            {chunks.map((c) => (
-              <div key={c.id} className="p-2 bg-[var(--bg-card)] border border-[var(--border)] text-[10px]">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[var(--accent)]">chunk {c.chunk_idx}</span>
-                  <span className="text-[var(--border-hover)]">|</span>
-                  <span className="text-[var(--text-dim)] truncate">{(c.title || "").replace(" - Wikipedia", "")}</span>
-                </div>
-                <div className="text-[9px] text-[var(--text-muted)] leading-relaxed">{c.content}</div>
+        <div className="p-3 space-y-3">
+          {Object.entries(byPage).map(([pageId, pageChunks]) => (
+            <div key={pageId} className="border border-[var(--border)] p-2">
+              <div className="flex items-center gap-2 text-[10px] mb-2 pb-1 border-b border-dashed border-[var(--border)]">
+                <span className="text-[var(--text-dim)] font-mono">page {pageId}</span>
+                <span className="text-[var(--text-muted)] truncate flex-1">{(pageChunks[0]?.title || "").replace(" - Wikipedia", "")}</span>
+                <span className="text-[9px] text-[var(--text-dim)]">&rarr; {pageChunks.length} chunks</span>
               </div>
-            ))}
-          </div>
+              <div className="space-y-1">
+                {pageChunks.map((c) => (
+                  <div key={c.id} className="pl-2 border-l-2 border-[var(--accent)]/20">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[9px] text-[var(--accent)] font-mono">chunk {c.chunk_idx}</span>
+                      <span className="text-[8px] text-[var(--text-dim)]">{c.content.split(/\s+/).length} words</span>
+                    </div>
+                    <div className="text-[9px] text-[var(--text-muted)] leading-relaxed line-clamp-3">{c.content}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -167,18 +214,31 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     if (nodeId === "embedder_preview") {
       const embedded = chunks.filter((c) => c.has_embedding).length;
       return (
-        <div className="p-3">
-          <div className="flex items-center gap-2 text-[10px] mb-2 p-2 border border-dashed border-[var(--border)]">
-            <span className="text-[var(--accent)] font-mono">{embedded}/{chunks.length}</span>
-            <span className="text-[var(--text-dim)]">chunks in sample have embeddings</span>
+        <div className="p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+            <div className="p-1.5 border border-[var(--border)] text-center">
+              <div className="text-[var(--accent)] font-mono text-[12px]">{embedded}</div>
+              <div className="text-[8px] text-[var(--text-dim)]">embedded</div>
+            </div>
+            <div className="p-1.5 border border-[var(--border)] text-center">
+              <div className="text-[var(--text-muted)] font-mono text-[12px]">{chunks.length - embedded}</div>
+              <div className="text-[8px] text-[var(--text-dim)]">pending</div>
+            </div>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {chunks.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[var(--border)]">
-                <span className={`w-2 h-2 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
-                <span className="text-[var(--text-dim)]">p{c.page_id}:c{c.chunk_idx}</span>
-                <span className="text-[var(--text-dim)] truncate flex-1">{c.content.slice(0, 50)}...</span>
-                <span className="text-[9px] text-[var(--border-hover)]">{c.has_embedding ? "768-dim" : "pending"}</span>
+              <div key={c.id} className="border border-[var(--border)] p-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-2 h-2 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
+                  <span className="text-[9px] text-[var(--text-dim)] font-mono">page {c.page_id} &rarr; chunk {c.chunk_idx}</span>
+                  <span className="text-[8px] text-[var(--text-dim)] ml-auto">{c.has_embedding ? "768-dim vector" : "not yet embedded"}</span>
+                </div>
+                <div className="text-[9px] text-[var(--text-muted)] leading-relaxed line-clamp-2 pl-4">{c.content}</div>
+                {c.has_embedding && (
+                  <div className="pl-4 mt-1 text-[8px] text-[var(--text-dim)] font-mono">
+                    text &rarr; [0.023, -0.148, 0.067, ... ] &times; 768 dims
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -187,18 +247,30 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     }
 
     // Default vector store view
+    const embeddedCount = chunks.filter((c) => c.has_embedding).length;
     return (
-      <div className="p-3 space-y-1.5">
-        {chunks.map((c) => (
-          <div key={c.id} className="p-2 border border-dashed border-[var(--border)] text-[10px]">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[var(--text-dim)]">p{c.page_id}:c{c.chunk_idx}</span>
-              <span className={`w-1.5 h-1.5 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
-              <span className="text-[var(--text-muted)] truncate">{(c.title || "").replace(" - Wikipedia", "").slice(0, 20)}</span>
+      <div className="p-3 space-y-2">
+        <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+          {embeddedCount}/{chunks.length} chunks in sample have vectors
+        </div>
+        <div className="space-y-1.5">
+          {chunks.map((c) => (
+            <div key={c.id} className="border border-[var(--border)] p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-2 h-2 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
+                <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{(c.title || "").replace(" - Wikipedia", "")}</span>
+                <span className="text-[9px] text-[var(--text-dim)] font-mono">p{c.page_id}:c{c.chunk_idx}</span>
+              </div>
+              <div className="text-[9px] text-[var(--text-dim)] leading-relaxed line-clamp-2 pl-4 mb-1">{c.content}</div>
+              <div className="pl-4 text-[8px] text-[var(--text-dim)]">
+                {c.has_embedding
+                  ? <span className="font-mono">text &rarr; float[768] &rarr; stored for cosine similarity search</span>
+                  : <span>awaiting embedding</span>
+                }
+              </div>
             </div>
-            <div className="text-[9px] text-[var(--text-dim)] line-clamp-2">{c.content}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -260,27 +332,48 @@ function ResultsView({ searchData }: { searchData: ExplainResponse | null }) {
     );
   }
 
+  const maxFinal = searchData.results[0]?.final_score || 1;
+  const alpha = searchData.params_used.rank_alpha;
+
   return (
     <div className="p-3 space-y-2">
       <div className="text-[10px] text-[var(--accent)] font-medium">Ranked Results</div>
       <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-        The final output after combining BM25 relevance with PageRank authority. Each result carries a composite score.
+        Final ranking: {Math.round(alpha * 100)}% BM25 relevance + {Math.round((1 - alpha) * 100)}% PageRank authority.
       </div>
-      <div className="text-[10px] text-[var(--text-dim)]">
-        {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms
+      <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+        {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms for &ldquo;{searchData.query}&rdquo;
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {searchData.results.slice(0, 8).map((r, i) => (
-          <div key={i} className="p-1.5 border border-[var(--border)] text-[10px]">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[var(--accent)] font-mono w-4">#{i + 1}</span>
-              <span className="text-[var(--text-muted)] truncate flex-1">{r.title.replace(" - Wikipedia", "")}</span>
+          <div key={i} className="border border-[var(--border)] p-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[var(--accent)] font-mono text-[10px] w-4">#{i + 1}</span>
+              <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{r.title.replace(" - Wikipedia", "")}</span>
             </div>
-            <div className="text-[9px] text-[var(--text-dim)] line-clamp-1 mb-1">{r.snippet}</div>
-            <div className="flex gap-2 text-[9px]">
-              <span className="text-[var(--text-dim)]">BM25: <span className="text-[var(--accent)] font-mono">{r.bm25_score}</span></span>
-              <span className="text-[var(--text-dim)]">PR: <span className="text-[var(--text-muted)] font-mono">{r.pagerank_score}</span></span>
-              <span className="text-[var(--text-dim)]">Final: <span className="text-[var(--accent)] font-mono">{r.final_score}</span></span>
+            <div className="text-[9px] text-[var(--text-dim)] line-clamp-1 pl-6 mb-1.5">{r.snippet}</div>
+            <div className="pl-6 space-y-0.5">
+              <div className="flex items-center gap-2 text-[9px]">
+                <span className="text-[var(--text-dim)] w-10">BM25</span>
+                <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                  <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(r.bm25_score / (searchData.results[0]?.bm25_score || 1)) * 100}%` }} />
+                </div>
+                <span className="text-[var(--accent)] font-mono w-10 text-right">{r.bm25_score.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[9px]">
+                <span className="text-[var(--text-dim)] w-10">PR</span>
+                <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                  <div className="h-full bg-indigo-500/40" style={{ width: `${(r.pagerank_score / (searchData.results[0]?.pagerank_score || 0.001)) * 100}%` }} />
+                </div>
+                <span className="text-[var(--text-muted)] font-mono w-10 text-right">{r.pagerank_score.toFixed(4)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[9px] pt-0.5 border-t border-dashed border-[var(--border)]">
+                <span className="text-[var(--text-dim)] w-10">Final</span>
+                <div className="flex-1 h-1.5 bg-[var(--score-bar-bg)]">
+                  <div className="h-full bg-[var(--accent)]/60" style={{ width: `${(r.final_score / maxFinal) * 100}%` }} />
+                </div>
+                <span className="text-[var(--accent)] font-mono font-medium w-10 text-right">{r.final_score.toFixed(2)}</span>
+              </div>
             </div>
           </div>
         ))}
@@ -294,23 +387,48 @@ function AIOverviewView({ overviewText, overviewTrace }: { overviewText: string;
     <div className="p-3 space-y-2">
       <div className="text-[10px] text-[var(--accent)] font-medium">AI Overview</div>
       <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-        A concise AI-generated answer synthesized from retrieved chunks, with source citations.
+        AI-generated answer synthesized from retrieved chunks, with source citations.
       </div>
       {overviewText ? (
-        <div className="p-2 bg-[var(--bg-card)] border border-[var(--border)] text-[10px] text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">
-          {overviewText}
-        </div>
+        <>
+          <div className="p-2.5 bg-[var(--bg-card)] border border-[var(--border)] text-[10px] text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">
+            {overviewText}
+          </div>
+          {overviewTrace && (
+            <div className="border border-[var(--border)] p-2 space-y-1.5">
+              <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider">Pipeline Trace</div>
+              {overviewTrace.fanout && (
+                <div className="flex items-center gap-2 text-[9px]">
+                  <span className="text-[var(--text-dim)] w-16">Fan-out</span>
+                  <span className="text-[var(--text-muted)]">{overviewTrace.fanout.expanded.length} queries</span>
+                  <span className="text-[var(--text-dim)] font-mono ml-auto">{overviewTrace.fanout.time_ms?.toFixed(0)}ms</span>
+                </div>
+              )}
+              {overviewTrace.retrieval && (
+                <div className="flex items-center gap-2 text-[9px]">
+                  <span className="text-[var(--text-dim)] w-16">Retrieval</span>
+                  <span className="text-[var(--text-muted)]">{overviewTrace.retrieval.chunks_retrieved} chunks</span>
+                  <span className="text-[var(--text-dim)] font-mono ml-auto">{overviewTrace.retrieval.time_ms?.toFixed(0)}ms</span>
+                </div>
+              )}
+              {overviewTrace.synthesis && (
+                <div className="flex items-center gap-2 text-[9px]">
+                  <span className="text-[var(--text-dim)] w-16">Synthesis</span>
+                  <span className="text-[var(--accent)] font-mono">{overviewTrace.synthesis.model}</span>
+                  <span className="text-[var(--text-dim)] font-mono ml-auto">{overviewTrace.synthesis.time_ms?.toFixed(0)}ms</span>
+                </div>
+              )}
+              {overviewTrace.total_ms && (
+                <div className="flex items-center gap-2 text-[9px] pt-1 border-t border-dashed border-[var(--border)]">
+                  <span className="text-[var(--text-dim)] w-16">Total</span>
+                  <span className="text-[var(--accent)] font-mono ml-auto">{overviewTrace.total_ms.toFixed(0)}ms</span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-[10px] text-[var(--text-dim)] text-center py-2">Search to see AI overview.</div>
-      )}
-      {overviewTrace?.synthesis && (
-        <div className="flex gap-3 text-[9px] text-[var(--text-dim)]">
-          <span>Model: <span className="text-[var(--accent)] font-mono">{overviewTrace.synthesis.model}</span></span>
-          <span>{overviewTrace.synthesis.time_ms.toFixed(0)}ms</span>
-        </div>
-      )}
-      {overviewTrace?.total_ms && (
-        <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms.toFixed(0)}ms</div>
       )}
     </div>
   );

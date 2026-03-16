@@ -263,34 +263,41 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
   // Vector Search / AI Retrieval
   if (activeStep === "ai_retrieval" && overviewTrace?.retrieval) {
     const r = overviewTrace.retrieval;
+    const maxCombined = Math.max(...r.chunks.map((c) => c.combined_score || 0), 0.01);
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Retrieved Chunks</div>
-        <Intro>Hybrid retrieval: combines vector similarity (semantic meaning) with keyword overlap (exact term matching) for better recall.</Intro>
-        <div className="text-[10px] text-[var(--text-dim)]">{r.chunks_retrieved} chunks retrieved</div>
-        <div className="space-y-1">
-          {r.chunks.slice(0, 4).map((c, i) => (
-            <div key={i} className="p-1.5 bg-[var(--accent-muted)] border border-[var(--accent)]/15">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[9px] text-[var(--accent)]">[{i + 1}]</span>
-                <span className="text-[10px] text-[var(--text-muted)] truncate">{c.title.replace(" - Wikipedia", "")}</span>
+        <Intro>Hybrid retrieval: 60% vector similarity (semantic meaning) + 40% keyword overlap (exact terms) for comprehensive recall.</Intro>
+        <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+          {r.chunks_retrieved} chunks retrieved{r.time_ms ? ` in ${r.time_ms.toFixed(0)}ms` : ""}
+        </div>
+        <div className="space-y-1.5">
+          {r.chunks.slice(0, 5).map((c, i) => (
+            <div key={i} className="border border-[var(--border)] p-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[9px] text-[var(--accent)] font-mono">[{i + 1}]</span>
+                <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{c.title.replace(" - Wikipedia", "")}</span>
               </div>
-              <div className="text-[9px] text-[var(--text-dim)] line-clamp-2">{c.content_preview}</div>
-              <div className="flex gap-3 mt-1 text-[9px]">
-                <span className="text-[var(--text-dim)]">vec: <span className="text-[var(--accent)] font-mono">{c.vector_score}</span></span>
-                <span className="text-[var(--text-dim)]">kw: <span className="text-[var(--text-muted)] font-mono">{c.keyword_score}</span></span>
-              </div>
-              <div className="flex gap-2 mt-0.5 text-[8px] text-[var(--text-dim)]">
-                <span>Cosine similarity (0&ndash;1)</span>
-                <span>|</span>
-                <span>BM25-style term matching</span>
+              <div className="text-[9px] text-[var(--text-dim)] leading-relaxed line-clamp-2 pl-4 mb-1.5">{c.content_preview}</div>
+              <div className="pl-4 space-y-0.5">
+                <div className="flex items-center gap-2 text-[8px]">
+                  <span className="text-[var(--text-dim)] w-12">semantic</span>
+                  <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                    <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(c.vector_score || 0) * 100}%` }} />
+                  </div>
+                  <span className="text-[var(--accent)] font-mono w-8 text-right">{(c.vector_score || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[8px]">
+                  <span className="text-[var(--text-dim)] w-12">keyword</span>
+                  <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+                    <div className="h-full bg-indigo-500/40" style={{ width: `${(c.keyword_score || 0) * 100}%` }} />
+                  </div>
+                  <span className="text-[var(--text-muted)] font-mono w-8 text-right">{(c.keyword_score || 0).toFixed(2)}</span>
+                </div>
               </div>
             </div>
           ))}
         </div>
-        {r.time_ms && (
-          <div className="text-[9px] text-[var(--text-dim)]">Retrieval took {r.time_ms.toFixed(0)}ms</div>
-        )}
       </div>
     );
   }
@@ -301,16 +308,24 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
       return (
         <div className="p-2 space-y-2">
           <div className="text-[10px] text-[var(--accent)] font-medium">LLM Synthesis</div>
-          <Intro>The language model reads retrieved chunks and generates a concise answer with source citations.</Intro>
-          <div className="p-2 border border-dashed border-[var(--border)] space-y-1">
-            <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-[var(--text-dim)]">Model:</span>
+          <Intro>The language model reads retrieved chunks and generates a concise answer with inline source citations [1], [2], etc.</Intro>
+          <div className="border border-[var(--border)] p-2 space-y-1.5">
+            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Configuration</div>
+            <div className="flex items-center gap-2 text-[9px]">
+              <span className="text-[var(--text-dim)] w-16">Model</span>
               <span className="text-[var(--accent)] font-mono">{overviewTrace.synthesis.model}</span>
             </div>
-            <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-[var(--text-dim)]">Generation time:</span>
+            <div className="flex items-center gap-2 text-[9px]">
+              <span className="text-[var(--text-dim)] w-16">Task</span>
+              <span className="text-[var(--text-muted)]">Summarize top chunks into 2-3 sentences</span>
+            </div>
+            <div className="flex items-center gap-2 text-[9px]">
+              <span className="text-[var(--text-dim)] w-16">Time</span>
               <span className="text-[var(--text-muted)] font-mono">{overviewTrace.synthesis.time_ms.toFixed(0)}ms</span>
             </div>
+          </div>
+          <div className="text-[9px] text-[var(--text-dim)] font-mono p-1 border-l-2 border-[var(--accent)]/30">
+            retrieved chunks &rarr; system prompt &rarr; LLM &rarr; cited summary
           </div>
           {overviewTrace.total_ms && (
             <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms.toFixed(0)}ms</div>
