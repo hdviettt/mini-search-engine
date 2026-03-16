@@ -41,7 +41,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
     <div className="mb-4 bg-[#111] border border-[#222] overflow-hidden">
       <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
         <div className="w-1.5 h-1.5 bg-[#e88a1a]" />
-        <span className="text-[10px] font-medium text-[#e88a1a] uppercase tracking-widest">
+        <span className="text-[10px] font-medium text-[#888] uppercase tracking-widest">
           AI Overview
         </span>
         {(loading || streaming) && !text && (

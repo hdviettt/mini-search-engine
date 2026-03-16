@@ -3,14 +3,14 @@
 import React from "react";
 
 const colorValues: Record<string, string> = {
-  emerald: "#e88a1a",
-  blue: "#e88a1a",
-  violet: "#e88a1a",
-  purple: "#e88a1a",
-  rose: "#e88a1a",
-  indigo: "#e88a1a",
-  amber: "#e88a1a",
-  gray: "#888888",
+  emerald: "#5a9a6a",
+  blue: "#6a8ab0",
+  violet: "#8a7aaa",
+  purple: "#9a7ab0",
+  indigo: "#7a7aaa",
+  amber: "#b08a5a",
+  rose: "#aa7a7a",
+  gray: "#666666",
 };
 
 function Icon({ icon, color }: { icon: string; color: string }) {

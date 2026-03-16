@@ -14,10 +14,10 @@ export default function OutputNode({ data }: { data: OutputNodeData }) {
     <div className={`w-[210px] p-3 cursor-pointer transition-colors
       border-2 ${
         isActive ? "bg-[#e88a1a]/5 border-[#e88a1a]/50" :
-        isCompleted ? "bg-[#111] border-[#e88a1a]/30" :
+        isCompleted ? "bg-[#111] border-[#444]" :
         "bg-[#111] border-[#333] hover:border-[#444]"
       }`}
-      style={{ outline: isCompleted || isActive ? "2px solid rgba(232,138,26,0.1)" : "2px solid #1a1a1a", outlineOffset: "3px" }}
+      style={{ outline: isActive ? "2px solid rgba(232,138,26,0.1)" : "2px solid #1a1a1a", outlineOffset: "3px" }}
     >
       <Handle type="target" position={Position.Top} className="!bg-[#333] !border-[#111] !w-2 !h-2" />
 

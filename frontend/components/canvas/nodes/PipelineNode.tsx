@@ -25,7 +25,7 @@ export default function PipelineNode({ data }: { data: PipelineNodeData }) {
         <div className="relative z-10 flex flex-col items-center justify-center h-full">
           <span className="text-[11px] font-medium text-[#ccc]">{data.label}</span>
           {data.summary ? (
-            <span className="text-[9px] text-[#e88a1a] font-mono">{data.summary}</span>
+            <span className="text-[9px] text-[#999] font-mono">{data.summary}</span>
           ) : (
             <span className="text-[9px] text-[#444]">{data.description}</span>
           )}
@@ -44,18 +44,18 @@ export default function PipelineNode({ data }: { data: PipelineNodeData }) {
 
       {/* Left accent bar */}
       <div className={`w-[3px] shrink-0 ${
-        isActive ? "bg-[#e88a1a]" : isCompleted ? "bg-[#e88a1a]/50" : "bg-[#222]"
+        isActive ? "bg-[#e88a1a]" : isCompleted ? "bg-[#666]" : "bg-[#222]"
       }`} />
 
       {/* Content */}
       <div className={`flex-1 p-2.5 border-t border-r border-b ${
-        isActive ? "border-[#e88a1a]/30" : isCompleted ? "border-[#e88a1a]/20" : "border-[#222]"
+        isActive ? "border-[#e88a1a]/30" : isCompleted ? "border-[#333]" : "border-[#222]"
       }`}>
         <div className="flex items-center gap-2 mb-0.5">
           <NodeIcon icon={data.icon} color={data.color} />
           <span className="text-[11px] font-medium text-[#ccc]">{data.label}</span>
           {data.timeMs !== null && (
-            <span className="text-[9px] ml-auto font-mono text-[#e88a1a]">
+            <span className={`text-[9px] ml-auto font-mono ${isActive ? "text-[#e88a1a]" : "text-[#888]"}`}>
               {data.timeMs.toFixed(1)}ms
             </span>
           )}

@@ -294,7 +294,7 @@ export default function Home() {
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] text-[#555]">#{i + 1}</span>
-                      <span className="text-xs text-[#e88a1a] group-hover:underline truncate">{r.title}</span>
+                      <span className="text-xs text-[#ccc] group-hover:text-[#e88a1a] group-hover:underline truncate">{r.title}</span>
                     </div>
                     <p className="text-[10px] text-[#555] line-clamp-2 leading-relaxed">{r.snippet}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[#444]">
