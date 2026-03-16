@@ -16,7 +16,7 @@ interface OperationsTabProps {
   onCrawlStarted: (jobId: string) => void;
 }
 
-function CrawlFeed({ pages, progress }: { pages: CrawlProgressData[]; progress: CrawlProgressData | null }) {
+function CrawlFeed({ pages, progress, finished }: { pages: CrawlProgressData[]; progress: CrawlProgressData | null; finished: boolean }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,8 +54,13 @@ function CrawlFeed({ pages, progress }: { pages: CrawlProgressData[]; progress: 
         <div className="border border-[var(--accent)] p-2 animate-pulse">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-[var(--accent)] shrink-0" />
-            <span className="text-[11px] text-[var(--accent)] truncate">{progress.current_url}</span>
+            <span className="text-[11px] text-[var(--accent)] truncate">Fetching: {progress.current_url}</span>
           </div>
+        </div>
+      )}
+      {finished && pages.length > 0 && (
+        <div className="border border-emerald-600/30 p-2 text-center">
+          <span className="text-[11px] text-emerald-500 font-medium">Crawl complete — {pages.length} pages fetched</span>
         </div>
       )}
       <div ref={bottomRef} />
@@ -71,9 +76,21 @@ export default function OperationsTab({
   const [domains, setDomains] = useState<string[]>([...DEFAULT_DOMAINS]);
   const [newDomain, setNewDomain] = useState("");
   const [restrictDomains, setRestrictDomains] = useState(true);
-  const [crawling, setCrawling] = useState(false);
-  const [indexing, setIndexing] = useState(false);
-  const [embedding, setEmbedding] = useState(false);
+  const [crawlStarted, setCrawlStarted] = useState(false);
+  const [indexStarted, setIndexStarted] = useState(false);
+  const [embedStarted, setEmbedStarted] = useState(false);
+  const indexing = indexStarted && indexProgress !== null;
+  const embedding = embedStarted && embedProgress !== null;
+  useEffect(() => { if (indexStarted && indexProgress === null) setIndexStarted(false); }, [indexProgress, indexStarted]);
+  useEffect(() => { if (embedStarted && embedProgress === null) setEmbedStarted(false); }, [embedProgress, embedStarted]);
+  // Derive crawling state from progress + started flag
+  const crawling = crawlStarted && crawlProgress !== null;
+  // Reset started flag when crawl completes (progress becomes null after crawl_complete)
+  useEffect(() => {
+    if (crawlStarted && crawlProgress === null && (crawledPages || []).length > 0) {
+      setCrawlStarted(false);
+    }
+  }, [crawlProgress, crawlStarted, crawledPages]);
 
   const addDomain = () => {
     const d = newDomain.trim().toLowerCase();
@@ -88,7 +105,7 @@ export default function OperationsTab({
   };
 
   const handleStartCrawl = async () => {
-    setCrawling(true);
+    setCrawlStarted(true);
     const extras = domains.filter((d) => !DEFAULT_DOMAINS.includes(d));
     const res = await startCrawl([seedUrl], maxPages, 3, extras, restrictDomains);
     if (res.job_id) onCrawlStarted(res.job_id);
@@ -97,17 +114,17 @@ export default function OperationsTab({
   const handleStopCrawl = async () => {
     if (activeCrawlJobId) {
       await stopCrawl(activeCrawlJobId);
-      setCrawling(false);
+      setCrawlStarted(false);
     }
   };
 
   const handleRebuildIndex = async () => {
-    setIndexing(true);
+    setIndexStarted(true);
     await rebuildIndex();
   };
 
   const handleRebuildEmbeddings = async () => {
-    setEmbedding(true);
+    setEmbedStarted(true);
     await rebuildEmbeddings();
   };
 
@@ -223,7 +240,7 @@ export default function OperationsTab({
       </div>
 
       {/* Crawl Feed */}
-      <CrawlFeed pages={crawledPages || []} progress={crawlProgress} />
+      <CrawlFeed pages={crawledPages || []} progress={crawlProgress} finished={!crawlStarted && (crawledPages || []).length > 0} />
 
       {/* Index */}
       <div className="space-y-2">
