@@ -136,13 +136,48 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     if not GROQ_API_KEY:
         return
 
-    # Check cache
+    # Check cache — still run retrieval for trace data
     cached = _get_cached(conn, query)
     if cached:
-        _, _, sources = _get_sources_and_context(conn, query)
+        total_start = time.time()
+
+        # Fan-out (use original query only for cached)
+        t0 = time.time()
+        queries = expand_query(query)
+        fanout_trace = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
+        yield f"data: {json.dumps({'type': 'trace', 'step': 'fanout', 'data': fanout_trace})}\n\n"
+
+        # Retrieval
+        t0 = time.time()
+        chunks = hybrid_retrieve(conn, queries, top_k=5)
+        retrieval_trace = {
+            "chunks_retrieved": len(chunks),
+            "chunks": [
+                {"title": c["title"][:50], "content_preview": c["content"][:150],
+                 "vector_score": round(c.get("vector_score", 0), 4),
+                 "keyword_score": round(c.get("keyword_score", 0), 4)}
+                for c in chunks[:5]
+            ],
+            "time_ms": round((time.time() - t0) * 1000, 1),
+        }
+        yield f"data: {json.dumps({'type': 'trace', 'step': 'retrieval', 'data': retrieval_trace})}\n\n"
+
+        # Sources
+        sources = []
+        for i, chunk in enumerate(chunks[:5], 1):
+            sources.append({
+                "index": i, "title": chunk["title"], "url": chunk["url"],
+                "vector_score": round(chunk.get("vector_score", 0), 4),
+                "keyword_score": round(chunk.get("keyword_score", 0), 4),
+            })
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+
+        # Synthesis trace (text from cache, not LLM)
+        yield f"data: {json.dumps({'type': 'trace', 'step': 'synthesis', 'data': {'model': GROQ_MODEL + ' (cached)', 'time_ms': 0}})}\n\n"
         yield f"data: {json.dumps({'type': 'text', 'content': cached})}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'from_cache': True})}\n\n"
+
+        total_ms = round((time.time() - total_start) * 1000, 1)
+        yield f"data: {json.dumps({'type': 'done', 'total_ms': total_ms, 'from_cache': True})}\n\n"
         return
 
     total_start = time.time()
