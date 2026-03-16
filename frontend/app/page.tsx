@@ -81,6 +81,8 @@ export default function Home() {
     } else if (type === "embed_complete") {
       setEmbedProgress(null);
       getStats().then(setStats);
+    } else if (type === "build_complete") {
+      getStats().then(setStats);
     }
   }, [lastMessage]);
 

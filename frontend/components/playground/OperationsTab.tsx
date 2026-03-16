@@ -252,47 +252,57 @@ export default function OperationsTab({
       {/* Crawl Feed */}
       <CrawlFeed pages={crawledPages || []} progress={crawlProgress} finished={!crawlStarted && (crawledPages || []).length > 0} />
 
-      {/* Index */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-medium text-[var(--text)]">Index + PageRank</span>
-          <button
-            onClick={handleRebuildIndex}
-            disabled={indexing}
-            className="text-[11px] px-4 py-1.5 bg-[var(--accent)] hover:brightness-90 disabled:opacity-50 text-white cursor-pointer"
-          >
-            {indexing ? "Building..." : "Rebuild"}
-          </button>
+      {/* Build Pipeline Status */}
+      <div className="space-y-3">
+        <div className="text-[12px] font-medium text-[var(--text)]">Build Pipeline</div>
+        <div className="text-[10px] text-[var(--text-dim)] -mt-2">
+          After crawl: automatically indexes, computes PageRank, chunks, and embeds.
         </div>
+
+        {/* Pipeline steps */}
+        <div className="space-y-1">
+          {[
+            { label: "Crawl", active: !!crawlProgress, done: !crawlStarted && (crawledPages || []).length > 0 && !crawlProgress },
+            { label: "Index", active: !!indexProgress, done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, detail: indexProgress ? `${indexProgress.pages_done}/${indexProgress.pages_total} pages · ${indexProgress.unique_terms.toLocaleString()} terms` : null },
+            { label: "PageRank", active: indexProgress?.phase === "pagerank", done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0 },
+            { label: "Chunk + Embed", active: !!embedProgress, done: !embedProgress && !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, detail: embedProgress ? `${embedProgress.chunks_done}/${embedProgress.chunks_total} chunks` : null },
+          ].map((step) => (
+            <div key={step.label} className={`flex items-center gap-2 p-2 border ${
+              step.active ? "border-[var(--accent)] bg-[var(--accent-muted)]" :
+              step.done ? "border-emerald-600/20" :
+              "border-[var(--border)]"
+            }`}>
+              <span className={`w-2 h-2 shrink-0 ${
+                step.active ? "bg-[var(--accent)] animate-pulse" :
+                step.done ? "bg-emerald-500" :
+                "bg-[var(--border-hover)]"
+              }`} />
+              <span className={`text-[11px] font-medium ${
+                step.active ? "text-[var(--accent)]" :
+                step.done ? "text-emerald-500" :
+                "text-[var(--text-dim)]"
+              }`}>{step.label}</span>
+              {step.detail && (
+                <span className="text-[10px] text-[var(--text-dim)] ml-auto font-mono">{step.detail}</span>
+              )}
+              {step.active && !step.detail && (
+                <span className="text-[10px] text-[var(--accent)] ml-auto">running...</span>
+              )}
+              {step.done && (
+                <span className="text-[10px] text-emerald-600 ml-auto">done</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Progress bar for active step */}
         {indexProgress && (
-          <div className="space-y-1">
-            <div className="text-[11px] text-[var(--text-dim)]">
-              {indexProgress.phase}: {indexProgress.pages_done}/{indexProgress.pages_total} pages &middot; {indexProgress.unique_terms.toLocaleString()} terms
-            </div>
-            <div className="w-full h-2 bg-[var(--score-bar-bg)]">
-              <div className="h-full bg-[var(--accent)] transition-all duration-300" style={{ width: `${(indexProgress.pages_done / Math.max(indexProgress.pages_total, 1)) * 100}%` }} />
-            </div>
+          <div className="w-full h-2 bg-[var(--score-bar-bg)]">
+            <div className="h-full bg-[var(--accent)] transition-all duration-300" style={{ width: `${(indexProgress.pages_done / Math.max(indexProgress.pages_total, 1)) * 100}%` }} />
           </div>
         )}
-      </div>
-
-      {/* Embeddings */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-medium text-[var(--text)]">Chunk + Embed</span>
-          <button
-            onClick={handleRebuildEmbeddings}
-            disabled={embedding}
-            className="text-[11px] px-4 py-1.5 bg-[var(--accent)] hover:brightness-90 disabled:opacity-50 text-white cursor-pointer"
-          >
-            {embedding ? "Embedding..." : "Rebuild"}
-          </button>
-        </div>
         {embedProgress && (
           <div className="space-y-1">
-            <div className="text-[11px] text-[var(--text-dim)]">
-              {embedProgress.chunks_done}/{embedProgress.chunks_total} chunks
-            </div>
             <div className="w-full h-2 bg-[var(--score-bar-bg)]">
               <div className="h-full bg-[var(--accent)] transition-all duration-300" style={{ width: `${(embedProgress.chunks_done / Math.max(embedProgress.chunks_total, 1)) * 100}%` }} />
             </div>
@@ -301,6 +311,24 @@ export default function OperationsTab({
             )}
           </div>
         )}
+
+        {/* Manual rebuild buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleRebuildIndex}
+            disabled={!!indexProgress}
+            className="flex-1 text-[10px] py-1.5 border border-[var(--accent)]/40 text-[var(--accent)] hover:bg-[var(--accent-muted)] disabled:opacity-50 cursor-pointer font-mono"
+          >
+            {indexProgress ? "Indexing..." : "Rebuild Index"}
+          </button>
+          <button
+            onClick={handleRebuildEmbeddings}
+            disabled={!!embedProgress}
+            className="flex-1 text-[10px] py-1.5 border border-[var(--accent)]/40 text-[var(--accent)] hover:bg-[var(--accent-muted)] disabled:opacity-50 cursor-pointer font-mono"
+          >
+            {embedProgress ? "Embedding..." : "Rebuild Embeddings"}
+          </button>
+        </div>
       </div>
     </div>
   );

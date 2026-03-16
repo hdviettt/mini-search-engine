@@ -63,24 +63,54 @@ class JobManager:
         def run():
             try:
                 conn = get_connection()
+
+                # Step 1: Crawl
                 manager = CrawlManager(conn, extra_domains=extra_domains, restrict_domains=restrict_domains)
                 if seed_urls:
                     manager.seed(seed_urls, clear_queue=True)
 
-                def on_progress(data):
+                def on_crawl_progress(data):
                     self._emit({"type": "crawl_progress", "job_id": job_id, "data": data})
 
                 manager.crawl(
                     stop_event=stop_event,
                     max_pages_override=max_pages,
                     max_depth_override=max_depth,
-                    progress_callback=on_progress,
+                    progress_callback=on_crawl_progress,
                 )
+                self._emit({"type": "crawl_complete", "job_id": job_id, "data": {"status": "completed"}})
+
+                if stop_event and stop_event.is_set():
+                    conn.close()
+                    with self.lock:
+                        self.jobs[job_id]["status"] = "completed"
+                    return
+
+                # Step 2: Index
+                def on_index_progress(data):
+                    self._emit({"type": "index_progress", "job_id": job_id, "data": data})
+
+                build_index(conn, progress_callback=on_index_progress)
+
+                # Step 3: PageRank
+                compute_pagerank(conn)
+                self._emit({"type": "index_complete", "job_id": job_id, "data": {"status": "completed"}})
+
+                # Step 4: Chunk
+                chunk_all_pages(conn)
+
+                # Step 5: Embed
+                def on_embed_progress(data):
+                    self._emit({"type": "embed_progress", "job_id": job_id, "data": data})
+
+                embed_all_chunks(conn, progress_callback=on_embed_progress)
+                self._emit({"type": "embed_complete", "job_id": job_id, "data": {"status": "completed"}})
+
                 conn.close()
 
                 with self.lock:
                     self.jobs[job_id]["status"] = "completed"
-                self._emit({"type": "crawl_complete", "job_id": job_id, "data": {"status": "completed"}})
+                self._emit({"type": "build_complete", "job_id": job_id, "data": {"status": "completed"}})
             except Exception as e:
                 with self.lock:
                     self.jobs[job_id]["status"] = "failed"
