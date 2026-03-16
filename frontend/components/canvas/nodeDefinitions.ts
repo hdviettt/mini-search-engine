@@ -20,13 +20,13 @@ import type { Node, Edge } from "@xyflow/react";
     └────────────────────────────────────────┘
 */
 
-const BUILD_ROW1 = 30;
-const BUILD_ROW2 = 130;
-const STORE_Y = 30;
-const Q_ROW1 = 30;
-const Q_ROW2 = 140;
-const Q_ROW3 = 250;
-const Q_ROW4 = 350;
+const BUILD_ROW1 = 35;
+const BUILD_ROW2 = 140;
+const STORE_Y = 35;
+const Q_ROW1 = 35;
+const Q_ROW2 = 155;
+const Q_ROW3 = 275;
+const Q_ROW4 = 380;
 
 export const initialNodes: Node[] = [
   // ZONE LABELS
@@ -42,7 +42,7 @@ export const initialNodes: Node[] = [
     type: "group",
     position: { x: 0, y: 0 },
     data: { label: "" },
-    style: { width: 900, height: 260, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
+    style: { width: 960, height: 270, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
   },
   // Row 1: Crawler centered
   {
