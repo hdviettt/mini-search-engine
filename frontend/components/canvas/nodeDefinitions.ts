@@ -29,24 +29,24 @@ import type { Node, Edge } from "@xyflow/react";
 const B_CRAWLER = 30;
 const B_PAGES_DB = 150;
 const B_PROCESSORS = 290;
+const B_EMBEDDER = 400;   // Embedder below Chunker
 
 // Store band
-const S_BAND = 430;
+const S_BAND = 530;
 
 // Query zone
-const Q_LABEL = 560;
-const Q_INPUT = 600;
-const Q_ROW1 = 710;
-const Q_ROW1_5 = 810;
-const Q_ROW2 = 910;
-const Q_ROW3 = 1020;
-const Q_ROW4 = 1130;
+const Q_LABEL = 670;
+const Q_INPUT = 710;
+const Q_ROW1 = 820;
+const Q_ROW1_5 = 920;
+const Q_ROW2 = 1020;
+const Q_ROW3 = 1130;
+const Q_ROW4 = 1240;
 
 // === X coordinates (3 aligned columns) ===
 const COL1 = 30;       // Indexing column
 const COL2 = 280;      // PageRank column
-const COL3 = 530;      // Chunker column
-const COL4 = 750;      // Embedder
+const COL3 = 530;      // Chunker + Embedder column (stacked)
 
 // Query X positions — wide gap between paths
 const QS = 30;         // Search path left edge
@@ -96,7 +96,7 @@ export const initialNodes: Node[] = [
   {
     id: "embedder",
     type: "system",
-    position: { x: COL4, y: B_PROCESSORS },
+    position: { x: COL3, y: B_EMBEDDER },
     data: { label: "Embedder", icon: "embedder", description: "512-dim vectors (Voyage)", stats: [], status: "ready", color: "purple" },
   },
 
@@ -120,7 +120,7 @@ export const initialNodes: Node[] = [
   {
     id: "vector_store",
     type: "store",
-    position: { x: COL3 + 80, y: S_BAND },
+    position: { x: COL3 + 15, y: S_BAND },
     data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", active: false },
   },
 
