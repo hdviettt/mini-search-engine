@@ -212,42 +212,42 @@ export const initialNodes: Node[] = [
 
 export const initialEdges: Edge[] = [
   // BUILD: Crawler → Pages DB (write)
-  { id: "b-crawler-pages", source: "crawler", target: "pages_db", type: "smoothstep", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-crawler-pages", source: "crawler", target: "pages_db", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // Pages DB → processors (read)
-  { id: "b-pages-indexer", source: "pages_db", target: "indexer", type: "smoothstep", style: { stroke: "var(--edge-color)" } },
-  { id: "b-pages-pr", source: "pages_db", target: "pr_compute", type: "smoothstep", style: { stroke: "var(--edge-color)" } },
-  { id: "b-pages-chunker", source: "pages_db", target: "chunker", type: "smoothstep", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-indexer", source: "pages_db", target: "indexer", type: "straight", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-pr", source: "pages_db", target: "pr_compute", type: "straight", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-chunker", source: "pages_db", target: "chunker", type: "straight", style: { stroke: "var(--edge-color)" } },
 
   // Processors → stores (write)
-  { id: "b-indexer-index", source: "indexer", target: "inverted_index", type: "smoothstep", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
-  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", type: "smoothstep", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-indexer-index", source: "indexer", target: "inverted_index", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // Chunker → Embedder → Vector Store
-  { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "smoothstep", style: { stroke: "var(--edge-color)" } },
-  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "smoothstep", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "straight", style: { stroke: "var(--edge-color)" } },
+  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // STORES → QUERY (read paths)
-  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
 
   // SEARCH PATH
-  { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-token-lookup", source: "tokenize", target: "index_lookup", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-lookup-bm25", source: "index_lookup", target: "bm25", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-bm25-combine", source: "bm25", target: "combine", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-combine-results", source: "combine", target: "results", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-lookup", source: "tokenize", target: "index_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-lookup-bm25", source: "index_lookup", target: "bm25", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-bm25-combine", source: "bm25", target: "combine", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-combine-results", source: "combine", target: "results", type: "straight", style: { stroke: "var(--edge-query)" } },
 
   // AI OVERVIEW PATH
-  { id: "q-input-fanout", source: "query_input", target: "fanout", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-input-embed", source: "query_input", target: "embed_query", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-vsearch-llm", source: "vector_search", target: "llm", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
-  { id: "q-llm-ai", source: "llm", target: "ai_overview", type: "smoothstep", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-fanout", source: "query_input", target: "fanout", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-embed", source: "query_input", target: "embed_query", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vsearch-llm", source: "vector_search", target: "llm", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-llm-ai", source: "llm", target: "ai_overview", type: "straight", style: { stroke: "var(--edge-query)" } },
 ];
 
 export const phaseEdgeMap: Record<string, string[]> = {
