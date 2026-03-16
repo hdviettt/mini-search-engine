@@ -16,8 +16,12 @@ class CrawlManager:
         if extra_domains:
             self.allowed_domains.update(extra_domains)
 
-    def seed(self, urls: list[str]):
+    def seed(self, urls: list[str], clear_queue: bool = False):
         """Add seed URLs to the crawl queue."""
+        if clear_queue:
+            self.conn.execute("DELETE FROM crawl_queue WHERE status = 'pending'")
+            self.conn.commit()
+            print("Cleared pending queue.")
         for url in urls:
             self.conn.execute(
                 "INSERT INTO crawl_queue (url, depth) VALUES (%s, 0) ON CONFLICT (url) DO NOTHING",

@@ -65,7 +65,7 @@ class JobManager:
                 conn = get_connection()
                 manager = CrawlManager(conn, extra_domains=extra_domains, restrict_domains=restrict_domains)
                 if seed_urls:
-                    manager.seed(seed_urls)
+                    manager.seed(seed_urls, clear_queue=True)
 
                 def on_progress(data):
                     self._emit({"type": "crawl_progress", "job_id": job_id, "data": data})
