@@ -21,6 +21,7 @@ export interface SystemNodeData {
   stats: { label: string; value: string }[];
   status: "idle" | "running" | "ready";
   color: string;
+  progress?: { done: number; total: number; label?: string } | null;
 }
 
 // Data stores (databases) — the bridge between build and query

@@ -198,6 +198,9 @@ export default function Home() {
           overviewText={overviewText}
           overviewTrace={overviewTrace}
           onNodeClick={setSelectedNode}
+          crawlProgress={crawlProgress}
+          indexProgress={indexProgress}
+          embedProgress={embedProgress}
         />
         {/* Node detail — left slide-out panel over canvas */}
         <DetailPanel

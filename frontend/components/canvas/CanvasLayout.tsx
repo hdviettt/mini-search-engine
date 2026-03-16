@@ -22,7 +22,7 @@ import CanvasLegend from "./CanvasLegend";
 import ThemeToggle from "./ThemeToggle";
 import { initialNodes, initialEdges, phaseEdgeMap, phaseNodeMap, phaseStoreMap } from "./nodeDefinitions";
 import type { FlowPhase, PipelineNodeData, OutputNodeData, SystemNodeData } from "./types";
-import type { ExplainResponse, Stats, PipelineTrace } from "@/lib/types";
+import type { ExplainResponse, Stats, PipelineTrace, CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
 
 const nodeTypes: NodeTypes = {
@@ -42,10 +42,14 @@ interface CanvasLayoutProps {
   overviewText: string;
   overviewTrace: OverviewTrace | null;
   onNodeClick: (nodeId: string) => void;
+  crawlProgress: CrawlProgressData | null;
+  indexProgress: IndexProgressData | null;
+  embedProgress: EmbedProgressData | null;
 }
 
 export default function CanvasLayout({
   onSearch, query, phase, stats, searchData, overviewText, overviewTrace, onNodeClick,
+  crawlProgress, indexProgress, embedProgress,
 }: CanvasLayoutProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -72,6 +76,47 @@ export default function CanvasLayout({
       })
     );
   }, [stats, setNodes]);
+
+  // Update system nodes with job progress
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === "crawler" && n.type === "system") {
+          if (crawlProgress) {
+            return { ...n, data: { ...n.data, status: "running", progress: { done: crawlProgress.pages_crawled, total: crawlProgress.max_pages, label: crawlProgress.title || crawlProgress.current_url } } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        if (n.id === "indexer" && n.type === "system") {
+          if (indexProgress) {
+            return { ...n, data: { ...n.data, status: "running", progress: { done: indexProgress.pages_done, total: indexProgress.pages_total, label: `${indexProgress.phase}: ${indexProgress.unique_terms.toLocaleString()} terms` } } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        if (n.id === "pr_compute" && n.type === "system") {
+          // PageRank runs as part of index rebuild
+          if (indexProgress?.phase === "pagerank") {
+            return { ...n, data: { ...n.data, status: "running", progress: null } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        if (n.id === "embedder" && n.type === "system") {
+          if (embedProgress) {
+            return { ...n, data: { ...n.data, status: "running", progress: { done: embedProgress.chunks_done, total: embedProgress.chunks_total, label: embedProgress.current_chunk_preview?.slice(0, 40) } } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        if (n.id === "chunker" && n.type === "system") {
+          // Chunker runs as part of embed rebuild
+          if (embedProgress && embedProgress.chunks_done === 0) {
+            return { ...n, data: { ...n.data, status: "running", progress: null } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        return n;
+      })
+    );
+  }, [crawlProgress, indexProgress, embedProgress, setNodes]);
 
   // Update pipeline nodes with trace data (data only — state managed by phase animation)
   useEffect(() => {
