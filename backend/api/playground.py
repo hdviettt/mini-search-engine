@@ -178,10 +178,10 @@ def explore_pages(limit: int = 20, offset: int = 0):
 
 @router.get("/explore/index")
 def explore_index(limit: int = 30):
-    """Browse the inverted index — top terms by document frequency."""
+    """Browse the inverted index — top terms by document frequency, with sample docs."""
     conn = get_connection()
     rows = conn.execute(
-        """SELECT t.term,
+        """SELECT t.term, t.id,
                   COUNT(p.page_id) as doc_freq,
                   SUM(p.term_freq) as total_freq
            FROM terms t
@@ -192,6 +192,28 @@ def explore_index(limit: int = 30):
         (limit,),
     ).fetchall()
 
+    # For each term, fetch a few sample documents that contain it
+    terms_with_docs = []
+    for r in rows:
+        term, term_id, doc_freq, total_freq = r
+        sample_docs = conn.execute(
+            """SELECT pg.id, pg.title, po.term_freq
+               FROM postings po JOIN pages pg ON pg.id = po.page_id
+               WHERE po.term_id = %s
+               ORDER BY po.term_freq DESC
+               LIMIT 4""",
+            (term_id,),
+        ).fetchall()
+        terms_with_docs.append({
+            "term": term,
+            "doc_freq": doc_freq,
+            "total_freq": total_freq,
+            "sample_docs": [
+                {"id": d[0], "title": (d[1] or "")[:40], "freq": d[2]}
+                for d in sample_docs
+            ],
+        })
+
     corpus = conn.execute("SELECT value FROM corpus_stats WHERE key = 'total_docs'").fetchone()
     total_docs = int(corpus[0]) if corpus else 0
     total_terms = conn.execute("SELECT COUNT(*) FROM terms").fetchone()[0]
@@ -200,10 +222,7 @@ def explore_index(limit: int = 30):
     return {
         "total_docs": total_docs,
         "total_terms": total_terms,
-        "terms": [
-            {"term": r[0], "doc_freq": r[1], "total_freq": r[2]}
-            for r in rows
-        ],
+        "terms": terms_with_docs,
     }
 
 

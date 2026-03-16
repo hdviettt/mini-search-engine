@@ -83,17 +83,38 @@ function StorePreview({ nodeId }: { nodeId: string }) {
 
   // Inverted Index
   if (nodeId === "inverted_index") {
-    const terms = (data as { terms: { term: string; doc_freq: number; total_freq: number }[] }).terms || [];
-    const maxDf = terms[0]?.doc_freq || 1;
+    const terms = (data as { terms: { term: string; doc_freq: number; total_freq: number; sample_docs?: { id: number; title: string; freq: number }[] }[] }).terms || [];
+    const totalDocs = (data as { total_docs?: number }).total_docs || 0;
     return (
-      <div className="p-3 space-y-0.5">
+      <div className="p-3 space-y-2.5">
+        {totalDocs > 0 && (
+          <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
+            Corpus: {totalDocs.toLocaleString()} documents indexed
+          </div>
+        )}
         {terms.map((t) => (
-          <div key={t.term} className="flex items-center gap-2 text-[10px] py-0.5">
-            <span className="font-mono text-[var(--accent)] w-20 truncate">{t.term}</span>
-            <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
-              <div className="h-full bg-[var(--accent)]/30" style={{ width: `${(t.doc_freq / maxDf) * 100}%` }} />
+          <div key={t.term} className="border border-[var(--border)] p-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-mono text-[var(--accent)] text-[11px] font-medium">&quot;{t.term}&quot;</span>
+              <span className="text-[9px] text-[var(--text-dim)] ml-auto">
+                in <span className="text-[var(--text-muted)] font-mono">{t.doc_freq}</span> docs
+                {totalDocs > 0 && <span className="text-[var(--text-dim)]"> ({((t.doc_freq / totalDocs) * 100).toFixed(1)}%)</span>}
+              </span>
             </div>
-            <span className="text-[var(--text-dim)] w-8 text-right">{t.doc_freq}</span>
+            {t.sample_docs && t.sample_docs.length > 0 && (
+              <div className="space-y-0.5 pl-2 border-l-2 border-[var(--accent)]/20">
+                {t.sample_docs.map((d) => (
+                  <div key={d.id} className="flex items-center gap-1.5 text-[9px]">
+                    <span className="text-[var(--text-dim)] font-mono w-7">d{d.id}</span>
+                    <span className="text-[var(--text-muted)] truncate flex-1">{d.title.replace(" - Wikipedia", "")}</span>
+                    <span className="text-[var(--text-dim)] font-mono">&times;{d.freq}</span>
+                  </div>
+                ))}
+                {t.doc_freq > 4 && (
+                  <div className="text-[8px] text-[var(--text-dim)]">...and {t.doc_freq - 4} more docs</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
