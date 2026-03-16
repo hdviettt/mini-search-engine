@@ -28,31 +28,31 @@ import type { Node, Edge } from "@xyflow/react";
 // Build zone
 const B_CRAWLER = 30;
 const B_PAGES_DB = 150;
-const B_PROCESSORS = 280;
+const B_PROCESSORS = 290;
 
 // Store band
 const S_BAND = 430;
 
 // Query zone
-const Q_LABEL = 580;
-const Q_INPUT = 630;
-const Q_ROW1 = 760;
-const Q_ROW1_5 = 870;  // Index Lookup
-const Q_ROW2 = 980;
-const Q_ROW3 = 1100;
-const Q_ROW4 = 1220;
+const Q_LABEL = 560;
+const Q_INPUT = 600;
+const Q_ROW1 = 710;
+const Q_ROW1_5 = 810;
+const Q_ROW2 = 910;
+const Q_ROW3 = 1020;
+const Q_ROW4 = 1130;
 
-// === X coordinates (3 columns) ===
-const COL_LEFT = 50;      // Indexing column
-const COL_MID = 350;      // PageRank column
-const COL_RIGHT = 650;    // Embedding column
-const COL_RIGHT2 = 880;   // Embedder
+// === X coordinates (3 aligned columns) ===
+const COL1 = 30;       // Indexing column
+const COL2 = 280;      // PageRank column
+const COL3 = 530;      // Chunker column
+const COL4 = 750;      // Embedder
 
 // Query X positions
-const QS_LEFT = 50;       // Search path
-const QS_MID = 250;       // PR Lookup
-const QA_LEFT = 550;      // AI path left
-const QA_RIGHT = 780;     // AI path right
+const QS = 30;         // Search path left edge
+const QS2 = 230;       // PR Lookup
+const QA = 480;        // AI path left
+const QA2 = 680;       // AI path right
 
 export const initialNodes: Node[] = [
   // ============================================================
@@ -60,64 +60,67 @@ export const initialNodes: Node[] = [
   // ============================================================
   { id: "label_build", type: "label", position: { x: 10, y: B_CRAWLER - 25 }, data: { label: "BUILD (offline)" } },
 
+  // Crawler centered above Pages DB
   {
     id: "crawler",
     type: "system",
-    position: { x: COL_MID, y: B_CRAWLER },
+    position: { x: COL2, y: B_CRAWLER },
     data: { label: "Crawler", icon: "crawler", description: "Fetches pages via BFS", stats: [], status: "ready", color: "emerald" },
   },
+  // Pages DB centered — the hub
   {
     id: "pages_db",
     type: "store",
-    position: { x: COL_MID + 15, y: B_PAGES_DB },
+    position: { x: COL2 + 15, y: B_PAGES_DB },
     data: { label: "Pages DB", icon: "database", description: "Crawled pages", stats: [], color: "emerald", active: false },
   },
+  // 3 processors + embedder in a row
   {
     id: "indexer",
     type: "system",
-    position: { x: COL_LEFT, y: B_PROCESSORS },
+    position: { x: COL1, y: B_PROCESSORS },
     data: { label: "Indexer", icon: "indexer", description: "Builds inverted index", stats: [], status: "ready", color: "blue" },
   },
   {
     id: "pr_compute",
     type: "system",
-    position: { x: COL_MID, y: B_PROCESSORS },
+    position: { x: COL2, y: B_PROCESSORS },
     data: { label: "PageRank", icon: "pagerank", description: "Link-based authority score", stats: [], status: "ready", color: "indigo" },
   },
   {
     id: "chunker",
     type: "system",
-    position: { x: COL_RIGHT, y: B_PROCESSORS },
+    position: { x: COL3, y: B_PROCESSORS },
     data: { label: "Chunker", icon: "chunker", description: "~300 tokens @ sentence boundaries", stats: [], status: "ready", color: "violet" },
   },
   {
     id: "embedder",
     type: "system",
-    position: { x: COL_RIGHT2, y: B_PROCESSORS },
+    position: { x: COL4, y: B_PROCESSORS },
     data: { label: "Embedder", icon: "embedder", description: "512-dim vectors (Voyage)", stats: [], status: "ready", color: "purple" },
   },
 
   // ============================================================
-  // STORE BAND — horizontal divider between build and query
+  // STORE BAND — each store aligned under its processor
   // ============================================================
   { id: "label_stores", type: "label", position: { x: 10, y: S_BAND - 25 }, data: { label: "DATA STORES" } },
 
   {
     id: "inverted_index",
     type: "store",
-    position: { x: COL_LEFT - 15, y: S_BAND },
+    position: { x: COL1 + 15, y: S_BAND },
     data: { label: "Inverted Index", icon: "inverted_index", description: "term → [docs...]", stats: [], color: "blue", active: false },
   },
   {
     id: "pr_scores",
     type: "store",
-    position: { x: COL_MID + 15, y: S_BAND },
+    position: { x: COL2 + 15, y: S_BAND },
     data: { label: "PR Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", active: false },
   },
   {
     id: "vector_store",
     type: "store",
-    position: { x: COL_RIGHT + 80, y: S_BAND },
+    position: { x: COL3 + 80, y: S_BAND },
     data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", active: false },
   },
 
@@ -125,84 +128,84 @@ export const initialNodes: Node[] = [
   // QUERY ZONE
   // ============================================================
   { id: "label_query", type: "label", position: { x: 10, y: Q_LABEL }, data: { label: "QUERY (per search)" } },
-  { id: "label_search_path", type: "label", position: { x: QS_LEFT, y: Q_LABEL + 20 }, data: { label: "> SEARCH PATH" } },
-  { id: "label_ai_path", type: "label", position: { x: QA_LEFT, y: Q_LABEL + 20 }, data: { label: "> AI OVERVIEW PATH" } },
+  { id: "label_search_path", type: "label", position: { x: QS, y: Q_LABEL + 20 }, data: { label: "> SEARCH PATH" } },
+  { id: "label_ai_path", type: "label", position: { x: QA, y: Q_LABEL + 20 }, data: { label: "> AI OVERVIEW PATH" } },
 
-  // Query input — centered between both paths
+  // Query input — centered
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 380, y: Q_INPUT },
+    position: { x: 300, y: Q_INPUT },
     data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
 
-  // -- SEARCH PATH (left column) --
+  // -- SEARCH PATH --
   {
     id: "tokenize",
     type: "pipeline",
-    position: { x: QS_LEFT, y: Q_ROW1 },
+    position: { x: QS, y: Q_ROW1 },
     data: { label: "Tokenize", icon: "tokenize", description: "Query → tokens", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "index_lookup",
     type: "pipeline",
-    position: { x: QS_LEFT, y: Q_ROW1_5 },
+    position: { x: QS, y: Q_ROW1_5 },
     data: { label: "Index Lookup", icon: "inverted_index", description: "Term → doc list", color: "amber", phase: "indexLookup", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "bm25",
     type: "pipeline",
-    position: { x: QS_LEFT, y: Q_ROW2 },
+    position: { x: QS, y: Q_ROW2 },
     data: { label: "BM25 Scoring", icon: "bm25", description: "TF × IDF × length", color: "amber", phase: "bm25", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "pr_lookup",
     type: "pipeline",
-    position: { x: QS_MID, y: Q_ROW2 },
+    position: { x: QS2, y: Q_ROW2 },
     data: { label: "PR Lookup", icon: "pagerank", description: "Fetch scores", color: "amber", phase: "pagerank", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "combine",
     type: "pipeline",
-    position: { x: QS_LEFT + 80, y: Q_ROW3 },
+    position: { x: QS + 80, y: Q_ROW3 },
     data: { label: "Combine", icon: "combine", description: "α×BM25 + (1-α)×PR", color: "amber", phase: "combining", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "results",
     type: "output",
-    position: { x: QS_LEFT + 20, y: Q_ROW4 },
+    position: { x: QS + 20, y: Q_ROW4 },
     data: { type: "results", label: "Ranked Results", color: "amber", content: null, state: "idle" },
   },
 
-  // -- AI OVERVIEW PATH (right column) --
+  // -- AI OVERVIEW PATH --
   {
     id: "fanout",
     type: "pipeline",
-    position: { x: QA_LEFT, y: Q_ROW1 },
+    position: { x: QA, y: Q_ROW1 },
     data: { label: "Fan-out", icon: "fanout", description: "Expand via LLM", color: "amber", phase: "aiFanout", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "embed_query",
     type: "pipeline",
-    position: { x: QA_RIGHT, y: Q_ROW1 },
+    position: { x: QA2, y: Q_ROW1 },
     data: { label: "Embed Query", icon: "embedder", description: "Query → vector", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "vector_search",
     type: "pipeline",
-    position: { x: QA_LEFT + 80, y: Q_ROW2 },
+    position: { x: QA + 80, y: Q_ROW2 },
     data: { label: "Vector Search", icon: "retriever", description: "Cosine similarity", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "llm",
     type: "pipeline",
-    position: { x: QA_LEFT + 80, y: Q_ROW3 },
+    position: { x: QA + 80, y: Q_ROW3 },
     data: { label: "LLM Synthesis", icon: "llm", description: "Groq — Llama 3.3 70B", color: "amber", phase: "aiSynthesis", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "ai_overview",
     type: "output",
-    position: { x: QA_LEFT + 20, y: Q_ROW4 },
+    position: { x: QA + 20, y: Q_ROW4 },
     data: { type: "ai_overview", label: "AI Overview", color: "amber", content: null, state: "idle" },
   },
 ];
