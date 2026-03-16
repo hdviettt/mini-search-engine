@@ -48,11 +48,11 @@ const COL2 = 280;      // PageRank column
 const COL3 = 530;      // Chunker column
 const COL4 = 750;      // Embedder
 
-// Query X positions
+// Query X positions — wide gap between paths
 const QS = 30;         // Search path left edge
 const QS2 = 230;       // PR Lookup
-const QA = 480;        // AI path left
-const QA2 = 680;       // AI path right
+const QA = 580;        // AI path left
+const QA2 = 790;       // AI path right
 
 export const initialNodes: Node[] = [
   // ============================================================
@@ -128,14 +128,14 @@ export const initialNodes: Node[] = [
   // QUERY ZONE
   // ============================================================
   { id: "label_query", type: "label", position: { x: 10, y: Q_LABEL }, data: { label: "QUERY (per search)" } },
-  { id: "label_search_path", type: "label", position: { x: QS, y: Q_LABEL + 20 }, data: { label: "> SEARCH PATH" } },
-  { id: "label_ai_path", type: "label", position: { x: QA, y: Q_LABEL + 20 }, data: { label: "> AI OVERVIEW PATH" } },
+  { id: "label_search_path", type: "label", position: { x: QS, y: Q_LABEL + 18 }, data: { label: "> SEARCH PATH" } },
+  { id: "label_ai_path", type: "label", position: { x: QA, y: Q_LABEL + 18 }, data: { label: "> AI OVERVIEW PATH" } },
 
   // Query input — centered
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 300, y: Q_INPUT },
+    position: { x: 350, y: Q_INPUT },
     data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
 
@@ -167,13 +167,13 @@ export const initialNodes: Node[] = [
   {
     id: "combine",
     type: "pipeline",
-    position: { x: QS + 80, y: Q_ROW3 },
+    position: { x: QS + 90, y: Q_ROW3 },
     data: { label: "Combine", icon: "combine", description: "α×BM25 + (1-α)×PR", color: "amber", phase: "combining", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "results",
     type: "output",
-    position: { x: QS + 20, y: Q_ROW4 },
+    position: { x: QS + 30, y: Q_ROW4 },
     data: { type: "results", label: "Ranked Results", color: "amber", content: null, state: "idle" },
   },
 
@@ -193,61 +193,61 @@ export const initialNodes: Node[] = [
   {
     id: "vector_search",
     type: "pipeline",
-    position: { x: QA + 80, y: Q_ROW2 },
+    position: { x: QA + 90, y: Q_ROW2 },
     data: { label: "Vector Search", icon: "retriever", description: "Cosine similarity", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "llm",
     type: "pipeline",
-    position: { x: QA + 80, y: Q_ROW3 },
+    position: { x: QA + 90, y: Q_ROW3 },
     data: { label: "LLM Synthesis", icon: "llm", description: "Groq — Llama 3.3 70B", color: "amber", phase: "aiSynthesis", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "ai_overview",
     type: "output",
-    position: { x: QA + 20, y: Q_ROW4 },
+    position: { x: QA + 30, y: Q_ROW4 },
     data: { type: "ai_overview", label: "AI Overview", color: "amber", content: null, state: "idle" },
   },
 ];
 
 export const initialEdges: Edge[] = [
   // BUILD: Crawler → Pages DB (write)
-  { id: "b-crawler-pages", source: "crawler", target: "pages_db", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-crawler-pages", source: "crawler", target: "pages_db", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // Pages DB → processors (read)
-  { id: "b-pages-indexer", source: "pages_db", target: "indexer", type: "straight", style: { stroke: "var(--edge-color)" } },
-  { id: "b-pages-pr", source: "pages_db", target: "pr_compute", type: "straight", style: { stroke: "var(--edge-color)" } },
-  { id: "b-pages-chunker", source: "pages_db", target: "chunker", type: "straight", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-indexer", source: "pages_db", target: "indexer", type: "default", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-pr", source: "pages_db", target: "pr_compute", type: "default", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-chunker", source: "pages_db", target: "chunker", type: "default", style: { stroke: "var(--edge-color)" } },
 
   // Processors → stores (write)
-  { id: "b-indexer-index", source: "indexer", target: "inverted_index", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
-  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-indexer-index", source: "indexer", target: "inverted_index", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // Chunker → Embedder → Vector Store
-  { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "straight", style: { stroke: "var(--edge-color)" } },
-  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "straight", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "default", style: { stroke: "var(--edge-color)" } },
+  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // STORES → QUERY (read paths)
-  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "default", style: { stroke: "var(--edge-query)" } },
 
   // SEARCH PATH
-  { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-token-lookup", source: "tokenize", target: "index_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-lookup-bm25", source: "index_lookup", target: "bm25", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-bm25-combine", source: "bm25", target: "combine", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-combine-results", source: "combine", target: "results", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-lookup", source: "tokenize", target: "index_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-lookup-bm25", source: "index_lookup", target: "bm25", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-bm25-combine", source: "bm25", target: "combine", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-combine-results", source: "combine", target: "results", type: "default", style: { stroke: "var(--edge-query)" } },
 
   // AI OVERVIEW PATH
-  { id: "q-input-fanout", source: "query_input", target: "fanout", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-input-embed", source: "query_input", target: "embed_query", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-vsearch-llm", source: "vector_search", target: "llm", type: "straight", style: { stroke: "var(--edge-query)" } },
-  { id: "q-llm-ai", source: "llm", target: "ai_overview", type: "straight", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-fanout", source: "query_input", target: "fanout", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-embed", source: "query_input", target: "embed_query", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vsearch-llm", source: "vector_search", target: "llm", type: "default", style: { stroke: "var(--edge-query)" } },
+  { id: "q-llm-ai", source: "llm", target: "ai_overview", type: "default", style: { stroke: "var(--edge-query)" } },
 ];
 
 export const phaseEdgeMap: Record<string, string[]> = {
