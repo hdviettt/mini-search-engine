@@ -188,7 +188,10 @@ export default function OperationsTab({
                     }`}>
                       <span>{d}</span>
                       {!isDefault && (
-                        <button onClick={() => removeDomain(d)} className="text-[var(--text-dim)] hover:text-red-500 cursor-pointer ml-0.5">&times;</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeDomain(d); }}
+                          className="text-[14px] leading-none text-[var(--text-dim)] hover:text-red-500 cursor-pointer ml-1 px-0.5"
+                        >&times;</button>
                       )}
                     </div>
                   );
