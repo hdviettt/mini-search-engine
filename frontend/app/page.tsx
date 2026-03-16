@@ -288,7 +288,7 @@ export default function Home() {
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-sm text-[var(--text-muted)]">
-                  {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms
+                  {searchData.total_results} results in {(searchData.time_ms ?? 0).toFixed(0)}ms
                 </span>
                 <span className="text-[10px] text-[var(--text-dim)]">for &ldquo;{query}&rdquo;</span>
               </div>

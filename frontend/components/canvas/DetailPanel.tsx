@@ -160,7 +160,7 @@ function StorePreview({ nodeId }: { nodeId: string }) {
                 <div className="flex-1 h-1.5 bg-[var(--score-bar-bg)]">
                   <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(p.score / maxScore) * 100}%` }} />
                 </div>
-                <span className="text-[9px] text-[var(--accent)] font-mono w-16 text-right">{p.score.toFixed(6)}</span>
+                <span className="text-[9px] text-[var(--accent)] font-mono w-16 text-right">{(p.score ?? 0).toFixed(6)}</span>
               </div>
               <div className="flex items-center gap-1 pl-6 mt-0.5 text-[9px] text-[var(--text-dim)]">
                 <span className="text-[var(--text-muted)] font-mono">{p.inlinks}</span>
@@ -342,7 +342,7 @@ function ResultsView({ searchData }: { searchData: ExplainResponse | null }) {
         Final ranking: {Math.round(alpha * 100)}% BM25 relevance + {Math.round((1 - alpha) * 100)}% PageRank authority.
       </div>
       <div className="text-[9px] text-[var(--text-dim)] pb-1 border-b border-dashed border-[var(--border)]">
-        {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms for &ldquo;{searchData.query}&rdquo;
+        {searchData.total_results} results in {(searchData.time_ms ?? 0).toFixed(0)}ms for &ldquo;{searchData.query}&rdquo;
       </div>
       <div className="space-y-1.5">
         {searchData.results.slice(0, 8).map((r, i) => (
@@ -358,21 +358,21 @@ function ResultsView({ searchData }: { searchData: ExplainResponse | null }) {
                 <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
                   <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(r.bm25_score / (searchData.results[0]?.bm25_score || 1)) * 100}%` }} />
                 </div>
-                <span className="text-[var(--accent)] font-mono w-10 text-right">{r.bm25_score.toFixed(2)}</span>
+                <span className="text-[var(--accent)] font-mono w-10 text-right">{(r.bm25_score ?? 0).toFixed(2)}</span>
               </div>
               <div className="flex items-center gap-2 text-[9px]">
                 <span className="text-[var(--text-dim)] w-10">PR</span>
                 <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
-                  <div className="h-full bg-indigo-500/40" style={{ width: `${(r.pagerank_score / (searchData.results[0]?.pagerank_score || 0.001)) * 100}%` }} />
+                  <div className="h-full bg-indigo-500/40" style={{ width: `${((r.pagerank_score ?? 0) / (searchData.results[0]?.pagerank_score || 0.001)) * 100}%` }} />
                 </div>
-                <span className="text-[var(--text-muted)] font-mono w-10 text-right">{r.pagerank_score.toFixed(4)}</span>
+                <span className="text-[var(--text-muted)] font-mono w-10 text-right">{(r.pagerank_score ?? 0).toFixed(4)}</span>
               </div>
               <div className="flex items-center gap-2 text-[9px] pt-0.5 border-t border-dashed border-[var(--border)]">
                 <span className="text-[var(--text-dim)] w-10">Final</span>
                 <div className="flex-1 h-1.5 bg-[var(--score-bar-bg)]">
-                  <div className="h-full bg-[var(--accent)]/60" style={{ width: `${(r.final_score / maxFinal) * 100}%` }} />
+                  <div className="h-full bg-[var(--accent)]/60" style={{ width: `${((r.final_score ?? 0) / maxFinal) * 100}%` }} />
                 </div>
-                <span className="text-[var(--accent)] font-mono font-medium w-10 text-right">{r.final_score.toFixed(2)}</span>
+                <span className="text-[var(--accent)] font-mono font-medium w-10 text-right">{(r.final_score ?? 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -421,7 +421,7 @@ function AIOverviewView({ overviewText, overviewTrace }: { overviewText: string;
               {overviewTrace.total_ms && (
                 <div className="flex items-center gap-2 text-[9px] pt-1 border-t border-dashed border-[var(--border)]">
                   <span className="text-[var(--text-dim)] w-16">Total</span>
-                  <span className="text-[var(--accent)] font-mono ml-auto">{overviewTrace.total_ms.toFixed(0)}ms</span>
+                  <span className="text-[var(--accent)] font-mono ml-auto">{overviewTrace.total_ms?.toFixed(0)}ms</span>
                 </div>
               )}
             </div>

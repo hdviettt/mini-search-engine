@@ -141,7 +141,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
                   <div className="h-full bg-[var(--accent)]/50" style={{ width: `${(s.score / maxScore) * 100}%` }} />
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-[var(--accent)] w-8 text-right">{s.score.toFixed(1)}</span>
+              <span className="text-[10px] font-mono text-[var(--accent)] w-8 text-right">{(s.score ?? 0).toFixed(1)}</span>
             </div>
           ))}
         </div>
@@ -168,7 +168,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
                   <div className="h-full bg-indigo-500/50" style={{ width: `${(s.score / maxScore) * 100}%` }} />
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-[var(--accent)] w-14 text-right">{s.score.toFixed(6)}</span>
+              <span className="text-[10px] font-mono text-[var(--accent)] w-14 text-right">{(s.score ?? 0).toFixed(6)}</span>
             </div>
           ))}
         </div>
@@ -227,7 +227,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
           ))}
         </div>
         {f.time_ms && (
-          <div className="text-[9px] text-[var(--text-dim)]">Fan-out took {f.time_ms.toFixed(0)}ms</div>
+          <div className="text-[9px] text-[var(--text-dim)]">Fan-out took {f.time_ms?.toFixed(0)}ms</div>
         )}
       </div>
     );
@@ -321,14 +321,14 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
             </div>
             <div className="flex items-center gap-2 text-[9px]">
               <span className="text-[var(--text-dim)] w-16">Time</span>
-              <span className="text-[var(--text-muted)] font-mono">{overviewTrace.synthesis.time_ms.toFixed(0)}ms</span>
+              <span className="text-[var(--text-muted)] font-mono">{overviewTrace.synthesis.time_ms?.toFixed(0)}ms</span>
             </div>
           </div>
           <div className="text-[9px] text-[var(--text-dim)] font-mono p-1 border-l-2 border-[var(--accent)]/30">
             retrieved chunks &rarr; system prompt &rarr; LLM &rarr; cited summary
           </div>
           {overviewTrace.total_ms && (
-            <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms.toFixed(0)}ms</div>
+            <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms?.toFixed(0)}ms</div>
           )}
         </div>
       );
