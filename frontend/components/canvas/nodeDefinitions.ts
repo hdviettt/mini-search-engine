@@ -34,9 +34,9 @@ const B_EMBEDDER = 400;   // Embedder below Chunker
 // Store band
 const S_BAND = 530;
 
-// Query zone
-const Q_LABEL = 670;
-const Q_INPUT = 710;
+// Query zone — Search Query sits above like Crawler sits above BUILD
+const Q_INPUT = 660;     // Entry point, between stores and query paths
+const Q_LABEL = 760;     // Zone label below query input
 const Q_ROW1 = 820;
 const Q_ROW1_5 = 920;
 const Q_ROW2 = 1020;
@@ -127,17 +127,17 @@ export const initialNodes: Node[] = [
   // ============================================================
   // QUERY ZONE
   // ============================================================
-  { id: "label_query", type: "label", position: { x: 10, y: Q_LABEL }, data: { label: "QUERY (per search)" } },
-  { id: "label_search_path", type: "label", position: { x: QS, y: Q_LABEL + 18 }, data: { label: "> SEARCH PATH" } },
-  { id: "label_ai_path", type: "label", position: { x: QA, y: Q_LABEL + 18 }, data: { label: "> AI OVERVIEW PATH" } },
-
-  // Query input — centered
+  // Query input — entry point, sits above the two paths like Crawler sits above BUILD
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 350, y: Q_INPUT },
+    position: { x: 280, y: Q_INPUT },
     data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
+
+  { id: "label_query", type: "label", position: { x: 10, y: Q_INPUT - 25 }, data: { label: "QUERY (per search)" } },
+  { id: "label_search_path", type: "label", position: { x: QS, y: Q_LABEL }, data: { label: "> SEARCH PATH" } },
+  { id: "label_ai_path", type: "label", position: { x: QA, y: Q_LABEL }, data: { label: "> AI OVERVIEW PATH" } },
 
   // -- SEARCH PATH --
   {
