@@ -289,7 +289,15 @@ export default function CanvasLayout({
           }
         }
         if (n.type === "store") {
-          return { ...n, data: { ...n.data, active: activeStores.includes(n.id) } };
+          const isQueryActive = activeStores.includes(n.id);
+          // Preserve build-time active state (from the build effect)
+          const isBuildActive = !!(
+            (crawlProgress && n.id === "pages_db") ||
+            (indexProgress && n.id === "inverted_index") ||
+            (indexProgress?.phase === "pagerank" && n.id === "pr_scores") ||
+            (embedProgress && n.id === "vector_store")
+          );
+          return { ...n, data: { ...n.data, active: isQueryActive || isBuildActive } };
         }
         return n;
       })
