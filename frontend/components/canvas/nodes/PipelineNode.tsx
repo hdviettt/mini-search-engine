@@ -36,18 +36,19 @@ export default function PipelineNode({ data }: { data: PipelineNodeData }) {
 
   return (
     <div className={`flex w-[170px] cursor-pointer transition-colors
-      ${isActive ? "bg-[var(--accent-muted)]" : isCompleted ? "bg-[var(--accent-muted)]" : "bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]"}`}
+      ${isActive ? "bg-[var(--accent-muted)]" : isCompleted ? "bg-[var(--bg-card)]" : "bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]"}`}
     >
       <Handle type="target" position={Position.Top} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
       <Handle type="source" position={Position.Bottom} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
 
       <div className={`w-[3px] shrink-0 ${
         isActive ? "bg-[var(--accent)]" : isCompleted ? "bg-[var(--accent)]" : "bg-[var(--border)]"
-      }`} style={isCompleted ? { opacity: 0.5 } : undefined} />
+      }`} />
 
-      <div className={`flex-1 p-2.5 border-t border-r border-b ${
-        isActive ? "border-[var(--accent)]/30" : isCompleted ? "border-[var(--accent)]/20" : "border-[var(--border)]"
-      }`}>
+      <div className="flex-1 p-2.5 border-t border-r border-b" style={{
+        borderColor: isActive ? "var(--accent)" : isCompleted ? "var(--accent)" : "var(--border)",
+        opacity: isCompleted ? 0.7 : 1,
+      }}>
         <div className="flex items-center gap-2 mb-0.5">
           <NodeIcon icon={data.icon} color={data.color} />
           <span className="text-[11px] font-medium text-[var(--text)]">{data.label}</span>

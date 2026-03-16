@@ -10,13 +10,17 @@ export default function OutputNode({ data }: { data: OutputNodeData }) {
   const isActive = data.state === "active";
 
   return (
-    <div className={`w-[210px] p-3 cursor-pointer transition-colors
-      border-2 ${
-        isActive ? "bg-[var(--accent-muted)] border-[var(--accent)]/50" :
-        isCompleted ? "bg-[var(--accent-muted)] border-[var(--accent)]/30" :
-        "bg-[var(--bg-card)] border-[var(--border-hover)] hover:border-[var(--text-dim)]"
+    <div className={`w-[210px] p-3 cursor-pointer transition-colors border-2 ${
+        isActive ? "bg-[var(--accent-muted)]" :
+        isCompleted ? "bg-[var(--bg-card)]" :
+        "bg-[var(--bg-card)] hover:border-[var(--text-dim)]"
       }`}
-      style={{ outline: isActive ? "2px solid var(--node-glow)" : isCompleted ? "2px solid var(--node-glow)" : `2px solid var(--border)`, outlineOffset: "3px" }}
+      style={{
+        borderColor: isActive ? "var(--accent)" : isCompleted ? "var(--accent)" : "var(--border-hover)",
+        opacity: isCompleted ? 0.7 : 1,
+        outline: isActive ? "2px solid var(--node-glow)" : isCompleted ? "2px solid var(--node-glow)" : "2px solid var(--border)",
+        outlineOffset: "3px",
+      }}
     >
       <Handle type="target" position={Position.Top} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
 

@@ -134,38 +134,40 @@ export default function CanvasLayout({
     );
   }, [overviewTrace, overviewText, setNodes]);
 
-  // Animate edges based on phase — track completed nodes/edges
-  const completedNodesRef = useRef<Set<string>>(new Set());
-  const completedEdgesRef = useRef<Set<string>>(new Set());
+  // Ordered list of all phases — used to determine which nodes are "completed"
+  const PHASE_ORDER = ["queryInput", "tokenizing", "indexLookup", "bm25", "pagerank", "combining", "results", "aiFanout", "aiEmbedding", "aiRetrieval", "aiSynthesis", "aiComplete"];
 
+  // Animate edges and nodes based on current phase
   useEffect(() => {
     if (phase === "idle") return;
 
-    // On new search, reset tracking
-    if (phase === "queryInput") {
-      completedNodesRef.current.clear();
-      completedEdgesRef.current.clear();
-    }
-
-    // Mark current phase's edges as completed for future phases
-    const activeEdges = phaseEdgeMap[phase] || [];
-    for (const e of activeEdges) completedEdgesRef.current.add(e);
-
-    // Mark current active node
+    const currentIdx = PHASE_ORDER.indexOf(phase);
     const activeNode = phaseNodeMap[phase];
+    const activeEdges = phaseEdgeMap[phase] || [];
+    const activeStores = phaseStoreMap[phase] || [];
+
+    // Collect all completed nodes and edges from prior phases
+    const completedNodes = new Set<string>();
+    const completedEdges = new Set<string>();
+    for (let i = 0; i < currentIdx; i++) {
+      const p = PHASE_ORDER[i];
+      const node = phaseNodeMap[p];
+      if (node) completedNodes.add(node);
+      for (const e of (phaseEdgeMap[p] || [])) completedEdges.add(e);
+    }
 
     setEdges((eds) =>
       eds.map((e) => {
         const isBuildEdge = e.id.startsWith("b-");
         const isActive = activeEdges.includes(e.id);
-        const isCompleted = completedEdgesRef.current.has(e.id);
+        const isCompleted = completedEdges.has(e.id);
         return {
           ...e,
           animated: isActive,
           style: isActive
             ? { stroke: "var(--accent)", strokeWidth: 2 }
             : isCompleted
-              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.4 }
+              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.5 }
               : isBuildEdge
                 ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
                 : { stroke: "var(--edge-query)", strokeWidth: 1 },
@@ -173,21 +175,13 @@ export default function CanvasLayout({
       })
     );
 
-    // Mark previous active node as completed, set new active node
-    if (activeNode) {
-      // Add the previous active to completed set
-      completedNodesRef.current.forEach(() => {}); // keep all
-      completedNodesRef.current.add(activeNode);
-    }
-    const activeStores = phaseStoreMap[phase] || [];
     setNodes((nds) =>
       nds.map((n) => {
         if (n.type === "pipeline" || n.type === "output") {
           if (n.id === activeNode) {
             return { ...n, data: { ...n.data, state: "active" } };
           }
-          // Previously visited nodes stay "completed"
-          if (completedNodesRef.current.has(n.id) && n.id !== activeNode) {
+          if (completedNodes.has(n.id)) {
             return { ...n, data: { ...n.data, state: "completed" } };
           }
         }
