@@ -96,6 +96,13 @@ body {
   color: inherit !important;
 }
 
+/* Hide connection handles — diagram is not interactive */
+.react-flow__handle {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+}
+
 /* Group nodes */
 .react-flow__node-group {
   box-shadow: none !important;

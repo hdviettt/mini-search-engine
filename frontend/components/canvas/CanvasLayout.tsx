@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
-  MiniMap,
-  Controls,
   Background,
   BackgroundVariant,
   useNodesState,
@@ -330,20 +328,19 @@ export default function CanvasLayout({
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        panOnDrag={true}
+        zoomOnScroll={true}
         fitView
-        fitViewOptions={{ padding: 0.15 }}
-        minZoom={0.3}
-        maxZoom={2}
+        fitViewOptions={{ padding: 0.08 }}
+        minZoom={0.2}
+        maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
         className="!bg-[var(--bg)]"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={0.8} color="var(--dot-color)" />
-        <Controls className="!bg-[var(--bg-card)] !border-[var(--border)] [&>button]:!bg-[var(--bg-card)] [&>button]:!border-[var(--border)] [&>button]:!text-[var(--text-dim)] [&>button:hover]:!bg-[var(--bg-elevated)]" />
-        <MiniMap
-          nodeColor="var(--border)"
-          maskColor="var(--minimap-mask)"
-          className="!bg-[var(--bg-card)] !border-[var(--border)]"
-        />
       </ReactFlow>
       <CanvasLegend />
       <ThemeToggle />
