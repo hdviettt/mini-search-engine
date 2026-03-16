@@ -246,11 +246,16 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Query Embedding</div>
-        <Intro>The query text is converted into a 768-dimensional vector using the same embedding model as the stored chunks, so they can be compared by cosine similarity.</Intro>
+        <Intro>The query text is converted into a 768-dimensional vector using the same embedding model as the stored chunks, enabling cosine similarity comparison.</Intro>
+        {trace && (
+          <div className="p-1.5 bg-[var(--bg-card)] border border-[var(--border)] font-mono text-[10px] text-[var(--text-muted)] mb-1">
+            &quot;{trace.tokenization.input}&quot; &rarr; float[768]
+          </div>
+        )}
         <div className="p-2 border border-dashed border-[var(--border)] space-y-1.5">
           <div className="flex items-center gap-2 text-[10px]">
             <span className="text-[var(--text-dim)]">Model:</span>
-            <span className="text-[var(--accent)] font-mono">all-MiniLM-L6-v2</span>
+            <span className="text-[var(--accent)] font-mono">nomic-embed-text</span>
           </div>
           <div className="flex items-center gap-2 text-[10px]">
             <span className="text-[var(--text-dim)]">Dimensions:</span>
@@ -258,11 +263,11 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
           </div>
           <div className="flex items-center gap-2 text-[10px]">
             <span className="text-[var(--text-dim)]">Similarity:</span>
-            <span className="text-[var(--text-muted)] font-mono">cosine</span>
+            <span className="text-[var(--text-muted)] font-mono">cosine distance</span>
           </div>
         </div>
-        <div className="text-[9px] text-[var(--text-dim)]">
-          Query text &rarr; dense vector &rarr; nearest-neighbor search against chunk embeddings
+        <div className="text-[9px] text-[var(--text-dim)] font-mono p-1.5 border-l-2 border-[var(--accent)]/30">
+          query text &rarr; embed &rarr; float[768] &rarr; compare vs stored chunk vectors
         </div>
       </div>
     );
