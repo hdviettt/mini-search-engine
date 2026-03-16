@@ -45,6 +45,24 @@ const QY6 = 730;          // Results
 
 export const initialNodes: Node[] = [
   // ============================================================
+  // SECTION CONTAINERS — visual separation
+  // ============================================================
+  {
+    id: "group_build",
+    type: "group",
+    position: { x: -20, y: -10 },
+    data: { label: "" },
+    style: { width: 620, height: 680, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+  },
+  {
+    id: "group_query",
+    type: "group",
+    position: { x: 615, y: -10 },
+    data: { label: "" },
+    style: { width: 850, height: 800, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+  },
+
+  // ============================================================
   // BUILD ZONE (left side)
   // ============================================================
   { id: "label_build", type: "label", position: { x: 10, y: BY1 - 25 }, data: { label: "BUILD (offline)" } },
@@ -212,10 +230,10 @@ export const initialEdges: Edge[] = [
   { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "default", style: { stroke: "var(--edge-color)" } },
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
-  // === STORE → QUERY BRIDGE (subtle read connections) ===
-  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
+  // === STORE → QUERY BRIDGE (square routing, subtle) ===
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
 
   // === SEARCH PATH ===
   { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "default", style: { stroke: "var(--edge-query)" } },
