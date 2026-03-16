@@ -40,11 +40,14 @@ class JobManager:
     def _emit(self, msg: dict):
         self.message_queue.put(msg)  # legacy
         with self._sub_lock:
-            for q in self._subscribers:
-                try:
-                    q.put_nowait(msg)
-                except queue.Full:
-                    pass
+            subs = list(self._subscribers)
+        for q in subs:
+            try:
+                q.put_nowait(msg)
+            except queue.Full:
+                pass
+        if msg.get("type") in ("crawl_progress", "crawl_complete", "index_progress", "index_complete", "embed_progress", "embed_complete"):
+            print(f"  [WS] Emitted {msg.get('type')} to {len(subs)} subscribers")
 
     def start_crawl(self, seed_urls: list[str], max_pages: int = 100, max_depth: int = 3) -> str:
         # Only one crawl at a time
