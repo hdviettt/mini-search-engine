@@ -289,7 +289,7 @@ export default function CanvasLayout({
             : isCompleted
               ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.4 }
               : isBridgeEdge
-                ? { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 }
+                ? { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.6 }
                 : isBuildEdge
                   ? isWriteEdge
                     ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }

@@ -29,12 +29,12 @@ const BY3 = 290;          // Processors
 const BY4 = 410;          // Embedder (below Chunker)
 const BY5 = 550;          // Stores
 
-// === RIGHT SIDE: QUERY (x: 680+) ===
-const QX = 680;           // Query entry
-const QS = 630;           // Search path
-const QS2 = 830;          // PR Lookup
-const QA = 1050;          // AI path
-const QA2 = 1250;         // Embed Query
+// === RIGHT SIDE: QUERY (x: 850+) — wider gap from build ===
+const QX = 850;           // Query entry
+const QS = 800;           // Search path
+const QS2 = 1000;         // PR Lookup
+const QA = 1220;          // AI path
+const QA2 = 1420;         // Embed Query
 
 const QY1 = 30;           // Search Query
 const QY2 = 170;          // Path labels + Tokenize / Fan-out / Embed
@@ -57,9 +57,9 @@ export const initialNodes: Node[] = [
   {
     id: "group_query",
     type: "group",
-    position: { x: 615, y: -10 },
+    position: { x: 780, y: -10 },
     data: { label: "" },
-    style: { width: 850, height: 800, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+    style: { width: 860, height: 800, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
 
   // ============================================================
@@ -230,10 +230,10 @@ export const initialEdges: Edge[] = [
   { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "default", style: { stroke: "var(--edge-color)" } },
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
-  // === STORE → QUERY BRIDGE (square routing, subtle) ===
-  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.4 } },
+  // === STORE → QUERY BRIDGE (square routing, dashed) ===
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.6 } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.6 } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "smoothstep", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.6 } },
 
   // === SEARCH PATH ===
   { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "default", style: { stroke: "var(--edge-query)" } },
