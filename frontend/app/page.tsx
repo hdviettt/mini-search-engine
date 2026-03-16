@@ -197,7 +197,7 @@ export default function Home() {
       </div>
 
       {/* RIGHT: Search + Results (collapsible) */}
-      <div className={`h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col shrink-0 transition-all duration-200 ${panelOpen ? "w-[45%]" : "w-8"}`}>
+      <div className={`h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col shrink-0 transition-all duration-200 relative ${panelOpen ? "w-[45%]" : "w-8"}`}>
         {!panelOpen ? (
           <button
             onClick={() => setPanelOpen(true)}
@@ -240,20 +240,6 @@ export default function Home() {
             </button>
           </form>
         </div>
-
-        {/* Node detail panel (collapsible, inline) */}
-        <DetailPanel
-          nodeId={selectedNode}
-          onClose={() => setSelectedNode(null)}
-          trace={searchData?.pipeline || null}
-          overviewTrace={overviewTrace}
-          crawlProgress={crawlProgress}
-          indexProgress={indexProgress}
-          embedProgress={embedProgress}
-          logEntries={logEntries}
-          activeCrawlJobId={activeCrawlJobId}
-          onCrawlStarted={setActiveCrawlJobId}
-        />
 
         {/* Content area */}
         <div className="flex-1 overflow-y-auto">
@@ -308,6 +294,19 @@ export default function Home() {
             </div>
           )}
         </div>
+        {/* Node detail — bottom drawer overlay */}
+        <DetailPanel
+          nodeId={selectedNode}
+          onClose={() => setSelectedNode(null)}
+          trace={searchData?.pipeline || null}
+          overviewTrace={overviewTrace}
+          crawlProgress={crawlProgress}
+          indexProgress={indexProgress}
+          embedProgress={embedProgress}
+          logEntries={logEntries}
+          activeCrawlJobId={activeCrawlJobId}
+          onCrawlStarted={setActiveCrawlJobId}
+        />
         </>
         )}
       </div>

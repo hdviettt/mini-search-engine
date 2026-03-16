@@ -210,13 +210,13 @@ export default function DetailPanel({
   const nodeLabel = nodeId.replace(/_/g, " ");
 
   return (
-    <div className="border-t border-[#222] bg-[#0d0d0d]">
+    <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#0d0d0d] border-t border-[#222] animate-in" style={{ maxHeight: "45%" }}>
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
         <span className="text-[11px] font-medium text-[#888] uppercase tracking-wider">{nodeLabel}</span>
         <button onClick={onClose} className="text-[#555] hover:text-[#e88a1a] cursor-pointer text-sm">&times;</button>
       </div>
 
-      <div className="max-h-[250px] overflow-y-auto">
+      <div className="overflow-y-auto" style={{ maxHeight: "calc(45vh - 40px)" }}>
         {isStoreNode ? (
           <StorePreview nodeId={nodeId} />
         ) : storeId ? (
