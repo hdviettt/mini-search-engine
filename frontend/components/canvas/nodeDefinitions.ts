@@ -256,19 +256,22 @@ export const initialEdges: Edge[] = [
 ];
 
 export const phaseEdgeMap: Record<string, string[]> = {
-  tokenizing: ["q-input-tokenize", "q-input-fanout", "q-input-embed"],
-  indexLookup: ["q-index-bm25", "q-token-bm25"],
+  queryInput: [],
+  tokenizing: ["q-input-tokenize"],
+  indexLookup: ["q-token-bm25", "q-index-bm25"],
   bm25: ["q-index-bm25", "q-token-bm25"],
   pagerank: ["q-scores-prlookup", "q-token-prlookup"],
   combining: ["q-bm25-combine", "q-prlookup-combine"],
   results: ["q-combine-results"],
-  aiFanout: ["q-input-fanout", "q-fanout-vsearch"],
-  aiRetrieval: ["q-vectors-vsearch", "q-embed-vsearch", "q-fanout-vsearch"],
+  aiFanout: ["q-input-fanout"],
+  aiEmbedding: ["q-input-embed"],
+  aiRetrieval: ["q-fanout-vsearch", "q-embed-vsearch", "q-vectors-vsearch"],
   aiSynthesis: ["q-vsearch-llm"],
   aiComplete: ["q-llm-ai"],
 };
 
 export const phaseNodeMap: Record<string, string> = {
+  queryInput: "query_input",
   tokenizing: "tokenize",
   indexLookup: "tokenize",
   bm25: "bm25",
@@ -276,14 +279,15 @@ export const phaseNodeMap: Record<string, string> = {
   combining: "combine",
   results: "results",
   aiFanout: "fanout",
+  aiEmbedding: "embed_query",
   aiRetrieval: "vector_search",
   aiSynthesis: "llm",
   aiComplete: "ai_overview",
 };
 
 export const phaseStoreMap: Record<string, string[]> = {
-  bm25: ["inverted_index"],
   indexLookup: ["inverted_index"],
+  bm25: ["inverted_index"],
   pagerank: ["pr_scores"],
   aiRetrieval: ["vector_store"],
 };

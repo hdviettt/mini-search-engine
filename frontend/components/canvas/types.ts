@@ -1,5 +1,6 @@
 export type FlowPhase =
   | "idle"
+  | "queryInput"
   | "tokenizing"
   | "indexLookup"
   | "bm25"
@@ -7,6 +8,7 @@ export type FlowPhase =
   | "combining"
   | "results"
   | "aiFanout"
+  | "aiEmbedding"
   | "aiRetrieval"
   | "aiSynthesis"
   | "aiComplete";

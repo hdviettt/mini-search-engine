@@ -16,12 +16,13 @@ const DEFAULT_PARAMS: SearchParams = { bm25_k1: 1.2, bm25_b: 0.75, rank_alpha: 0
 
 // Phase sequence for animating the search pipeline
 const SEARCH_PHASES: { phase: FlowPhase; delay: number }[] = [
-  { phase: "tokenizing", delay: 0 },
-  { phase: "indexLookup", delay: 250 },
-  { phase: "bm25", delay: 500 },
-  { phase: "pagerank", delay: 750 },
-  { phase: "combining", delay: 1000 },
-  { phase: "results", delay: 1250 },
+  { phase: "queryInput", delay: 0 },
+  { phase: "tokenizing", delay: 300 },
+  { phase: "indexLookup", delay: 600 },
+  { phase: "bm25", delay: 900 },
+  { phase: "pagerank", delay: 1200 },
+  { phase: "combining", delay: 1500 },
+  { phase: "results", delay: 1800 },
 ];
 
 export default function Home() {
@@ -177,7 +178,7 @@ export default function Home() {
 
       // Start AI overview stream after search animation
       if (data.total_results >= 3) {
-        const timer = setTimeout(() => streamOverview(q), 1500);
+        const timer = setTimeout(() => streamOverview(q), 2100);
         timersRef.current.push(timer);
       }
     } catch { /* */ }

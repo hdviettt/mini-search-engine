@@ -73,7 +73,7 @@ export default function CanvasLayout({
     );
   }, [stats, setNodes]);
 
-  // Update pipeline nodes with trace data
+  // Update pipeline nodes with trace data (data only — state managed by phase animation)
   useEffect(() => {
     if (!searchData?.pipeline) return;
     const t = searchData.pipeline;
@@ -81,27 +81,26 @@ export default function CanvasLayout({
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === "query_input" && n.type === "pipeline") {
-          return { ...n, data: { ...n.data, state: "completed",
-            summary: `"${searchData.query}"` } };
+          return { ...n, data: { ...n.data, summary: `"${searchData.query}"` } };
         }
         if (n.id === "tokenize" && n.type === "pipeline") {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: t.tokenization.time_ms,
+          return { ...n, data: { ...n.data, timeMs: t.tokenization.time_ms,
             summary: `[${t.tokenization.tokens.join(", ")}]` } };
         }
         if (n.id === "bm25" && n.type === "pipeline") {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: t.bm25_scoring.time_ms,
+          return { ...n, data: { ...n.data, timeMs: t.bm25_scoring.time_ms,
             summary: `${t.bm25_scoring.total_matched} docs scored` } };
         }
         if (n.id === "pr_lookup" && n.type === "pipeline") {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: t.pagerank.time_ms,
+          return { ...n, data: { ...n.data, timeMs: t.pagerank.time_ms,
             summary: `Top: ${t.pagerank.top_scores[0]?.title.replace(" - Wikipedia", "").slice(0, 20) || ""}` } };
         }
         if (n.id === "combine" && n.type === "pipeline") {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: t.combination.time_ms,
+          return { ...n, data: { ...n.data, timeMs: t.combination.time_ms,
             summary: t.combination.formula } };
         }
         if (n.id === "results" && n.type === "output") {
-          return { ...n, data: { ...n.data, state: "completed",
+          return { ...n, data: { ...n.data,
             content: searchData.results.map((r) => ({ title: r.title, score: r.final_score })) } };
         }
         return n;
@@ -109,25 +108,25 @@ export default function CanvasLayout({
     );
   }, [searchData, setNodes]);
 
-  // Update AI overview nodes
+  // Update AI overview nodes with trace data (data only — state managed by phase animation)
   useEffect(() => {
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === "fanout" && n.type === "pipeline" && overviewTrace?.fanout) {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.fanout.time_ms,
+          return { ...n, data: { ...n.data, timeMs: overviewTrace.fanout.time_ms,
             summary: `${overviewTrace.fanout.expanded.length} queries` } };
         }
         if (n.id === "vector_search" && n.type === "pipeline" && overviewTrace?.retrieval) {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.retrieval.time_ms,
+          return { ...n, data: { ...n.data, timeMs: overviewTrace.retrieval.time_ms,
             summary: `${overviewTrace.retrieval.chunks_retrieved} chunks` } };
         }
         if (n.id === "llm" && n.type === "pipeline" && overviewTrace?.synthesis) {
-          return { ...n, data: { ...n.data, state: "completed", timeMs: overviewTrace.synthesis.time_ms,
+          return { ...n, data: { ...n.data, timeMs: overviewTrace.synthesis.time_ms,
             summary: overviewTrace.synthesis.model } };
         }
         if (n.id === "ai_overview" && n.type === "output") {
           if (overviewText) {
-            return { ...n, data: { ...n.data, state: "completed", content: overviewText } };
+            return { ...n, data: { ...n.data, content: overviewText } };
           }
         }
         return n;
@@ -143,7 +142,7 @@ export default function CanvasLayout({
     if (phase === "idle") return;
 
     // On new search, reset tracking
-    if (phase === "tokenizing") {
+    if (phase === "queryInput") {
       completedNodesRef.current.clear();
       completedEdgesRef.current.clear();
     }
@@ -203,7 +202,7 @@ export default function CanvasLayout({
   // Reset pipeline nodes on new search
   useEffect(() => {
     if (phase === "idle") return;
-    if (phase === "tokenizing") {
+    if (phase === "queryInput") {
       setNodes((nds) =>
         nds.map((n) => {
           if (n.type === "pipeline") return { ...n, data: { ...n.data, state: "idle", timeMs: null, summary: null } };
