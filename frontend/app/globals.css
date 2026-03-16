@@ -156,6 +156,15 @@ body {
   animation: slide-in-from-right 0.15s ease-out;
 }
 
+@keyframes slide-in-from-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-left {
+  animation: slide-in-from-left 0.15s ease-out;
+}
+
 /* ================================
    SCROLLBAR — Terminal style
    ================================ */

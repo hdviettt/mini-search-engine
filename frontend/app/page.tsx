@@ -196,6 +196,19 @@ export default function Home() {
           overviewTrace={overviewTrace}
           onNodeClick={setSelectedNode}
         />
+        {/* Node detail — left slide-out panel over canvas */}
+        <DetailPanel
+          nodeId={selectedNode}
+          onClose={() => setSelectedNode(null)}
+          trace={searchData?.pipeline || null}
+          overviewTrace={overviewTrace}
+          crawlProgress={crawlProgress}
+          indexProgress={indexProgress}
+          embedProgress={embedProgress}
+          logEntries={logEntries}
+          activeCrawlJobId={activeCrawlJobId}
+          onCrawlStarted={setActiveCrawlJobId}
+        />
       </div>
 
       {/* RIGHT: Search + Results (collapsible) */}
@@ -296,19 +309,6 @@ export default function Home() {
             </div>
           )}
         </div>
-        {/* Node detail — bottom drawer overlay */}
-        <DetailPanel
-          nodeId={selectedNode}
-          onClose={() => setSelectedNode(null)}
-          trace={searchData?.pipeline || null}
-          overviewTrace={overviewTrace}
-          crawlProgress={crawlProgress}
-          indexProgress={indexProgress}
-          embedProgress={embedProgress}
-          logEntries={logEntries}
-          activeCrawlJobId={activeCrawlJobId}
-          onCrawlStarted={setActiveCrawlJobId}
-        />
         </>
         )}
       </div>
