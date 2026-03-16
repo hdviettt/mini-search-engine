@@ -51,7 +51,7 @@ export default function PipelineNode({ data }: { data: PipelineNodeData }) {
         <div className="flex items-center gap-2 mb-0.5">
           <NodeIcon icon={data.icon} color={data.color} />
           <span className="text-[11px] font-medium text-[var(--text)]">{data.label}</span>
-          {data.timeMs !== null && (
+          {data.timeMs != null && (
             <span className={`text-[9px] ml-auto font-mono ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
               {data.timeMs.toFixed(1)}ms
             </span>
