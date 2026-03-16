@@ -7,7 +7,7 @@ import OperationsTab from "@/components/playground/OperationsTab";
 import PageRankTuning from "./PageRankTuning";
 import CrawlSchedulePanel from "./CrawlSchedulePanel";
 import { useResizable } from "@/hooks/useResizable";
-import type { PipelineTrace, ExplainResponse } from "@/lib/types";
+import type { PipelineTrace, ExplainResponse, CrawlProgressData } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
 import { rebuildIndex, rebuildEmbeddings } from "@/lib/api";
 
@@ -443,6 +443,7 @@ interface DetailPanelProps {
   indexProgress: unknown;
   embedProgress: unknown;
   logEntries: string[];
+  crawledPages: CrawlProgressData[];
   activeCrawlJobId: string | null;
   onCrawlStarted: (id: string) => void;
   searchData: ExplainResponse | null;
@@ -451,7 +452,7 @@ interface DetailPanelProps {
 
 export default function DetailPanel({
   nodeId, onClose, trace, overviewTrace,
-  crawlProgress, indexProgress, embedProgress, logEntries, activeCrawlJobId, onCrawlStarted,
+  crawlProgress, indexProgress, embedProgress, logEntries, crawledPages, activeCrawlJobId, onCrawlStarted,
   searchData, overviewText,
 }: DetailPanelProps) {
   const { width, onMouseDown } = useResizable({ initial: 340, min: 260, max: 600, direction: "right" });
@@ -580,6 +581,7 @@ export default function DetailPanel({
             indexProgress={indexProgress as never}
             embedProgress={embedProgress as never}
             logEntries={logEntries}
+            crawledPages={crawledPages}
             activeCrawlJobId={activeCrawlJobId}
             onCrawlStarted={onCrawlStarted}
           />

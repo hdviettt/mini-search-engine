@@ -48,6 +48,7 @@ export default function Home() {
   const [indexProgress, setIndexProgress] = useState<IndexProgressData | null>(null);
   const [embedProgress, setEmbedProgress] = useState<EmbedProgressData | null>(null);
   const [logEntries, setLogEntries] = useState<string[]>([]);
+  const [crawledPages, setCrawledPages] = useState<CrawlProgressData[]>([]);
   const [activeCrawlJobId, setActiveCrawlJobId] = useState<string | null>(null);
 
   const { lastMessage } = useWebSocket();
@@ -64,6 +65,7 @@ export default function Home() {
     if (type === "crawl_progress") {
       const d = data as CrawlProgressData;
       setCrawlProgress(d);
+      setCrawledPages((prev) => [...prev.slice(-100), d]);
       setLogEntries((prev) => [...prev.slice(-200), `[${d.pages_crawled}/${d.max_pages}] ${d.status === "ok" ? "OK" : "FAIL"} ${d.title || d.current_url}`]);
     } else if (type === "crawl_complete") {
       setLogEntries((prev) => [...prev, "Crawl complete."]);
@@ -212,8 +214,9 @@ export default function Home() {
           indexProgress={indexProgress}
           embedProgress={embedProgress}
           logEntries={logEntries}
+          crawledPages={crawledPages}
           activeCrawlJobId={activeCrawlJobId}
-          onCrawlStarted={setActiveCrawlJobId}
+          onCrawlStarted={(id) => { setCrawledPages([]); setActiveCrawlJobId(id); }}
           searchData={searchData}
           overviewText={overviewText}
         />
