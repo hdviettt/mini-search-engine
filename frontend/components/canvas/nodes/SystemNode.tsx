@@ -9,21 +9,13 @@ export default function SystemNode({ data }: { data: SystemNodeData }) {
   const pct = data.progress ? Math.round((data.progress.done / Math.max(data.progress.total, 1)) * 100) : 0;
 
   return (
-    <div className={`flex w-[170px] cursor-pointer transition-colors ${
-      isRunning ? "bg-[var(--accent-muted)]" : "bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]"
-    }`}>
+    <div className="flex w-[170px] cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] transition-colors">
       <Handle type="target" position={Position.Top} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
       <Handle type="source" position={Position.Bottom} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
 
-      {/* Left accent bar */}
-      <div className={`w-[3px] shrink-0 ${
-        isRunning ? "bg-[var(--accent)]" : "bg-[var(--border)]"
-      }`} />
+      <div className="w-[3px] shrink-0 bg-[var(--border)]" />
 
-      {/* Content */}
-      <div className="flex-1 p-2.5 border-t border-r border-b" style={{
-        borderColor: isRunning ? "var(--accent)" : "var(--border)",
-      }}>
+      <div className="flex-1 p-2.5 border-t border-r border-b border-[var(--border)]">
         <div className="flex items-center gap-2 mb-0.5">
           <NodeIcon icon={data.icon} color={data.color} />
           <span className="text-[11px] font-medium text-[var(--text)]">{data.label}</span>

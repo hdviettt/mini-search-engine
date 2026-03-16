@@ -4,29 +4,25 @@ import { Handle, Position } from "@xyflow/react";
 import NodeIcon from "../NodeIcon";
 import type { OutputNodeData } from "../types";
 
+const stateDot: Record<string, string> = {
+  idle: "bg-[var(--text-dim)]",
+  active: "bg-[var(--accent)] animate-pulse",
+  completed: "bg-emerald-500",
+};
+
 export default function OutputNode({ data }: { data: OutputNodeData }) {
   const isResults = data.type === "results";
-  const isCompleted = data.state === "completed";
-  const isActive = data.state === "active";
 
   return (
-    <div className={`w-[210px] p-3 cursor-pointer transition-colors border-2 ${
-        isActive ? "bg-[var(--accent-muted)]" :
-        isCompleted ? "bg-[var(--bg-card)]" :
-        "bg-[var(--bg-card)] hover:border-[var(--text-dim)]"
-      }`}
-      style={{
-        borderColor: isActive ? "var(--accent)" : isCompleted ? "var(--accent)" : "var(--border-hover)",
-        opacity: isCompleted ? 0.7 : 1,
-        outline: isActive ? "2px solid var(--node-glow)" : isCompleted ? "2px solid var(--node-glow)" : "2px solid var(--border)",
-        outlineOffset: "3px",
-      }}
+    <div className="w-[210px] p-3 cursor-pointer bg-[var(--bg-card)] border-2 border-[var(--border-hover)] hover:border-[var(--text-dim)] transition-colors"
+      style={{ outline: "2px solid var(--border)", outlineOffset: "3px" }}
     >
       <Handle type="target" position={Position.Top} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
 
       <div className="flex items-center gap-2 mb-1.5">
         <NodeIcon icon={isResults ? "results" : "ai_overview"} color="amber" />
         <span className="text-[11px] font-medium text-[var(--text)]">{data.label}</span>
+        <div className={`w-1.5 h-1.5 ml-auto ${stateDot[data.state] || stateDot.idle}`} />
       </div>
 
       {data.state === "idle" && (
