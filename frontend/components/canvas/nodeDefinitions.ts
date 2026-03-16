@@ -20,19 +20,19 @@ import type { Node, Edge } from "@xyflow/react";
     └────────────────────────────────────────┘
 */
 
-const BUILD_ROW1 = 35;
-const BUILD_ROW2 = 140;
-const STORE_Y = 35;
-const Q_ROW1 = 35;
-const Q_ROW2 = 155;
-const Q_ROW3 = 275;
-const Q_ROW4 = 380;
+const BUILD_ROW1 = 45;
+const BUILD_ROW2 = 180;
+const STORE_Y = 40;
+const Q_ROW1 = 50;
+const Q_ROW2 = 190;
+const Q_ROW3 = 330;
+const Q_ROW4 = 470;
 
 export const initialNodes: Node[] = [
   // ZONE LABELS
-  { id: "label_build", type: "label", position: { x: 8, y: -18 }, draggable: false, selectable: false, connectable: false, data: { label: "BUILD (offline)" } },
-  { id: "label_stores", type: "label", position: { x: 8, y: 282 }, draggable: false, selectable: false, connectable: false, data: { label: "DATA STORES" } },
-  { id: "label_query", type: "label", position: { x: 8, y: 462 }, draggable: false, selectable: false, connectable: false, data: { label: "QUERY (per search)" } },
+  { id: "label_build", type: "label", position: { x: 10, y: -20 }, draggable: false, selectable: false, connectable: false, data: { label: "BUILD (offline)" } },
+  { id: "label_stores", type: "label", position: { x: 10, y: 360 }, draggable: false, selectable: false, connectable: false, data: { label: "DATA STORES" } },
+  { id: "label_query", type: "label", position: { x: 10, y: 580 }, draggable: false, selectable: false, connectable: false, data: { label: "QUERY (per search)" } },
 
   // ============================================================
   // BUILD ZONE — Crawler on top, branches down
@@ -42,13 +42,13 @@ export const initialNodes: Node[] = [
     type: "group",
     position: { x: 0, y: 0 },
     data: { label: "" },
-    style: { width: 960, height: 270, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+    style: { width: 1150, height: 320, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
   // Row 1: Crawler centered
   {
     id: "crawler",
     type: "system",
-    position: { x: 350, y: BUILD_ROW1 },
+    position: { x: 450, y: BUILD_ROW1 },
     parentId: "group_build",
     data: { label: "Crawler", icon: "crawler", description: "Fetches pages via BFS", stats: [], status: "ready", color: "emerald" },
   },
@@ -56,28 +56,28 @@ export const initialNodes: Node[] = [
   {
     id: "indexer",
     type: "system",
-    position: { x: 50, y: BUILD_ROW2 },
+    position: { x: 60, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Indexer", icon: "indexer", description: "Builds inverted index", stats: [], status: "ready", color: "blue" },
   },
   {
     id: "pr_compute",
     type: "system",
-    position: { x: 280, y: BUILD_ROW2 },
+    position: { x: 340, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "PageRank", icon: "pagerank", description: "Computes link authority", stats: [], status: "ready", color: "indigo" },
   },
   {
     id: "chunker",
     type: "system",
-    position: { x: 510, y: BUILD_ROW2 },
+    position: { x: 630, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Chunker", icon: "chunker", description: "~300-token chunks", stats: [], status: "ready", color: "violet" },
   },
   {
     id: "embedder",
     type: "system",
-    position: { x: 710, y: BUILD_ROW2 },
+    position: { x: 900, y: BUILD_ROW2 },
     parentId: "group_build",
     data: { label: "Embedder", icon: "embedder", description: "768-dim vectors", stats: [], status: "ready", color: "purple" },
   },
@@ -88,35 +88,35 @@ export const initialNodes: Node[] = [
   {
     id: "group_stores",
     type: "group",
-    position: { x: 0, y: 300 },
+    position: { x: 0, y: 380 },
     data: { label: "" },
-    style: { width: 900, height: 140, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+    style: { width: 1150, height: 150, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
   {
     id: "pages_db",
     type: "store",
-    position: { x: 20, y: STORE_Y },
+    position: { x: 30, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Pages DB", icon: "database", description: "Crawled pages", stats: [], color: "emerald", reading: false },
   },
   {
     id: "inverted_index",
     type: "store",
-    position: { x: 210, y: STORE_Y },
+    position: { x: 280, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Inverted Index", icon: "inverted_index", description: "term → [docs...]", stats: [], color: "blue", reading: false },
   },
   {
     id: "pr_scores",
     type: "store",
-    position: { x: 420, y: STORE_Y },
+    position: { x: 540, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "PR Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", reading: false },
   },
   {
     id: "vector_store",
     type: "store",
-    position: { x: 650, y: STORE_Y },
+    position: { x: 830, y: STORE_Y },
     parentId: "group_stores",
     data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", reading: false },
   },
@@ -127,20 +127,20 @@ export const initialNodes: Node[] = [
   {
     id: "group_query",
     type: "group",
-    position: { x: 0, y: 480 },
+    position: { x: 0, y: 600 },
     data: { label: "" },
-    style: { width: 900, height: 430, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
+    style: { width: 1150, height: 580, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
 
   // Path labels inside query zone
-  { id: "label_search_path", type: "label", position: { x: 10, y: 8 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> SEARCH PATH" } },
-  { id: "label_ai_path", type: "label", position: { x: 470, y: 8 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> AI OVERVIEW PATH" } },
+  { id: "label_search_path", type: "label", position: { x: 12, y: 10 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> SEARCH PATH" } },
+  { id: "label_ai_path", type: "label", position: { x: 600, y: 10 }, parentId: "group_query", draggable: false, selectable: false, connectable: false, data: { label: "> AI OVERVIEW PATH" } },
 
   // Query entry
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 200, y: Q_ROW1 },
+    position: { x: 280, y: Q_ROW1 },
     parentId: "group_query",
     data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
@@ -149,35 +149,35 @@ export const initialNodes: Node[] = [
   {
     id: "tokenize",
     type: "pipeline",
-    position: { x: 30, y: Q_ROW2 },
+    position: { x: 50, y: Q_ROW2 },
     parentId: "group_query",
     data: { label: "Tokenize", icon: "tokenize", description: "Query → tokens", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "bm25",
     type: "pipeline",
-    position: { x: 30, y: Q_ROW3 },
+    position: { x: 50, y: Q_ROW3 },
     parentId: "group_query",
     data: { label: "BM25 Scoring", icon: "bm25", description: "TF × IDF × length", color: "amber", phase: "bm25", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "pr_lookup",
     type: "pipeline",
-    position: { x: 230, y: Q_ROW3 },
+    position: { x: 300, y: Q_ROW3 },
     parentId: "group_query",
     data: { label: "PR Lookup", icon: "pagerank", description: "Fetch scores", color: "amber", phase: "pagerank", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "combine",
     type: "pipeline",
-    position: { x: 130, y: Q_ROW4 },
+    position: { x: 170, y: Q_ROW4 },
     parentId: "group_query",
     data: { label: "Combine", icon: "combine", description: "α×BM25 + (1-α)×PR", color: "amber", phase: "combining", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "results",
     type: "output",
-    position: { x: 30, y: Q_ROW4 + 100 },
+    position: { x: 50, y: Q_ROW4 + 120 },
     parentId: "group_query",
     data: { type: "results", label: "Ranked Results", color: "amber", content: null, state: "idle" },
   },
@@ -186,35 +186,35 @@ export const initialNodes: Node[] = [
   {
     id: "fanout",
     type: "pipeline",
-    position: { x: 480, y: Q_ROW2 },
+    position: { x: 620, y: Q_ROW2 },
     parentId: "group_query",
     data: { label: "Fan-out", icon: "fanout", description: "Expand via LLM", color: "amber", phase: "aiFanout", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "embed_query",
     type: "pipeline",
-    position: { x: 680, y: Q_ROW2 },
+    position: { x: 870, y: Q_ROW2 },
     parentId: "group_query",
     data: { label: "Embed Query", icon: "embedder", description: "Query → vector", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "vector_search",
     type: "pipeline",
-    position: { x: 580, y: Q_ROW3 },
+    position: { x: 740, y: Q_ROW3 },
     parentId: "group_query",
     data: { label: "Vector Search", icon: "retriever", description: "Cosine similarity", color: "amber", phase: "aiRetrieval", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "llm",
     type: "pipeline",
-    position: { x: 580, y: Q_ROW4 },
+    position: { x: 740, y: Q_ROW4 },
     parentId: "group_query",
     data: { label: "LLM Synthesis", icon: "llm", description: "Groq — Llama 3.3 70B", color: "amber", phase: "aiSynthesis", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "ai_overview",
     type: "output",
-    position: { x: 500, y: Q_ROW4 + 100 },
+    position: { x: 640, y: Q_ROW4 + 120 },
     parentId: "group_query",
     data: { type: "ai_overview", label: "AI Overview", color: "amber", content: null, state: "idle" },
   },

@@ -205,7 +205,7 @@ export default function CanvasLayout({
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={{ padding: 0.15 }}
         minZoom={0.3}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
