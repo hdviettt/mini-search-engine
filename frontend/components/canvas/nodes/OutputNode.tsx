@@ -4,7 +4,6 @@ import { Handle, Position } from "@xyflow/react";
 import NodeIcon from "../NodeIcon";
 import type { OutputNodeData } from "../types";
 
-// Output nodes use a double border (flowchart "terminator" style)
 export default function OutputNode({ data }: { data: OutputNodeData }) {
   const isResults = data.type === "results";
   const isCompleted = data.state === "completed";
@@ -13,21 +12,21 @@ export default function OutputNode({ data }: { data: OutputNodeData }) {
   return (
     <div className={`w-[210px] p-3 cursor-pointer transition-colors
       border-2 ${
-        isActive ? "bg-[#e88a1a]/5 border-[#e88a1a]/50" :
-        isCompleted ? "bg-[#111] border-[#444]" :
-        "bg-[#111] border-[#333] hover:border-[#444]"
+        isActive ? "bg-[var(--accent-muted)] border-[var(--accent)]/50" :
+        isCompleted ? "bg-[var(--bg-card)] border-[var(--border-hover)]" :
+        "bg-[var(--bg-card)] border-[var(--border-hover)] hover:border-[var(--text-dim)]"
       }`}
-      style={{ outline: isActive ? "2px solid rgba(232,138,26,0.1)" : "2px solid #1a1a1a", outlineOffset: "3px" }}
+      style={{ outline: isActive ? "2px solid var(--node-glow)" : `2px solid var(--border)`, outlineOffset: "3px" }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-[#333] !border-[#111] !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!bg-[var(--border-hover)] !border-[var(--bg-card)] !w-2 !h-2" />
 
       <div className="flex items-center gap-2 mb-1.5">
         <NodeIcon icon={isResults ? "results" : "ai_overview"} color="amber" />
-        <span className="text-[11px] font-medium text-[#ccc]">{data.label}</span>
+        <span className="text-[11px] font-medium text-[var(--text)]">{data.label}</span>
       </div>
 
       {data.state === "idle" && (
-        <p className="text-[9px] text-[#444]">
+        <p className="text-[9px] text-[var(--text-dim)]">
           {isResults ? "Search to see ranked results" : "AI-generated summary"}
         </p>
       )}
@@ -36,16 +35,16 @@ export default function OutputNode({ data }: { data: OutputNodeData }) {
         <div className="space-y-0.5">
           {(data.content as { title: string; score: number }[]).slice(0, 3).map((r, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[9px]">
-              <span className="text-[#555]">#{i + 1}</span>
-              <span className="text-[#888] truncate flex-1">{r.title.replace(" - Wikipedia", "")}</span>
-              <span className="text-[#e88a1a]/60 font-mono">{r.score.toFixed(2)}</span>
+              <span className="text-[var(--text-dim)]">#{i + 1}</span>
+              <span className="text-[var(--text-muted)] truncate flex-1">{r.title.replace(" - Wikipedia", "")}</span>
+              <span className="text-[var(--accent)]/60 font-mono">{r.score.toFixed(2)}</span>
             </div>
           ))}
         </div>
       ) : null}
 
       {!isResults && data.content != null ? (
-        <p className="text-[9px] text-[#888] leading-relaxed line-clamp-2">
+        <p className="text-[9px] text-[var(--text-muted)] leading-relaxed line-clamp-2">
           {String(data.content)}
         </p>
       ) : null}

@@ -80,3 +80,50 @@ export function getWebSocketUrl(): string {
   const base = API_BASE.replace("http", "ws");
   return `${base}/ws/jobs`;
 }
+
+// Parameter tuning
+export async function recomputePageRank(damping: number, iterations: number) {
+  const res = await fetch(`${API_BASE}/api/pagerank/recompute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ damping, iterations }),
+  });
+  return res.json();
+}
+
+// Scheduled crawls
+export interface CrawlSchedule {
+  id: string;
+  seed_urls: string[];
+  max_pages: number;
+  interval_hours: number;
+  enabled: boolean;
+  last_run: string | null;
+  next_run: string | null;
+}
+
+export async function createSchedule(seedUrls: string[], maxPages: number, intervalHours: number) {
+  const res = await fetch(`${API_BASE}/api/crawl/schedule`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seed_urls: seedUrls, max_pages: maxPages, interval_hours: intervalHours }),
+  });
+  return res.json();
+}
+
+export async function listSchedules(): Promise<CrawlSchedule[]> {
+  const res = await fetch(`${API_BASE}/api/crawl/schedules`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.schedules || [];
+}
+
+export async function deleteSchedule(scheduleId: string) {
+  const res = await fetch(`${API_BASE}/api/crawl/schedule/${scheduleId}`, { method: "DELETE" });
+  return res.json();
+}
+
+export async function toggleSchedule(scheduleId: string, enabled: boolean) {
+  const res = await fetch(`${API_BASE}/api/crawl/schedule/${scheduleId}/toggle?enabled=${enabled}`, { method: "POST" });
+  return res.json();
+}

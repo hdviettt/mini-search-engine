@@ -18,6 +18,8 @@ import PipelineNode from "./nodes/PipelineNode";
 import OutputNode from "./nodes/OutputNode";
 import StoreNode from "./nodes/StoreNode";
 import LabelNode from "./nodes/LabelNode";
+import CanvasLegend from "./CanvasLegend";
+import ThemeToggle from "./ThemeToggle";
 import { initialNodes, initialEdges, phaseEdgeMap, phaseNodeMap, phaseStoreMap } from "./nodeDefinitions";
 import type { FlowPhase, PipelineNodeData, OutputNodeData, SystemNodeData } from "./types";
 import type { ExplainResponse, Stats, PipelineTrace } from "@/lib/types";
@@ -144,10 +146,10 @@ export default function CanvasLayout({
           ...e,
           animated: isActive,
           style: isActive
-            ? { stroke: "#e88a1a", strokeWidth: 2 }
+            ? { stroke: "var(--accent)", strokeWidth: 2 }
             : isBuildEdge
-              ? { strokeDasharray: "4,4", stroke: "#333", strokeWidth: 1 }
-              : { stroke: "#222", strokeWidth: 1 },
+              ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+              : { stroke: "var(--edge-query)", strokeWidth: 1 },
         };
       })
     );
@@ -194,7 +196,7 @@ export default function CanvasLayout({
   } : null;
 
   return (
-    <div className="w-full h-full bg-[#0d0d0d]">
+    <div className="w-full h-full bg-[var(--bg)] relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -207,16 +209,18 @@ export default function CanvasLayout({
         minZoom={0.3}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="!bg-[#0d0d0d]"
+        className="!bg-[var(--bg)]"
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={0.8} color="#1a1a1a" />
-        <Controls className="!bg-[#111] !border-[#222] [&>button]:!bg-[#111] [&>button]:!border-[#222] [&>button]:!text-[#555] [&>button:hover]:!bg-[#1a1a1a]" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={0.8} color="var(--dot-color)" />
+        <Controls className="!bg-[var(--bg-card)] !border-[var(--border)] [&>button]:!bg-[var(--bg-card)] [&>button]:!border-[var(--border)] [&>button]:!text-[var(--text-dim)] [&>button:hover]:!bg-[var(--bg-elevated)]" />
         <MiniMap
-          nodeColor="#222"
-          maskColor="rgba(13, 13, 13, 0.85)"
-          className="!bg-[#111] !border-[#222]"
+          nodeColor="var(--border)"
+          maskColor="var(--minimap-mask)"
+          className="!bg-[var(--bg-card)] !border-[var(--border)]"
         />
       </ReactFlow>
+      <CanvasLegend />
+      <ThemeToggle />
     </div>
   );
 }

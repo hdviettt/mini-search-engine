@@ -131,3 +131,117 @@ class JobManager:
 
 
 job_manager = JobManager()
+
+
+class CrawlScheduler:
+    """Simple recurring crawl scheduler using threading.Timer."""
+
+    def __init__(self, job_manager: JobManager):
+        self.job_manager = job_manager
+        self.schedules: dict[str, dict] = {}
+        self.lock = threading.Lock()
+
+    def add(self, seed_urls: list[str], max_pages: int, interval_hours: float) -> str:
+        schedule_id = f"sched-{uuid.uuid4().hex[:8]}"
+        with self.lock:
+            schedule = {
+                "id": schedule_id,
+                "seed_urls": seed_urls,
+                "max_pages": max_pages,
+                "interval_hours": interval_hours,
+                "enabled": True,
+                "timer": None,
+                "last_run": None,
+                "next_run": time.time() + interval_hours * 3600,
+            }
+            self.schedules[schedule_id] = schedule
+        self._start_timer(schedule_id)
+        return schedule_id
+
+    def remove(self, schedule_id: str):
+        with self.lock:
+            schedule = self.schedules.pop(schedule_id, None)
+        if schedule and schedule["timer"] is not None:
+            schedule["timer"].cancel()
+
+    def toggle(self, schedule_id: str, enabled: bool):
+        with self.lock:
+            schedule = self.schedules.get(schedule_id)
+            if not schedule:
+                return
+            schedule["enabled"] = enabled
+        if enabled:
+            self._start_timer(schedule_id)
+        else:
+            with self.lock:
+                timer = schedule.get("timer")
+            if timer is not None:
+                timer.cancel()
+                with self.lock:
+                    schedule["timer"] = None
+                    schedule["next_run"] = None
+
+    def list_schedules(self) -> list[dict]:
+        with self.lock:
+            return [
+                {
+                    "id": s["id"],
+                    "seed_urls": s["seed_urls"],
+                    "max_pages": s["max_pages"],
+                    "interval_hours": s["interval_hours"],
+                    "enabled": s["enabled"],
+                    "last_run": s["last_run"],
+                    "next_run": s["next_run"],
+                }
+                for s in self.schedules.values()
+            ]
+
+    def _start_timer(self, schedule_id: str):
+        with self.lock:
+            schedule = self.schedules.get(schedule_id)
+            if not schedule or not schedule["enabled"]:
+                return
+            # Cancel any existing timer
+            if schedule["timer"] is not None:
+                schedule["timer"].cancel()
+            interval_seconds = schedule["interval_hours"] * 3600
+            schedule["next_run"] = time.time() + interval_seconds
+            timer = threading.Timer(interval_seconds, self._run_scheduled, args=[schedule_id])
+            timer.daemon = True
+            timer.start()
+            schedule["timer"] = timer
+
+    def _run_scheduled(self, schedule_id: str):
+        with self.lock:
+            schedule = self.schedules.get(schedule_id)
+            if not schedule or not schedule["enabled"]:
+                return
+            seed_urls = schedule["seed_urls"]
+            max_pages = schedule["max_pages"]
+
+        try:
+            # Run crawl
+            conn = get_connection()
+            manager = CrawlManager(conn)
+            if seed_urls:
+                manager.seed(seed_urls)
+            stop_event = threading.Event()
+            manager.crawl(stop_event=stop_event, max_pages_override=max_pages)
+            # Re-index
+            build_index(conn)
+            # Re-compute pagerank
+            compute_pagerank(conn)
+            conn.close()
+        except Exception as e:
+            print(f"Scheduled crawl {schedule_id} failed: {e}")
+
+        with self.lock:
+            schedule = self.schedules.get(schedule_id)
+            if schedule:
+                schedule["last_run"] = time.time()
+
+        # Reschedule the next run
+        self._start_timer(schedule_id)
+
+
+crawl_scheduler = CrawlScheduler(job_manager)

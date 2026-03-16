@@ -16,15 +16,15 @@ export default function LiveLog({ entries, maxHeight = "200px" }: LiveLogProps) 
 
   return (
     <div
-      className="bg-[#111] rounded-lg border border-[#222] font-mono text-[11px] text-gray-500 overflow-y-auto p-2"
+      className="bg-[var(--bg-card)] border border-[var(--border)] font-mono text-[11px] text-[var(--text-dim)] overflow-y-auto p-2"
       style={{ maxHeight }}
     >
       {entries.length === 0 ? (
-        <div className="text-gray-700 text-center py-4">Waiting for events...</div>
+        <div className="text-[var(--border-hover)] text-center py-4">Waiting for events...</div>
       ) : (
         entries.map((entry, i) => (
-          <div key={i} className="py-0.5 hover:text-gray-400">
-            <span className="text-gray-700 mr-2">{String(i + 1).padStart(3, " ")}</span>
+          <div key={i} className="py-0.5 hover:text-[var(--text-muted)]">
+            <span className="text-[var(--border-hover)] mr-2">{String(i + 1).padStart(3, " ")}</span>
             {entry}
           </div>
         ))

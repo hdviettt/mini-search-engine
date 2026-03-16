@@ -4,7 +4,9 @@
    THEME — Terminal / Brutalist
    ================================ */
 
-:root {
+/* Dark theme (default) */
+:root,
+.dark {
   --bg: #0d0d0d;
   --bg-card: #111111;
   --bg-elevated: #161616;
@@ -15,6 +17,46 @@
   --text-dim: #555555;
   --accent: #e88a1a;
   --accent-muted: rgba(232, 138, 26, 0.15);
+  --dot-color: #1a1a1a;
+  --minimap-mask: rgba(13, 13, 13, 0.85);
+  --group-bg: rgba(232, 138, 26, 0.02);
+  --group-border: #2a2a2a;
+  --edge-color: #333;
+  --edge-query: #222;
+  --node-glow: rgba(232, 138, 26, 0.1);
+  --store-fill: #111;
+  --store-fill-active: rgba(232, 138, 26, 0.06);
+  --store-top: #161616;
+  --store-top-active: rgba(232, 138, 26, 0.08);
+  --cylinder-stroke: #333;
+  --score-bar-bg: #1a1a1a;
+}
+
+/* Light theme */
+.light {
+  --bg: #f5f0eb;
+  --bg-card: #ffffff;
+  --bg-elevated: #f0ece7;
+  --border: #d4cfc8;
+  --border-hover: #b0a999;
+  --text: #1a1a1a;
+  --text-muted: #666666;
+  --text-dim: #999999;
+  --accent: #c6710f;
+  --accent-muted: rgba(198, 113, 15, 0.12);
+  --dot-color: #ddd8d1;
+  --minimap-mask: rgba(245, 240, 235, 0.85);
+  --group-bg: rgba(198, 113, 15, 0.03);
+  --group-border: #c8c2b8;
+  --edge-color: #b0a999;
+  --edge-query: #c8c2b8;
+  --node-glow: rgba(198, 113, 15, 0.1);
+  --store-fill: #ffffff;
+  --store-fill-active: rgba(198, 113, 15, 0.06);
+  --store-top: #f0ece7;
+  --store-top-active: rgba(198, 113, 15, 0.08);
+  --cylinder-stroke: #b0a999;
+  --score-bar-bg: #e8e3dc;
 }
 
 /* Force sharp corners everywhere */
@@ -29,6 +71,7 @@ body {
   font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }
 
 ::selection {
@@ -66,7 +109,7 @@ body {
   left: 8px;
   font-size: 10px;
   font-family: ui-monospace, monospace;
-  color: #555;
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   pointer-events: none;
@@ -78,14 +121,14 @@ body {
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
-  color: #444 !important;
+  color: var(--text-dim) !important;
 }
 .react-flow__node-default .react-flow__handle {
   display: none !important;
 }
 
 .react-flow__edge-path {
-  stroke: var(--border);
+  stroke: var(--edge-query);
   stroke-width: 1;
 }
 
@@ -132,7 +175,7 @@ body {
 
 *:hover > ::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: var(--border-hover);
 }
 
 * {
@@ -141,5 +184,5 @@ body {
 }
 
 *:hover {
-  scrollbar-color: #333 transparent;
+  scrollbar-color: var(--border-hover) transparent;
 }

@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 from db import get_connection
 from search.explainer import search_explain
-from api.jobs import job_manager
+from ranker.pagerank import compute_pagerank
+from api.jobs import job_manager, crawl_scheduler
 
 router = APIRouter(prefix="/api")
 
@@ -23,6 +24,17 @@ class CrawlRequest(BaseModel):
     seed_urls: list[str] = []
     max_pages: int = 100
     max_depth: int = 3
+
+
+class PageRankRequest(BaseModel):
+    damping: float = 0.85
+    iterations: int = 20
+
+
+class ScheduleRequest(BaseModel):
+    seed_urls: list[str] = []
+    max_pages: int = 50
+    interval_hours: float = 6.0
 
 
 # --- Endpoints ---
@@ -99,6 +111,42 @@ def embedding_rebuild():
 @router.get("/jobs")
 def list_jobs():
     return job_manager.get_jobs()
+
+
+@router.post("/pagerank/recompute")
+def pagerank_recompute(req: PageRankRequest):
+    """Re-compute PageRank with custom damping and iteration parameters."""
+    conn = get_connection()
+    compute_pagerank(conn, damping=req.damping, iterations=req.iterations)
+    conn.close()
+    return {"status": "completed", "damping": req.damping, "iterations": req.iterations}
+
+
+@router.post("/crawl/schedule")
+def schedule_create(req: ScheduleRequest):
+    """Create a new recurring crawl schedule."""
+    schedule_id = crawl_scheduler.add(req.seed_urls, req.max_pages, req.interval_hours)
+    return {"schedule_id": schedule_id, "status": "scheduled", "interval_hours": req.interval_hours}
+
+
+@router.get("/crawl/schedules")
+def schedule_list():
+    """List all crawl schedules."""
+    return {"schedules": crawl_scheduler.list_schedules()}
+
+
+@router.delete("/crawl/schedule/{schedule_id}")
+def schedule_delete(schedule_id: str):
+    """Delete a crawl schedule."""
+    crawl_scheduler.remove(schedule_id)
+    return {"status": "deleted", "schedule_id": schedule_id}
+
+
+@router.post("/crawl/schedule/{schedule_id}/toggle")
+def schedule_toggle(schedule_id: str, enabled: bool = True):
+    """Enable or disable a crawl schedule."""
+    crawl_scheduler.toggle(schedule_id, enabled)
+    return {"status": "toggled", "schedule_id": schedule_id, "enabled": enabled}
 
 
 @router.get("/explore/pages")

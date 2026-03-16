@@ -181,7 +181,7 @@ export default function Home() {
   }, [streamOverview]);
 
   return (
-    <div className="flex w-screen h-screen overflow-hidden bg-[#0d0d0d]">
+    <div className="flex w-screen h-screen overflow-hidden bg-[var(--bg)]">
       {/* LEFT: Canvas — takes remaining space */}
       <div className="flex-1 h-full relative min-w-0">
         <CanvasLayout
@@ -197,18 +197,18 @@ export default function Home() {
       </div>
 
       {/* RIGHT: Search + Results (collapsible) */}
-      <div className={`h-full border-l border-[#222] bg-[#0d0d0d] flex flex-col shrink-0 transition-all duration-200 relative ${panelOpen ? "w-[45%]" : "w-8"}`}>
+      <div className={`h-full border-l border-[var(--border)] bg-[var(--bg)] flex flex-col shrink-0 transition-all duration-200 relative ${panelOpen ? "w-[45%]" : "w-8"}`}>
         {!panelOpen ? (
           <button
             onClick={() => setPanelOpen(true)}
-            className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-[#161616] transition-colors"
+            className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] transition-colors"
           >
-            <span className="text-[10px] text-[#555] font-mono" style={{ writingMode: "vertical-rl" }}>search panel</span>
+            <span className="text-[10px] text-[var(--text-dim)] font-mono" style={{ writingMode: "vertical-rl" }}>search panel</span>
           </button>
         ) : (
           <>
         {/* Search bar */}
-        <div className="p-3 border-b border-[#222] shrink-0">
+        <div className="p-3 border-b border-[var(--border)] shrink-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -221,7 +221,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setPanelOpen(false)}
-              className="text-[#444] hover:text-[#e88a1a] cursor-pointer text-lg px-1 shrink-0"
+              className="text-[var(--text-dim)] hover:text-[var(--accent)] cursor-pointer text-lg px-1 shrink-0"
               title="Collapse panel"
             >
               &rsaquo;
@@ -230,11 +230,11 @@ export default function Home() {
               type="text"
               defaultValue={query}
               placeholder="> search football..."
-              className="flex-1 bg-[#111] border border-[#222] px-3 py-2 text-sm text-[#e0e0e0] placeholder-[#444] outline-none focus:border-[#e88a1a]/50 font-mono"
+              className="flex-1 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-dim)] outline-none focus:border-[var(--accent)]/50 font-mono"
             />
             <button
               type="submit"
-              className="bg-[#e88a1a] hover:bg-[#d07a10] text-[#0d0d0d] px-5 py-2 text-sm font-medium cursor-pointer transition-colors"
+              className="bg-[var(--accent)] hover:brightness-90 text-white px-5 py-2 text-sm font-medium cursor-pointer transition-colors"
             >
               Search
             </button>
@@ -245,13 +245,13 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           {!searchData ? (
             <div className="flex flex-col items-center justify-center h-full px-6">
-              <p className="text-[#555] text-sm mb-4 text-center font-mono">try a search to see the pipeline in action</p>
+              <p className="text-[var(--text-dim)] text-sm mb-4 text-center font-mono">try a search to see the pipeline in action</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"].map((q) => (
                   <button
                     key={q}
                     onClick={() => handleSearch(q)}
-                    className="text-[11px] px-3 py-1.5 border border-[#222] text-[#555] hover:text-[#e88a1a] hover:border-[#e88a1a]/30 cursor-pointer transition-colors font-mono"
+                    className="text-[11px] px-3 py-1.5 border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors font-mono"
                   >
                     {q}
                   </button>
@@ -261,10 +261,10 @@ export default function Home() {
           ) : (
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-sm text-[#888]">
+                <span className="text-sm text-[var(--text-muted)]">
                   {searchData.total_results} results in {searchData.time_ms.toFixed(0)}ms
                 </span>
-                <span className="text-[10px] text-[#444]">for &ldquo;{query}&rdquo;</span>
+                <span className="text-[10px] text-[var(--text-dim)]">for &ldquo;{query}&rdquo;</span>
               </div>
 
               <AIOverview text={overviewText} sources={overviewSources} loading={overviewLoading} streaming={overviewStreaming} />
@@ -276,14 +276,14 @@ export default function Home() {
                     href={r.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block p-3 bg-[#111] border border-[#222] hover:border-[#e88a1a]/30 transition-colors group"
+                    className="block p-3 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)]/30 transition-colors group"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] text-[#555]">#{i + 1}</span>
-                      <span className="text-xs text-[#ccc] group-hover:text-[#e88a1a] group-hover:underline truncate">{r.title}</span>
+                      <span className="text-[10px] text-[var(--text-dim)]">#{i + 1}</span>
+                      <span className="text-xs text-[var(--text)] group-hover:text-[var(--accent)] group-hover:underline truncate">{r.title}</span>
                     </div>
-                    <p className="text-[10px] text-[#555] line-clamp-2 leading-relaxed">{r.snippet}</p>
-                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[#444]">
+                    <p className="text-[10px] text-[var(--text-dim)] line-clamp-2 leading-relaxed">{r.snippet}</p>
+                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[var(--text-dim)]">
                       <span>BM25: {r.bm25_score}</span>
                       <span>PR: {r.pagerank_score}</span>
                       <span>= {r.final_score}</span>

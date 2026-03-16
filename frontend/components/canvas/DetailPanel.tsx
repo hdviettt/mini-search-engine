@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import GroundedData from "@/components/playground/GroundedData";
 import type { ActiveStep } from "@/components/playground/GroundedData";
 import OperationsTab from "@/components/playground/OperationsTab";
+import PageRankTuning from "./PageRankTuning";
+import CrawlSchedulePanel from "./CrawlSchedulePanel";
 import type { PipelineTrace } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
 
@@ -47,7 +49,7 @@ function StorePreview({ nodeId }: { nodeId: string }) {
       .finally(() => setLoading(false));
   }, [nodeId]);
 
-  if (loading) return <div className="p-3 text-[10px] text-[#555]">Loading...</div>;
+  if (loading) return <div className="p-3 text-[10px] text-[var(--text-dim)]">Loading...</div>;
   if (!data) return null;
 
   // Pages DB
@@ -56,11 +58,11 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     return (
       <div className="p-3 space-y-1">
         {pages.map((p) => (
-          <div key={p.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[#1a1a1a]">
-            <span className="text-[#444] w-5">#{p.id}</span>
+          <div key={p.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[var(--border)]">
+            <span className="text-[var(--text-dim)] w-5">#{p.id}</span>
             <span className={`w-1.5 h-1.5 ${p.status_code === 200 ? "bg-green-600" : "bg-red-600"}`} />
-            <span className="text-[#888] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 35)}</span>
-            <span className="text-[#444]">{(p.text_length / 1000).toFixed(0)}K</span>
+            <span className="text-[var(--text-muted)] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 35)}</span>
+            <span className="text-[var(--text-dim)]">{(p.text_length / 1000).toFixed(0)}K</span>
           </div>
         ))}
       </div>
@@ -75,11 +77,11 @@ function StorePreview({ nodeId }: { nodeId: string }) {
       <div className="p-3 space-y-0.5">
         {terms.map((t) => (
           <div key={t.term} className="flex items-center gap-2 text-[10px] py-0.5">
-            <span className="font-mono text-[#e88a1a] w-20 truncate">{t.term}</span>
-            <div className="flex-1 h-1 bg-[#1a1a1a]">
-              <div className="h-full bg-[#e88a1a]/30" style={{ width: `${(t.doc_freq / maxDf) * 100}%` }} />
+            <span className="font-mono text-[var(--accent)] w-20 truncate">{t.term}</span>
+            <div className="flex-1 h-1 bg-[var(--score-bar-bg)]">
+              <div className="h-full bg-[var(--accent)]/30" style={{ width: `${(t.doc_freq / maxDf) * 100}%` }} />
             </div>
-            <span className="text-[#555] w-8 text-right">{t.doc_freq}</span>
+            <span className="text-[var(--text-dim)] w-8 text-right">{t.doc_freq}</span>
           </div>
         ))}
       </div>
@@ -94,12 +96,12 @@ function StorePreview({ nodeId }: { nodeId: string }) {
       <div className="p-3 space-y-1">
         {pages.map((p, i) => (
           <div key={i} className="flex items-center gap-2 text-[10px] py-0.5">
-            <span className="text-[#444] w-4">#{i + 1}</span>
-            <span className="text-[#888] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 25)}</span>
-            <div className="w-12 h-1 bg-[#1a1a1a]">
-              <div className="h-full bg-[#e88a1a]/40" style={{ width: `${(p.score / maxScore) * 100}%` }} />
+            <span className="text-[var(--text-dim)] w-4">#{i + 1}</span>
+            <span className="text-[var(--text-muted)] truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 25)}</span>
+            <div className="w-12 h-1 bg-[var(--score-bar-bg)]">
+              <div className="h-full bg-[var(--accent)]/40" style={{ width: `${(p.score / maxScore) * 100}%` }} />
             </div>
-            <span className="text-[#555] w-5 text-right">{p.inlinks}</span>
+            <span className="text-[var(--text-dim)] w-5 text-right">{p.inlinks}</span>
           </div>
         ))}
       </div>
@@ -114,16 +116,16 @@ function StorePreview({ nodeId }: { nodeId: string }) {
       // Chunker: focus on how pages are split into chunks
       return (
         <div className="p-3">
-          <div className="text-[10px] text-[#888] mb-2">Pages are split at paragraph/sentence boundaries into ~300-token chunks:</div>
+          <div className="text-[10px] text-[var(--text-muted)] mb-2">Pages are split at paragraph/sentence boundaries into ~300-token chunks:</div>
           <div className="space-y-1.5">
             {chunks.map((c) => (
-              <div key={c.id} className="p-2 bg-[#111] border border-[#1a1a1a] text-[10px]">
+              <div key={c.id} className="p-2 bg-[var(--bg-card)] border border-[var(--border)] text-[10px]">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[#e88a1a]">chunk {c.chunk_idx}</span>
-                  <span className="text-[#333]">|</span>
-                  <span className="text-[#555] truncate">{(c.title || "").replace(" - Wikipedia", "")}</span>
+                  <span className="text-[var(--accent)]">chunk {c.chunk_idx}</span>
+                  <span className="text-[var(--border-hover)]">|</span>
+                  <span className="text-[var(--text-dim)] truncate">{(c.title || "").replace(" - Wikipedia", "")}</span>
                 </div>
-                <div className="text-[9px] text-[#666] leading-relaxed">{c.content}</div>
+                <div className="text-[9px] text-[var(--text-muted)] leading-relaxed">{c.content}</div>
               </div>
             ))}
           </div>
@@ -136,18 +138,18 @@ function StorePreview({ nodeId }: { nodeId: string }) {
       const embedded = chunks.filter((c) => c.has_embedding).length;
       return (
         <div className="p-3">
-          <div className="text-[10px] text-[#888] mb-2">Each chunk is converted to a 768-dim vector for similarity search:</div>
-          <div className="flex items-center gap-2 text-[10px] mb-2 p-2 border border-dashed border-[#222]">
-            <span className="text-[#e88a1a] font-mono">{embedded}/{chunks.length}</span>
-            <span className="text-[#555]">chunks in sample have embeddings</span>
+          <div className="text-[10px] text-[var(--text-muted)] mb-2">Each chunk is converted to a 768-dim vector for similarity search:</div>
+          <div className="flex items-center gap-2 text-[10px] mb-2 p-2 border border-dashed border-[var(--border)]">
+            <span className="text-[var(--accent)] font-mono">{embedded}/{chunks.length}</span>
+            <span className="text-[var(--text-dim)]">chunks in sample have embeddings</span>
           </div>
           <div className="space-y-1">
             {chunks.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[#1a1a1a]">
-                <span className={`w-2 h-2 ${c.has_embedding ? "bg-[#e88a1a]" : "bg-[#333]"}`} />
-                <span className="text-[#555]">p{c.page_id}:c{c.chunk_idx}</span>
-                <span className="text-[#444] truncate flex-1">{c.content.slice(0, 50)}...</span>
-                <span className="text-[9px] text-[#333]">{c.has_embedding ? "768-dim" : "pending"}</span>
+              <div key={c.id} className="flex items-center gap-2 text-[10px] py-1 border-b border-dashed border-[var(--border)]">
+                <span className={`w-2 h-2 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
+                <span className="text-[var(--text-dim)]">p{c.page_id}:c{c.chunk_idx}</span>
+                <span className="text-[var(--text-dim)] truncate flex-1">{c.content.slice(0, 50)}...</span>
+                <span className="text-[9px] text-[var(--border-hover)]">{c.has_embedding ? "768-dim" : "pending"}</span>
               </div>
             ))}
           </div>
@@ -159,13 +161,13 @@ function StorePreview({ nodeId }: { nodeId: string }) {
     return (
       <div className="p-3 space-y-1.5">
         {chunks.map((c) => (
-          <div key={c.id} className="p-2 border border-dashed border-[#1a1a1a] text-[10px]">
+          <div key={c.id} className="p-2 border border-dashed border-[var(--border)] text-[10px]">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[#444]">p{c.page_id}:c{c.chunk_idx}</span>
-              <span className={`w-1.5 h-1.5 ${c.has_embedding ? "bg-[#e88a1a]" : "bg-[#333]"}`} />
-              <span className="text-[#666] truncate">{(c.title || "").replace(" - Wikipedia", "").slice(0, 20)}</span>
+              <span className="text-[var(--text-dim)]">p{c.page_id}:c{c.chunk_idx}</span>
+              <span className={`w-1.5 h-1.5 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
+              <span className="text-[var(--text-muted)] truncate">{(c.title || "").replace(" - Wikipedia", "").slice(0, 20)}</span>
             </div>
-            <div className="text-[9px] text-[#555] line-clamp-2">{c.content}</div>
+            <div className="text-[9px] text-[var(--text-dim)] line-clamp-2">{c.content}</div>
           </div>
         ))}
       </div>
@@ -203,6 +205,7 @@ export default function DetailPanel({
   };
 
   const isOpsNode = nodeId === "crawler";
+  const isPRNode = nodeId === "pr_compute";
   const storeId = buildToStore[nodeId] || null;
   const isStoreNode = !!storeEndpoints[nodeId];
   const step = nodeToStep[nodeId] || null;
@@ -210,30 +213,38 @@ export default function DetailPanel({
   const nodeLabel = nodeId.replace(/_/g, " ");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#0d0d0d] border-t border-[#222] animate-in" style={{ maxHeight: "45%" }}>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
-        <span className="text-[11px] font-medium text-[#888] uppercase tracking-wider">{nodeLabel}</span>
-        <button onClick={onClose} className="text-[#555] hover:text-[#e88a1a] cursor-pointer text-sm">&times;</button>
+    <div className="absolute bottom-0 left-0 right-0 z-20 bg-[var(--bg)] border-t border-[var(--border)] animate-in" style={{ maxHeight: "45%" }}>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
+        <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider">{nodeLabel}</span>
+        <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--accent)] cursor-pointer text-sm">&times;</button>
       </div>
 
       <div className="overflow-y-auto" style={{ maxHeight: "calc(45vh - 40px)" }}>
         {isStoreNode ? (
           <StorePreview nodeId={nodeId} />
+        ) : isPRNode ? (
+          <>
+            <StorePreview nodeId="pr_scores" />
+            <PageRankTuning />
+          </>
         ) : storeId ? (
           <StorePreview nodeId={storeId} />
         ) : isOpsNode ? (
-          <OperationsTab
-            crawlProgress={crawlProgress as never}
-            indexProgress={indexProgress as never}
-            embedProgress={embedProgress as never}
-            logEntries={logEntries}
-            activeCrawlJobId={activeCrawlJobId}
-            onCrawlStarted={onCrawlStarted}
-          />
+          <>
+            <OperationsTab
+              crawlProgress={crawlProgress as never}
+              indexProgress={indexProgress as never}
+              embedProgress={embedProgress as never}
+              logEntries={logEntries}
+              activeCrawlJobId={activeCrawlJobId}
+              onCrawlStarted={onCrawlStarted}
+            />
+            <CrawlSchedulePanel />
+          </>
         ) : step && (trace || overviewTrace) ? (
           <GroundedData activeStep={step} trace={trace} overviewTrace={overviewTrace} />
         ) : (
-          <div className="p-4 text-[10px] text-[#444] text-center">
+          <div className="p-4 text-[10px] text-[var(--text-dim)] text-center">
             Search to see data for this step.
           </div>
         )}

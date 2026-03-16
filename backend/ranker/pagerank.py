@@ -18,7 +18,7 @@ import psycopg
 from config import PAGERANK_DAMPING, PAGERANK_ITERATIONS
 
 
-def compute_pagerank(conn: psycopg.Connection):
+def compute_pagerank(conn: psycopg.Connection, damping: float = None, iterations: int = None):
     """Compute PageRank for all pages and store results."""
     print("Computing PageRank...")
 
@@ -54,9 +54,10 @@ def compute_pagerank(conn: psycopg.Connection):
     # Initialize ranks equally
     rank = {pid: 1.0 / n for pid in page_ids}
 
-    # Iterative computation
-    d = PAGERANK_DAMPING
-    for i in range(PAGERANK_ITERATIONS):
+    # Iterative computation — use provided values or fall back to config defaults
+    d = damping if damping is not None else PAGERANK_DAMPING
+    num_iterations = iterations if iterations is not None else PAGERANK_ITERATIONS
+    for i in range(num_iterations):
         new_rank = {}
 
         # Handle dangling nodes (pages with no outlinks)

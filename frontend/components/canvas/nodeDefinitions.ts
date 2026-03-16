@@ -42,7 +42,7 @@ export const initialNodes: Node[] = [
     type: "group",
     position: { x: 0, y: 0 },
     data: { label: "" },
-    style: { width: 960, height: 270, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
+    style: { width: 960, height: 270, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
   // Row 1: Crawler centered
   {
@@ -90,7 +90,7 @@ export const initialNodes: Node[] = [
     type: "group",
     position: { x: 0, y: 300 },
     data: { label: "" },
-    style: { width: 900, height: 140, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
+    style: { width: 900, height: 140, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
   {
     id: "pages_db",
@@ -129,7 +129,7 @@ export const initialNodes: Node[] = [
     type: "group",
     position: { x: 0, y: 480 },
     data: { label: "" },
-    style: { width: 900, height: 430, background: "rgba(232,138,26,0.02)", border: "1px dashed #2a2a2a", borderRadius: 0 },
+    style: { width: 900, height: 430, background: "var(--group-bg)", border: "1px dashed var(--group-border)", borderRadius: 0 },
   },
 
   // Path labels inside query zone
@@ -222,37 +222,37 @@ export const initialNodes: Node[] = [
 
 export const initialEdges: Edge[] = [
   // BUILD: Crawler branches down
-  { id: "b-crawler-indexer", source: "crawler", target: "indexer", style: { stroke: "#333" } },
-  { id: "b-crawler-pr", source: "crawler", target: "pr_compute", style: { stroke: "#333" } },
-  { id: "b-crawler-chunker", source: "crawler", target: "chunker", style: { stroke: "#333" } },
-  { id: "b-chunker-embedder", source: "chunker", target: "embedder", style: { stroke: "#333" } },
+  { id: "b-crawler-indexer", source: "crawler", target: "indexer", style: { stroke: "var(--edge-color)" } },
+  { id: "b-crawler-pr", source: "crawler", target: "pr_compute", style: { stroke: "var(--edge-color)" } },
+  { id: "b-crawler-chunker", source: "crawler", target: "chunker", style: { stroke: "var(--edge-color)" } },
+  { id: "b-chunker-embedder", source: "chunker", target: "embedder", style: { stroke: "var(--edge-color)" } },
 
   // BUILD → STORE (dashed write paths)
-  { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "#333" } },
-  { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "#333" } },
-  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "#333" } },
-  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "#333" } },
+  { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-embedder-vectors", source: "embedder", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // STORE → QUERY (read paths)
-  { id: "q-index-bm25", source: "inverted_index", target: "bm25", style: { stroke: "#222" } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", style: { stroke: "#222" } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", style: { stroke: "#222" } },
+  { id: "q-index-bm25", source: "inverted_index", target: "bm25", style: { stroke: "var(--edge-query)" } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", style: { stroke: "var(--edge-query)" } },
 
   // SEARCH PATH
-  { id: "q-input-tokenize", source: "query_input", target: "tokenize", style: { stroke: "#222" } },
-  { id: "q-token-bm25", source: "tokenize", target: "bm25", style: { stroke: "#222" } },
-  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", style: { stroke: "#222" } },
-  { id: "q-bm25-combine", source: "bm25", target: "combine", style: { stroke: "#222" } },
-  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", style: { stroke: "#222" } },
-  { id: "q-combine-results", source: "combine", target: "results", style: { stroke: "#222" } },
+  { id: "q-input-tokenize", source: "query_input", target: "tokenize", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-bm25", source: "tokenize", target: "bm25", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", style: { stroke: "var(--edge-query)" } },
+  { id: "q-bm25-combine", source: "bm25", target: "combine", style: { stroke: "var(--edge-query)" } },
+  { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", style: { stroke: "var(--edge-query)" } },
+  { id: "q-combine-results", source: "combine", target: "results", style: { stroke: "var(--edge-query)" } },
 
   // AI OVERVIEW PATH
-  { id: "q-input-fanout", source: "query_input", target: "fanout", style: { stroke: "#222" } },
-  { id: "q-input-embed", source: "query_input", target: "embed_query", style: { stroke: "#222" } },
-  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", style: { stroke: "#222" } },
-  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", style: { stroke: "#222" } },
-  { id: "q-vsearch-llm", source: "vector_search", target: "llm", style: { stroke: "#222" } },
-  { id: "q-llm-ai", source: "llm", target: "ai_overview", style: { stroke: "#222" } },
+  { id: "q-input-fanout", source: "query_input", target: "fanout", style: { stroke: "var(--edge-query)" } },
+  { id: "q-input-embed", source: "query_input", target: "embed_query", style: { stroke: "var(--edge-query)" } },
+  { id: "q-fanout-vsearch", source: "fanout", target: "vector_search", style: { stroke: "var(--edge-query)" } },
+  { id: "q-embed-vsearch", source: "embed_query", target: "vector_search", style: { stroke: "var(--edge-query)" } },
+  { id: "q-vsearch-llm", source: "vector_search", target: "llm", style: { stroke: "var(--edge-query)" } },
+  { id: "q-llm-ai", source: "llm", target: "ai_overview", style: { stroke: "var(--edge-query)" } },
 ];
 
 export const phaseEdgeMap: Record<string, string[]> = {
