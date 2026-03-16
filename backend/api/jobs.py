@@ -16,15 +16,35 @@ class JobManager:
     def __init__(self):
         self.jobs: dict[str, dict] = {}
         self.lock = threading.Lock()
-        self.message_queue: queue.Queue = queue.Queue()
+        self.message_queue: queue.Queue = queue.Queue()  # legacy, kept for compat
         self._stop_events: dict[str, threading.Event] = {}
+        self._subscribers: list[queue.Queue] = []
+        self._sub_lock = threading.Lock()
 
     def get_jobs(self) -> list[dict]:
         with self.lock:
             return list(self.jobs.values())
 
+    def subscribe(self) -> queue.Queue:
+        """Create a new subscriber queue for a WebSocket connection."""
+        q: queue.Queue = queue.Queue()
+        with self._sub_lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: queue.Queue):
+        """Remove a subscriber queue."""
+        with self._sub_lock:
+            self._subscribers = [s for s in self._subscribers if s is not q]
+
     def _emit(self, msg: dict):
-        self.message_queue.put(msg)
+        self.message_queue.put(msg)  # legacy
+        with self._sub_lock:
+            for q in self._subscribers:
+                try:
+                    q.put_nowait(msg)
+                except queue.Full:
+                    pass
 
     def start_crawl(self, seed_urls: list[str], max_pages: int = 100, max_depth: int = 3) -> str:
         # Only one crawl at a time

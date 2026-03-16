@@ -364,10 +364,11 @@ def explore_chunks(page_id: int | None = None, limit: int = 10):
 
 async def websocket_jobs(websocket: WebSocket):
     await websocket.accept()
+    sub = job_manager.subscribe()
     try:
         while True:
             try:
-                msg = job_manager.message_queue.get_nowait()
+                msg = sub.get_nowait()
                 await websocket.send_json(msg)
             except queue.Empty:
                 await asyncio.sleep(0.3)
@@ -375,3 +376,5 @@ async def websocket_jobs(websocket: WebSocket):
         pass
     except Exception:
         pass
+    finally:
+        job_manager.unsubscribe(sub)
