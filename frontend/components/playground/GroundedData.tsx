@@ -354,12 +354,15 @@ export default function GroundedData({ activeStep, trace, overviewTrace, overvie
         {/* Input: retrieved chunks fed to LLM */}
         {overviewTrace?.retrieval && (
           <div>
-            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Input &mdash; {overviewTrace.retrieval.chunks_retrieved} chunks</div>
-            <div className="space-y-0.5">
-              {overviewTrace.retrieval.chunks.slice(0, 4).map((c, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-[9px] pl-2 border-l border-[var(--border)]">
-                  <span className="text-[var(--accent)] font-mono">[{i + 1}]</span>
-                  <span className="text-[var(--text-muted)] truncate">{c.title.replace(" - Wikipedia", "")}</span>
+            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1.5">Input &mdash; {overviewTrace.retrieval.chunks_retrieved} chunks fed to LLM</div>
+            <div className="space-y-1.5">
+              {overviewTrace.retrieval.chunks.map((c, i) => (
+                <div key={i} className="border border-[var(--border)] p-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] text-[var(--accent)] font-mono">[{i + 1}]</span>
+                    <span className="text-[10px] text-[var(--text-muted)] truncate flex-1">{c.title.replace(" - Wikipedia", "")}</span>
+                  </div>
+                  <div className="text-[9px] text-[var(--text-dim)] leading-relaxed pl-4">{c.content_preview}</div>
                 </div>
               ))}
             </div>
