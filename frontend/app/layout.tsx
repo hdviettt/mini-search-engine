@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${mono.variable} bg-[#0d0d0d] text-[#e0e0e0] min-h-screen font-mono`}>
+      <body className={`${mono.variable} bg-[var(--bg)] text-[var(--text)] min-h-screen font-mono`}>
         {children}
       </body>
     </html>

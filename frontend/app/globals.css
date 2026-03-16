@@ -32,8 +32,8 @@
   --score-bar-bg: #1a1a1a;
 }
 
-/* Light theme */
-.light {
+/* Light theme — scoped to html to avoid React Flow's .light class */
+html.light {
   --bg: #f5f0eb;
   --bg-card: #ffffff;
   --bg-elevated: #f0ece7;
