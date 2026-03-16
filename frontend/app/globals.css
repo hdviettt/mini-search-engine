@@ -147,16 +147,7 @@ body {
   stroke-width: 1;
 }
 
-.react-flow__edge.animated .react-flow__edge-path {
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-dasharray: 5;
-  animation: edge-flow 0.5s linear infinite;
-}
-
-@keyframes edge-flow {
-  to { stroke-dashoffset: -10; }
-}
+/* No animated glow on edges */
 
 /* ================================
    DETAIL PANEL ANIMATION

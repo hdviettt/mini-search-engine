@@ -75,56 +75,8 @@ export default function CanvasLayout({
     );
   }, [stats, setNodes]);
 
-  // Update system nodes + store nodes + build edges during jobs
+  // Update system nodes during jobs
   useEffect(() => {
-    // Determine which build edges should be active
-    const activeBuildEdges: string[] = [];
-    const writingStores: string[] = [];
-
-    if (crawlProgress) {
-      activeBuildEdges.push("b-crawler-pages");
-      writingStores.push("pages_db");
-    }
-    if (indexProgress) {
-      activeBuildEdges.push("b-pages-indexer", "b-indexer-index");
-      writingStores.push("inverted_index");
-      if (indexProgress.phase === "pagerank") {
-        activeBuildEdges.push("b-pages-pr", "b-pr-scores");
-        writingStores.push("pr_scores");
-      }
-    }
-    if (embedProgress) {
-      if (embedProgress.chunks_done === 0) {
-        // Chunking phase
-        activeBuildEdges.push("b-pages-chunker", "b-chunker-embedder");
-        writingStores.push("vector_store");
-      } else {
-        // Embedding phase
-        activeBuildEdges.push("b-chunker-embedder", "b-embedder-vectors");
-        writingStores.push("vector_store");
-      }
-    }
-
-    // Animate build edges
-    setEdges((eds) =>
-      eds.map((e) => {
-        if (!e.id.startsWith("b-")) return e;
-        const isActive = activeBuildEdges.includes(e.id);
-        // Determine if this is a "write" edge (dashed by default) or "read" edge (solid by default)
-        const isWriteEdge = ["b-crawler-pages", "b-indexer-index", "b-pr-scores", "b-embedder-vectors"].includes(e.id);
-        return {
-          ...e,
-          animated: isActive,
-          style: isActive
-            ? { stroke: "var(--accent)", strokeWidth: 2 }
-            : isWriteEdge
-              ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
-              : { stroke: "var(--edge-color)", strokeWidth: 1 },
-        };
-      })
-    );
-
-    // Update system nodes + store writing state
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === "crawler" && n.type === "system") {
@@ -161,7 +113,7 @@ export default function CanvasLayout({
         return n;
       })
     );
-  }, [crawlProgress, indexProgress, embedProgress, setNodes, setEdges]);
+  }, [crawlProgress, indexProgress, embedProgress, setNodes]);
 
   // Update pipeline nodes with trace data (data only — state managed by phase animation)
   useEffect(() => {
@@ -261,43 +213,15 @@ export default function CanvasLayout({
 
     const currentIdx = PHASE_ORDER.indexOf(phase);
     const activeNode = phaseNodeMap[phase];
-    const activeEdges = phaseEdgeMap[phase] || [];
-    const activeStores = phaseStoreMap[phase] || [];
 
-    // Collect all completed nodes and edges from prior phases
+    // Collect completed nodes from prior phases
     const completedNodes = new Set<string>();
-    const completedEdges = new Set<string>();
     for (let i = 0; i < currentIdx; i++) {
-      const p = PHASE_ORDER[i];
-      const node = phaseNodeMap[p];
+      const node = phaseNodeMap[PHASE_ORDER[i]];
       if (node) completedNodes.add(node);
-      for (const e of (phaseEdgeMap[p] || [])) completedEdges.add(e);
     }
 
-    setEdges((eds) =>
-      eds.map((e) => {
-        const isBuildEdge = e.id.startsWith("b-");
-        const isBridgeEdge = ["q-store-lookup", "q-scores-prlookup", "q-vectors-vsearch"].includes(e.id);
-        const isActive = activeEdges.includes(e.id);
-        const isCompleted = completedEdges.has(e.id);
-        const isWriteEdge = ["b-crawler-pages", "b-indexer-index", "b-pr-scores", "b-embedder-vectors"].includes(e.id);
-        return {
-          ...e,
-          animated: isActive,
-          style: isActive
-            ? { stroke: "var(--accent)", strokeWidth: 2, opacity: 1 }
-            : isCompleted
-              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.4 }
-              : isBridgeEdge
-                ? { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.6 }
-                : isBuildEdge
-                  ? isWriteEdge
-                    ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
-                    : { stroke: "var(--edge-color)", strokeWidth: 1 }
-                  : { stroke: "var(--edge-query)", strokeWidth: 1 },
-        };
-      })
-    );
+    // Edges stay static — no animation, no glow. Status shown via node dots only.
 
     setNodes((nds) =>
       nds.map((n) => {
@@ -313,7 +237,7 @@ export default function CanvasLayout({
         return n;
       })
     );
-  }, [phase, crawlProgress, indexProgress, embedProgress, setEdges, setNodes]);
+  }, [phase, crawlProgress, indexProgress, embedProgress, setNodes]);
 
   // Reset pipeline nodes on new search
   useEffect(() => {
