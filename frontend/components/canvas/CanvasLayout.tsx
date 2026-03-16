@@ -256,22 +256,24 @@ export default function CanvasLayout({
     setEdges((eds) =>
       eds.map((e) => {
         const isBuildEdge = e.id.startsWith("b-");
+        const isBridgeEdge = ["q-store-lookup", "q-scores-prlookup", "q-vectors-vsearch"].includes(e.id);
         const isActive = activeEdges.includes(e.id);
         const isCompleted = completedEdges.has(e.id);
-        // Determine if this is a "write" edge (dashed by default) or "read" edge (solid by default)
         const isWriteEdge = ["b-crawler-pages", "b-indexer-index", "b-pr-scores", "b-embedder-vectors"].includes(e.id);
         return {
           ...e,
           animated: isActive,
           style: isActive
-            ? { stroke: "var(--accent)", strokeWidth: 2 }
+            ? { stroke: "var(--accent)", strokeWidth: 2, opacity: 1 }
             : isCompleted
-              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.5 }
-              : isBuildEdge
-                ? isWriteEdge
-                  ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
-                  : { stroke: "var(--edge-color)", strokeWidth: 1 }
-                : { stroke: "var(--edge-query)", strokeWidth: 1 },
+              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.4 }
+              : isBridgeEdge
+                ? { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 }
+                : isBuildEdge
+                  ? isWriteEdge
+                    ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+                    : { stroke: "var(--edge-color)", strokeWidth: 1 }
+                  : { stroke: "var(--edge-query)", strokeWidth: 1 },
         };
       })
     );

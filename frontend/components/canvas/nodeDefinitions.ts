@@ -212,10 +212,10 @@ export const initialEdges: Edge[] = [
   { id: "b-chunker-embedder", source: "chunker", target: "embedder", type: "default", style: { stroke: "var(--edge-color)" } },
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", type: "default", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
-  // === STORE → QUERY BRIDGE (horizontal connections) ===
-  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
-  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "default", style: { stroke: "var(--edge-query)" } },
-  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "default", style: { stroke: "var(--edge-query)" } },
+  // === STORE → QUERY BRIDGE (subtle read connections) ===
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
+  { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
+  { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", type: "default", style: { strokeDasharray: "6,4", stroke: "var(--edge-color)", strokeWidth: 1, opacity: 0.5 } },
 
   // === SEARCH PATH ===
   { id: "q-input-tokenize", source: "query_input", target: "tokenize", type: "default", style: { stroke: "var(--edge-query)" } },
