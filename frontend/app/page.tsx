@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import CanvasLayout from "@/components/canvas/CanvasLayout";
 import DetailPanel from "@/components/canvas/DetailPanel";
 import AIOverview from "@/components/AIOverview";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import type { FlowPhase } from "@/components/canvas/types";
 import { searchExplain, getStats, getOverviewStreamUrl } from "@/lib/api";
 import type { OverviewSource, OverviewTrace } from "@/lib/api";
@@ -181,6 +182,7 @@ export default function Home() {
   }, [streamOverview]);
 
   return (
+    <ErrorBoundary>
     <div className="flex w-screen h-screen overflow-hidden bg-[var(--bg)]">
       {/* LEFT: Canvas — takes remaining space */}
       <div className="flex-1 h-full relative min-w-0">
@@ -311,5 +313,6 @@ export default function Home() {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

@@ -31,13 +31,13 @@ export default function OutputNode({ data }: { data: OutputNodeData }) {
         </p>
       )}
 
-      {isResults && data.content != null ? (
+      {isResults && Array.isArray(data.content) ? (
         <div className="space-y-0.5">
           {(data.content as { title: string; score: number }[]).slice(0, 3).map((r, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[9px]">
               <span className="text-[var(--text-dim)]">#{i + 1}</span>
-              <span className="text-[var(--text-muted)] truncate flex-1">{r.title.replace(" - Wikipedia", "")}</span>
-              <span className="text-[var(--accent)]/60 font-mono">{r.score.toFixed(2)}</span>
+              <span className="text-[var(--text-muted)] truncate flex-1">{(r.title || "").replace(" - Wikipedia", "")}</span>
+              <span className="text-[var(--accent)] opacity-60 font-mono">{(r.score ?? 0).toFixed(2)}</span>
             </div>
           ))}
         </div>
