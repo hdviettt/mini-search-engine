@@ -455,7 +455,7 @@ export default function DetailPanel({
   crawlProgress, indexProgress, embedProgress, logEntries, crawledPages, activeCrawlJobId, onCrawlStarted,
   searchData, overviewText,
 }: DetailPanelProps) {
-  const { width, onMouseDown } = useResizable({ initial: 340, min: 260, max: 600, direction: "right" });
+  const { width, onMouseDown } = useResizable({ initial: 420, min: 320, max: 700, direction: "right" });
 
   if (!nodeId) return null;
 
