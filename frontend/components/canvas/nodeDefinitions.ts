@@ -37,11 +37,11 @@ const QA = 1050;          // AI path
 const QA2 = 1250;         // Embed Query
 
 const QY1 = 30;           // Search Query
-const QY2 = 170;          // Tokenize / Fan-out / Embed
-const QY3 = 290;          // Idx Lookup / Vector Search
-const QY4 = 410;          // BM25+PR / LLM
-const QY5 = 530;          // Combine / AI Overview
-const QY6 = 650;          // Results
+const QY2 = 170;          // Path labels + Tokenize / Fan-out / Embed
+const QY3 = 310;          // Idx Lookup / Vector Search — aligned with stores (BY5=550)
+const QY4 = 450;          // BM25+PR / LLM
+const QY5 = 590;          // Combine / AI Overview
+const QY6 = 730;          // Results
 
 export const initialNodes: Node[] = [
   // ============================================================
