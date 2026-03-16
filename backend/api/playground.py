@@ -24,6 +24,8 @@ class CrawlRequest(BaseModel):
     seed_urls: list[str] = []
     max_pages: int = 100
     max_depth: int = 3
+    extra_domains: list[str] = []
+    restrict_domains: bool = True
 
 
 class PageRankRequest(BaseModel):
@@ -84,7 +86,7 @@ def stats():
 @router.post("/crawl/start")
 def crawl_start(req: CrawlRequest):
     try:
-        job_id = job_manager.start_crawl(req.seed_urls, req.max_pages, req.max_depth)
+        job_id = job_manager.start_crawl(req.seed_urls, req.max_pages, req.max_depth, req.extra_domains, req.restrict_domains)
         return {"job_id": job_id, "status": "started"}
     except RuntimeError as e:
         return {"error": str(e)}, 409

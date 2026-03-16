@@ -8,9 +8,13 @@ from crawler.parser import parse_page
 
 
 class CrawlManager:
-    def __init__(self, conn: psycopg.Connection):
+    def __init__(self, conn: psycopg.Connection, extra_domains: list[str] | None = None, restrict_domains: bool = True):
         self.conn = conn
         self.fetcher = Fetcher()
+        self.restrict_domains = restrict_domains
+        self.allowed_domains = set(ALLOWED_DOMAINS)
+        if extra_domains:
+            self.allowed_domains.update(extra_domains)
 
     def seed(self, urls: list[str]):
         """Add seed URLs to the crawl queue."""
@@ -32,8 +36,12 @@ class CrawlManager:
         if domain in BLOCKED_DOMAINS:
             return False
 
+        # If domain restriction is off, allow everything (except blocked)
+        if not self.restrict_domains:
+            return True
+
         # Must be in allowed domains
-        if domain not in ALLOWED_DOMAINS:
+        if domain not in self.allowed_domains:
             return False
 
         # Must match at least one allowed path pattern
@@ -131,7 +139,7 @@ class CrawlManager:
         max_depth = max_depth_override or MAX_DEPTH
         pages_this_session = 0
         print(f"Starting crawl (max {max_pages} new pages, max depth {max_depth})...")
-        print(f"Domains: {', '.join(ALLOWED_DOMAINS)}")
+        print(f"Domains: {', '.join(self.allowed_domains) if self.restrict_domains else 'ALL (unrestricted)'}")
 
         while True:
             # Check stop signal

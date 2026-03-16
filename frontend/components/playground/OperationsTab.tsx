@@ -69,13 +69,16 @@ export default function OperationsTab({
 }: OperationsTabProps) {
   const [seedUrl, setSeedUrl] = useState("https://en.wikipedia.org/wiki/Association_football");
   const [maxPages, setMaxPages] = useState(50);
+  const [extraDomains, setExtraDomains] = useState("");
+  const [restrictDomains, setRestrictDomains] = useState(true);
   const [crawling, setCrawling] = useState(false);
   const [indexing, setIndexing] = useState(false);
   const [embedding, setEmbedding] = useState(false);
 
   const handleStartCrawl = async () => {
     setCrawling(true);
-    const res = await startCrawl([seedUrl], maxPages, 3);
+    const extras = extraDomains.split(/[,\n]/).map((d) => d.trim()).filter(Boolean);
+    const res = await startCrawl([seedUrl], maxPages, 3, extras, restrictDomains);
     if (res.job_id) onCrawlStarted(res.job_id);
   };
 
@@ -112,6 +115,34 @@ export default function OperationsTab({
           placeholder="Seed URL"
           className="w-full text-xs bg-[var(--bg-card)] border border-[var(--border)] px-2 py-1.5 text-[var(--text)] outline-none focus:border-[var(--accent)]/50 font-mono"
         />
+        {/* Domain restriction */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRestrictDomains(!restrictDomains)}
+              className={`w-7 h-3.5 cursor-pointer transition-colors ${restrictDomains ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`}
+              title={restrictDomains ? "Domain restriction ON" : "Domain restriction OFF — will crawl any domain"}
+            >
+              <div className={`w-2.5 h-2.5 bg-white transition-transform ${restrictDomains ? "translate-x-3.5" : "translate-x-0.5"}`} />
+            </button>
+            <span className="text-[10px] text-[var(--text-dim)]">
+              {restrictDomains ? "Restrict to allowed domains" : "Allow all domains"}
+            </span>
+          </div>
+          {restrictDomains && (
+            <div>
+              <div className="text-[9px] text-[var(--text-dim)] mb-0.5">Default: en.wikipedia.org, www.bbc.com, www.espn.com</div>
+              <input
+                type="text"
+                value={extraDomains}
+                onChange={(e) => setExtraDomains(e.target.value)}
+                placeholder="Extra domains (comma separated)"
+                className="w-full text-[10px] bg-[var(--bg-card)] border border-[var(--border)] px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--accent)]/50 font-mono"
+              />
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-2">
           <input
             type="number"

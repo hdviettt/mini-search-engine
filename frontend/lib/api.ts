@@ -52,11 +52,11 @@ export async function getStats(): Promise<Stats> {
   return res.json();
 }
 
-export async function startCrawl(seedUrls: string[], maxPages: number, maxDepth: number) {
+export async function startCrawl(seedUrls: string[], maxPages: number, maxDepth: number, extraDomains: string[] = [], restrictDomains: boolean = true) {
   const res = await fetch(`${API_BASE}/api/crawl/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ seed_urls: seedUrls, max_pages: maxPages, max_depth: maxDepth }),
+    body: JSON.stringify({ seed_urls: seedUrls, max_pages: maxPages, max_depth: maxDepth, extra_domains: extraDomains, restrict_domains: restrictDomains }),
   });
   return res.json();
 }

@@ -49,7 +49,7 @@ class JobManager:
         if msg.get("type") in ("crawl_progress", "crawl_complete", "index_progress", "index_complete", "embed_progress", "embed_complete"):
             print(f"  [WS] Emitted {msg.get('type')} to {len(subs)} subscribers")
 
-    def start_crawl(self, seed_urls: list[str], max_pages: int = 100, max_depth: int = 3) -> str:
+    def start_crawl(self, seed_urls: list[str], max_pages: int = 100, max_depth: int = 3, extra_domains: list[str] | None = None, restrict_domains: bool = True) -> str:
         # Only one crawl at a time
         with self.lock:
             for j in self.jobs.values():
@@ -63,7 +63,7 @@ class JobManager:
         def run():
             try:
                 conn = get_connection()
-                manager = CrawlManager(conn)
+                manager = CrawlManager(conn, extra_domains=extra_domains, restrict_domains=restrict_domains)
                 if seed_urls:
                     manager.seed(seed_urls)
 
