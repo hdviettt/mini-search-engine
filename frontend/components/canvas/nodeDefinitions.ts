@@ -65,14 +65,14 @@ export const initialNodes: Node[] = [
     type: "system",
     position: { x: 340, y: BUILD_ROW2 },
     parentId: "group_build",
-    data: { label: "PageRank", icon: "pagerank", description: "Computes link authority", stats: [], status: "ready", color: "indigo" },
+    data: { label: "PageRank", icon: "pagerank", description: "Link-based authority score", stats: [], status: "ready", color: "indigo" },
   },
   {
     id: "chunker",
     type: "system",
     position: { x: 630, y: BUILD_ROW2 },
     parentId: "group_build",
-    data: { label: "Chunker", icon: "chunker", description: "~300-token chunks", stats: [], status: "ready", color: "violet" },
+    data: { label: "Chunker", icon: "chunker", description: "~300 tokens @ sentence boundaries", stats: [], status: "ready", color: "violet" },
   },
   {
     id: "embedder",
@@ -140,7 +140,7 @@ export const initialNodes: Node[] = [
   {
     id: "query_input",
     type: "pipeline",
-    position: { x: 280, y: Q_ROW1 },
+    position: { x: 450, y: Q_ROW1 },
     parentId: "group_query",
     data: { label: "Search Query", icon: "query", description: "User enters a query", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
   },
