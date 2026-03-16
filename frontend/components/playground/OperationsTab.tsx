@@ -35,10 +35,12 @@ function CrawlFeed({ pages, progress, finished }: { pages: CrawlProgressData[]; 
       {pages.map((p, i) => {
         let domain = "";
         try { domain = new URL(p.current_url).hostname; } catch { domain = ""; }
+        const isJsOnly = p.status === "js_only";
+        const isFailed = p.status === "failed";
         return (
-          <div key={i} className={`border p-2 ${p.status === "ok" ? "border-[var(--border)]" : "border-red-800/30"}`}>
+          <div key={i} className={`border p-2 ${isFailed ? "border-red-800/30" : isJsOnly ? "border-yellow-700/30" : "border-[var(--border)]"}`}>
             <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2 h-2 shrink-0 ${p.status === "ok" ? "bg-emerald-500" : "bg-red-500"}`} />
+              <span className={`w-2 h-2 shrink-0 ${isFailed ? "bg-red-500" : isJsOnly ? "bg-yellow-500" : "bg-emerald-500"}`} />
               <span className="text-[var(--accent)] font-mono text-[11px] shrink-0">#{p.pages_crawled}</span>
               <span className="text-[12px] text-[var(--text)] truncate flex-1 font-medium">{(p.title || "Untitled").replace(" - Wikipedia", "")}</span>
             </div>
@@ -47,6 +49,11 @@ function CrawlFeed({ pages, progress, finished }: { pages: CrawlProgressData[]; 
               <span>{(p.text_length / 1000).toFixed(0)}K chars</span>
               <span>{p.links_found} outlinks</span>
             </div>
+            {isJsOnly && (
+              <div className="pl-5 mt-1 text-[10px] text-yellow-600">
+                JS-rendered site — content requires a browser to load. No links to follow.
+              </div>
+            )}
           </div>
         );
       })}

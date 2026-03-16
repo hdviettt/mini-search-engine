@@ -194,6 +194,14 @@ class CrawlManager:
 
             # Parse
             parsed = parse_page(url, response.text)
+            body_len = len(parsed["body_text"])
+            links_count = len(parsed["links"])
+
+            # Detect JS-rendered pages (empty body, no links)
+            status = "ok"
+            if body_len < 500 and links_count == 0:
+                status = "js_only"
+                print(f"  Warning: {url} returned minimal content ({body_len} chars, 0 links) — likely JS-rendered")
 
             # Store page
             page_id = self._store_page(url, response.status_code, parsed)
@@ -212,11 +220,11 @@ class CrawlManager:
                     "max_pages": max_pages,
                     "queue_size": self._count_pending(),
                     "current_url": url,
-                    "title": parsed["title"][:80],
-                    "text_length": len(parsed["body_text"]),
-                    "links_found": len(parsed["links"]),
+                    "title": parsed["title"][:80] or "(JS-rendered — no content)",
+                    "text_length": body_len,
+                    "links_found": links_count,
                     "status_code": response.status_code,
-                    "status": "ok",
+                    "status": status,
                 })
 
         self.fetcher.close()
