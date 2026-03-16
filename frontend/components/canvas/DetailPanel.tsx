@@ -42,9 +42,9 @@ const storeIntros: Record<string, string> = {
   pages_db: "Raw HTML pages stored after crawling. Each page is parsed for title, text, and outgoing links.",
   inverted_index: "Maps each unique term to the list of documents containing it. This is what makes keyword search fast — O(1) lookup per term.",
   pr_scores: "Authority scores computed from the link graph. Pages that are linked to by many other pages score higher.",
-  vector_store: "Chunks of text with their 768-dimensional embedding vectors, enabling semantic similarity search.",
+  vector_store: "Chunks of text with their 512-dimensional embedding vectors, enabling semantic similarity search.",
   chunker_preview: "Pages are split at sentence boundaries into ~300-token chunks. Smaller chunks give the embedding model focused context.",
-  embedder_preview: "Each chunk is converted into a 768-dim dense vector using a sentence-transformer model. Similar meanings map to nearby vectors.",
+  embedder_preview: "Each chunk is converted into a 512-dim dense vector using a sentence-transformer model. Similar meanings map to nearby vectors.",
 };
 
 function StorePreview({ nodeId }: { nodeId: string }) {
@@ -231,12 +231,12 @@ function StorePreview({ nodeId }: { nodeId: string }) {
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`w-2 h-2 ${c.has_embedding ? "bg-[var(--accent)]" : "bg-[var(--border-hover)]"}`} />
                   <span className="text-[9px] text-[var(--text-dim)] font-mono">page {c.page_id} &rarr; chunk {c.chunk_idx}</span>
-                  <span className="text-[8px] text-[var(--text-dim)] ml-auto">{c.has_embedding ? "768-dim vector" : "not yet embedded"}</span>
+                  <span className="text-[8px] text-[var(--text-dim)] ml-auto">{c.has_embedding ? "512-dim vector" : "not yet embedded"}</span>
                 </div>
                 <div className="text-[9px] text-[var(--text-muted)] leading-relaxed line-clamp-2 pl-4">{c.content}</div>
                 {c.has_embedding && (
                   <div className="pl-4 mt-1 text-[8px] text-[var(--text-dim)] font-mono">
-                    text &rarr; [0.023, -0.148, 0.067, ... ] &times; 768 dims
+                    text &rarr; [0.023, -0.148, 0.067, ... ] &times; 512 dims
                   </div>
                 )}
               </div>
@@ -264,7 +264,7 @@ function StorePreview({ nodeId }: { nodeId: string }) {
               <div className="text-[9px] text-[var(--text-dim)] leading-relaxed line-clamp-2 pl-4 mb-1">{c.content}</div>
               <div className="pl-4 text-[8px] text-[var(--text-dim)]">
                 {c.has_embedding
-                  ? <span className="font-mono">text &rarr; float[768] &rarr; stored for cosine similarity search</span>
+                  ? <span className="font-mono">text &rarr; float[512] &rarr; stored for cosine similarity search</span>
                   : <span>awaiting embedding</span>
                 }
               </div>
@@ -481,7 +481,7 @@ export default function DetailPanel({
     indexer: "Reads crawled pages and builds an inverted index: a mapping from every unique term to the documents that contain it. This is what makes keyword search instantaneous.",
     pr_compute: "PageRank iteratively distributes authority through the link graph. Pages linked by many high-authority pages score highest.",
     chunker: "Splits full-page text into ~300-token chunks at sentence boundaries. Smaller chunks give the embedding model more focused context for similarity search.",
-    embedder: "Converts each text chunk into a 768-dimensional dense vector using a sentence-transformer model. Similar meanings map to nearby points in vector space.",
+    embedder: "Converts each text chunk into a 512-dimensional dense vector using a sentence-transformer model. Similar meanings map to nearby points in vector space.",
   };
 
   const renderContent = () => {
@@ -558,8 +558,8 @@ export default function DetailPanel({
           <div className="px-3 pt-3 pb-0">
             <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">{buildIntros.embedder}</div>
             <div className="p-1.5 mt-1 border border-dashed border-[var(--border)] text-[9px] text-[var(--text-dim)]">
-              <div>Model: <span className="text-[var(--accent)] font-mono">all-MiniLM-L6-v2</span></div>
-              <div>Dims: <span className="text-[var(--accent)] font-mono">768</span> | Similarity: <span className="font-mono">cosine</span></div>
+              <div>Model: <span className="text-[var(--accent)] font-mono">voyage-3-lite</span></div>
+              <div>Dims: <span className="text-[var(--accent)] font-mono">512</span> | Similarity: <span className="font-mono">cosine</span></div>
             </div>
           </div>
           <StorePreview nodeId={storeId} />

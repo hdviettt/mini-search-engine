@@ -1,60 +1,99 @@
-"""Generate embeddings using Ollama (nomic-embed-text) with Voyage API fallback."""
+"""Generate embeddings using Voyage API."""
 import httpx
 import psycopg
 
 from config import VOYAGE_API_KEY, VOYAGE_MODEL
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-EMBED_MODEL = "nomic-embed-text"
 BATCH_SIZE = 50
+VOYAGE_URL = "https://api.voyageai.com/v1/embeddings"
+
+# Fallback to Ollama if no Voyage key
+OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_MODEL = "nomic-embed-text"
 
 
-def _get_embeddings_batch(texts: list[str]) -> list[list[float]] | None:
-    """Get embedding vectors for multiple texts in one request via Ollama."""
+def _embed_voyage(texts: list[str], input_type: str = "document") -> list[list[float]] | None:
+    """Get embeddings from Voyage API."""
+    if not VOYAGE_API_KEY:
+        return None
+    try:
+        response = httpx.post(
+            VOYAGE_URL,
+            headers={"Authorization": f"Bearer {VOYAGE_API_KEY}"},
+            json={"model": VOYAGE_MODEL, "input": texts, "input_type": input_type},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [item["embedding"] for item in data["data"]]
+    except Exception as e:
+        print(f"  Voyage embed error: {e}")
+        return None
+
+
+def _embed_ollama(texts: list[str]) -> list[list[float]] | None:
+    """Fallback: get embeddings from local Ollama."""
     try:
         response = httpx.post(
             f"{OLLAMA_BASE_URL}/api/embed",
-            json={"model": EMBED_MODEL, "input": texts},
+            json={"model": OLLAMA_MODEL, "input": texts},
             timeout=120,
         )
         response.raise_for_status()
         return response.json()["embeddings"]
     except Exception as e:
-        print(f"  Batch embedding error: {e}")
+        print(f"  Ollama embed error: {e}")
         return None
 
 
-def _embed_query_hf(text: str) -> list[float] | None:
-    """Fallback: embed using Hugging Face Inference API (same nomic-embed-text model, free)."""
-    try:
-        response = httpx.post(
-            "https://api-inference.huggingface.co/pipeline/feature-extraction/nomic-ai/nomic-embed-text-v1",
-            json={"inputs": f"search_query: {text}"},
-            timeout=15,
-        )
-        response.raise_for_status()
-        embedding = response.json()
-        # HF returns nested list for single input
-        if isinstance(embedding[0], list):
-            embedding = embedding[0]
-        return embedding
-    except Exception as e:
-        print(f"  HF embed fallback error: {e}")
-        return None
+def _get_embeddings_batch(texts: list[str], input_type: str = "document") -> list[list[float]] | None:
+    """Get embeddings — Voyage first, Ollama fallback."""
+    result = _embed_voyage(texts, input_type)
+    if result:
+        return result
+    return _embed_ollama(texts)
 
 
 def embed_query(text: str) -> list[float] | None:
-    """Get embedding for a single search query. Tries Ollama first, then HF API."""
-    result = _get_embeddings_batch([text])
-    if result:
-        return result[0]
-    # Fallback to HF Inference API (same model, compatible dimensions)
-    return _embed_query_hf(text)
+    """Get embedding for a single search query."""
+    result = _get_embeddings_batch([text], input_type="query")
+    return result[0] if result else None
+
+
+def _ensure_vector_dimension(conn: psycopg.Connection, dim: int):
+    """Ensure the embedding column matches the expected dimension. Re-creates if needed."""
+    try:
+        # Check current dimension by looking at a sample
+        row = conn.execute("SELECT embedding FROM chunks WHERE embedding IS NOT NULL LIMIT 1").fetchone()
+        if row and row[0]:
+            current_dim = len(row[0]) if isinstance(row[0], (list, tuple)) else None
+            # If using pgvector, dimension is encoded in the type
+            if current_dim and current_dim != dim:
+                print(f"  Dimension mismatch: stored={current_dim}, needed={dim}. Clearing old embeddings...")
+                conn.execute("UPDATE chunks SET embedding = NULL")
+                conn.commit()
+    except Exception:
+        pass
+
+    # Alter column to match dimension
+    try:
+        conn.execute(f"ALTER TABLE chunks ALTER COLUMN embedding TYPE vector({dim})")
+        conn.commit()
+        print(f"  Embedding column set to vector({dim})")
+    except Exception:
+        conn.rollback()
 
 
 def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
-    """Generate embeddings for all chunks that don't have one yet, using batched requests."""
+    """Generate embeddings for all chunks that don't have one yet."""
     print("Generating embeddings (batched)...")
+
+    # Determine expected dimension from a test embedding
+    test = _get_embeddings_batch(["test"], input_type="query")
+    if test:
+        dim = len(test[0])
+        print(f"  Embedding dimension: {dim}")
+        _ensure_vector_dimension(conn, dim)
 
     chunks = conn.execute(
         "SELECT id, content FROM chunks WHERE embedding IS NULL ORDER BY id"
@@ -68,7 +107,7 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
         texts = [content[:1500] for _, content in batch]
         ids = [chunk_id for chunk_id, _ in batch]
 
-        embeddings = _get_embeddings_batch(texts)
+        embeddings = _get_embeddings_batch(texts, input_type="document")
         if embeddings is None:
             continue
 

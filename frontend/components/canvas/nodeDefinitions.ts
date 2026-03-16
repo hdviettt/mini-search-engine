@@ -79,7 +79,7 @@ export const initialNodes: Node[] = [
     type: "system",
     position: { x: 900, y: BUILD_ROW2 },
     parentId: "group_build",
-    data: { label: "Embedder", icon: "embedder", description: "768-dim vectors", stats: [], status: "ready", color: "purple" },
+    data: { label: "Embedder", icon: "embedder", description: "512-dim vectors (Voyage)", stats: [], status: "ready", color: "purple" },
   },
 
   // ============================================================
