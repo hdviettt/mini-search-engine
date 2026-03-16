@@ -5,6 +5,7 @@ import CanvasLayout from "@/components/canvas/CanvasLayout";
 import DetailPanel from "@/components/canvas/DetailPanel";
 import AIOverview from "@/components/AIOverview";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useResizable } from "@/hooks/useResizable";
 import type { FlowPhase } from "@/components/canvas/types";
 import { searchExplain, getStats, getOverviewStreamUrl } from "@/lib/api";
 import type { OverviewSource, OverviewTrace } from "@/lib/api";
@@ -51,6 +52,7 @@ export default function Home() {
   const { lastMessage } = useWebSocket();
   const abortRef = useRef<AbortController | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const { width: searchPanelWidth, onMouseDown: onSearchResize } = useResizable({ initial: 480, min: 280, max: 700, direction: "left" });
 
   useEffect(() => { getStats().then(setStats).catch(() => {}); }, []);
 
@@ -212,16 +214,23 @@ export default function Home() {
       </div>
 
       {/* RIGHT: Search + Results (collapsible) */}
-      <div className={`h-full border-l border-[var(--border)] bg-[var(--bg)] flex flex-col shrink-0 transition-all duration-200 relative ${panelOpen ? "w-[45%]" : "w-8"}`}>
+      <div className={`h-full bg-[var(--bg)] flex shrink-0 relative ${panelOpen ? "" : "w-8"}`} style={panelOpen ? { width: searchPanelWidth } : undefined}>
+        {/* Resize handle */}
+        {panelOpen && (
+          <div
+            onMouseDown={onSearchResize}
+            className="w-1 h-full cursor-col-resize hover:bg-[var(--accent)]/30 active:bg-[var(--accent)]/50 transition-colors shrink-0"
+          />
+        )}
         {!panelOpen ? (
           <button
             onClick={() => setPanelOpen(true)}
-            className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] transition-colors"
+            className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] transition-colors border-l border-[var(--border)]"
           >
             <span className="text-[10px] text-[var(--text-dim)] font-mono" style={{ writingMode: "vertical-rl" }}>search panel</span>
           </button>
         ) : (
-          <>
+          <div className="flex-1 flex flex-col min-w-0 border-l border-[var(--border)]">
         {/* Search bar */}
         <div className="p-3 border-b border-[var(--border)] shrink-0">
           <form
@@ -309,7 +318,7 @@ export default function Home() {
             </div>
           )}
         </div>
-        </>
+        </div>
         )}
       </div>
     </div>

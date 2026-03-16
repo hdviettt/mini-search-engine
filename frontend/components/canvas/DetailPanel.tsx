@@ -6,6 +6,7 @@ import type { ActiveStep } from "@/components/playground/GroundedData";
 import OperationsTab from "@/components/playground/OperationsTab";
 import PageRankTuning from "./PageRankTuning";
 import CrawlSchedulePanel from "./CrawlSchedulePanel";
+import { useResizable } from "@/hooks/useResizable";
 import type { PipelineTrace } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
 
@@ -194,6 +195,8 @@ export default function DetailPanel({
   nodeId, onClose, trace, overviewTrace,
   crawlProgress, indexProgress, embedProgress, logEntries, activeCrawlJobId, onCrawlStarted,
 }: DetailPanelProps) {
+  const { width, onMouseDown } = useResizable({ initial: 340, min: 260, max: 600, direction: "right" });
+
   if (!nodeId) return null;
 
   // Build nodes map to their related store for preview
@@ -213,13 +216,14 @@ export default function DetailPanel({
   const nodeLabel = nodeId.replace(/_/g, " ");
 
   return (
-    <div className="absolute top-0 left-0 bottom-0 z-20 w-[340px] bg-[var(--bg)] border-r border-[var(--border)] animate-slide-left flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] shrink-0">
-        <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider">{nodeLabel}</span>
-        <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--accent)] cursor-pointer text-sm">&times;</button>
-      </div>
+    <div className="absolute top-0 left-0 bottom-0 z-20 bg-[var(--bg)] border-r border-[var(--border)] animate-slide-left flex" style={{ width }}>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] shrink-0">
+          <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider">{nodeLabel}</span>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--accent)] cursor-pointer text-sm">&times;</button>
+        </div>
 
-      <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1">
         {isStoreNode ? (
           <StorePreview nodeId={nodeId} />
         ) : isPRNode ? (
@@ -248,7 +252,13 @@ export default function DetailPanel({
             Search to see data for this step.
           </div>
         )}
+        </div>
       </div>
+      {/* Resize handle */}
+      <div
+        onMouseDown={onMouseDown}
+        className="w-1 h-full cursor-col-resize hover:bg-[var(--accent)]/30 active:bg-[var(--accent)]/50 transition-colors shrink-0"
+      />
     </div>
   );
 }
