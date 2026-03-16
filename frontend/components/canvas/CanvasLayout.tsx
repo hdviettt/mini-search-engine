@@ -234,17 +234,26 @@ export default function CanvasLayout({
   // Animate edges, nodes, and stores based on current phase
   useEffect(() => {
     // Always update stores (build + query), even when idle
+    // Collect active + completed stores from all phases up to current
+    const allActiveStores = new Set<string>();
+    if (phase !== "idle") {
+      const currentIdx = PHASE_ORDER.indexOf(phase);
+      // Current phase stores
+      for (const s of (phaseStoreMap[phase] || [])) allActiveStores.add(s);
+      // Completed phase stores stay lit
+      for (let i = 0; i < currentIdx; i++) {
+        for (const s of (phaseStoreMap[PHASE_ORDER[i]] || [])) allActiveStores.add(s);
+      }
+    }
+    // Build-time stores
+    if (crawlProgress) allActiveStores.add("pages_db");
+    if (indexProgress) { allActiveStores.add("inverted_index"); if (indexProgress.phase === "pagerank") allActiveStores.add("pr_scores"); }
+    if (embedProgress) allActiveStores.add("vector_store");
+
     setNodes((nds) =>
       nds.map((n) => {
         if (n.type !== "store") return n;
-        const queryActive = phase !== "idle" ? (phaseStoreMap[phase] || []).includes(n.id) : false;
-        const buildActive = !!(
-          (crawlProgress && n.id === "pages_db") ||
-          (indexProgress && n.id === "inverted_index") ||
-          (indexProgress?.phase === "pagerank" && n.id === "pr_scores") ||
-          (embedProgress && n.id === "vector_store")
-        );
-        return { ...n, data: { ...n.data, active: queryActive || buildActive } };
+        return { ...n, data: { ...n.data, active: allActiveStores.has(n.id) } };
       })
     );
 
