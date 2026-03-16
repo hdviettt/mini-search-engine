@@ -1,6 +1,8 @@
-"""Generate embeddings using Ollama (nomic-embed-text) with batching."""
+"""Generate embeddings using Ollama (nomic-embed-text) with Voyage API fallback."""
 import httpx
 import psycopg
+
+from config import VOYAGE_API_KEY, VOYAGE_MODEL
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"
@@ -8,7 +10,7 @@ BATCH_SIZE = 50
 
 
 def _get_embeddings_batch(texts: list[str]) -> list[list[float]] | None:
-    """Get embedding vectors for multiple texts in one request."""
+    """Get embedding vectors for multiple texts in one request via Ollama."""
     try:
         response = httpx.post(
             f"{OLLAMA_BASE_URL}/api/embed",
@@ -22,10 +24,32 @@ def _get_embeddings_batch(texts: list[str]) -> list[list[float]] | None:
         return None
 
 
+def _embed_query_hf(text: str) -> list[float] | None:
+    """Fallback: embed using Hugging Face Inference API (same nomic-embed-text model, free)."""
+    try:
+        response = httpx.post(
+            "https://api-inference.huggingface.co/pipeline/feature-extraction/nomic-ai/nomic-embed-text-v1",
+            json={"inputs": f"search_query: {text}"},
+            timeout=15,
+        )
+        response.raise_for_status()
+        embedding = response.json()
+        # HF returns nested list for single input
+        if isinstance(embedding[0], list):
+            embedding = embedding[0]
+        return embedding
+    except Exception as e:
+        print(f"  HF embed fallback error: {e}")
+        return None
+
+
 def embed_query(text: str) -> list[float] | None:
-    """Get embedding for a single search query."""
+    """Get embedding for a single search query. Tries Ollama first, then HF API."""
     result = _get_embeddings_batch([text])
-    return result[0] if result else None
+    if result:
+        return result[0]
+    # Fallback to HF Inference API (same model, compatible dimensions)
+    return _embed_query_hf(text)
 
 
 def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
