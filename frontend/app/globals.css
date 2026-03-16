@@ -32,7 +32,7 @@
   --score-bar-bg: #1a1a1a;
 }
 
-/* Light theme */
+/* Light theme — scoped to html to avoid React Flow's .light class */
 html.light {
   --bg: #f5f0eb;
   --bg-card: #ffffff;
@@ -80,85 +80,74 @@ body {
 }
 
 /* ================================
-   ARCHITECTURE DIAGRAM
+   REACT FLOW OVERRIDES
    ================================ */
 
-/* Panel containers */
-.arch-panel {
-  border: 1px solid var(--border);
-  background: var(--bg);
+/* Override all non-group nodes */
+.react-flow__node:not(.react-flow__node-group),
+.react-flow__node.selected:not(.react-flow__node-group) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  color: inherit !important;
 }
 
-.arch-panel-header {
+/* Hide connection handles — diagram is not interactive */
+.react-flow__handle {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+}
+
+/* Group nodes */
+.react-flow__node-group {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+/* Group label text */
+.react-flow__node-group > div {
+  position: absolute;
+  top: -20px;
+  left: 8px;
   font-size: 10px;
   font-family: ui-monospace, monospace;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
+  letter-spacing: 0.08em;
+  pointer-events: none;
 }
 
-/* System nodes (build processors) */
-.arch-system {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 8px 10px;
+/* Hide default node handles on group labels */
+.react-flow__node-default {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: var(--text-dim) !important;
 }
-.arch-system:hover { border-color: var(--accent) !important; opacity: 0.9; }
-
-/* Store nodes */
-.arch-store {
-  background: var(--bg-card);
-  border: 1px dashed var(--border);
-  padding: 6px 10px;
-  text-align: center;
-}
-.arch-store:hover { border-color: var(--accent) !important; }
-.arch-store-active {
-  border-color: var(--accent) !important;
-  border-style: solid !important;
-  background: var(--accent-muted);
+.react-flow__node-default .react-flow__handle {
+  display: none !important;
 }
 
-/* Pipeline nodes */
-.arch-pipeline {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 6px 10px;
-  border-left: 3px solid var(--border);
-}
-.arch-pipeline:hover { border-color: var(--accent) !important; }
-.arch-pipeline.arch-active {
-  border-color: var(--accent) !important;
-  border-left-color: var(--accent) !important;
-  background: var(--accent-muted);
-}
-.arch-pipeline.arch-completed {
-  border-color: var(--accent) !important;
-  border-left-color: var(--accent) !important;
-  opacity: 0.7;
+.react-flow__edge-path {
+  stroke: var(--edge-query);
+  stroke-width: 1;
 }
 
-/* Output nodes */
-.arch-output {
-  background: var(--bg-card);
-  border: 2px solid var(--border-hover);
-  padding: 8px 10px;
-  outline: 2px solid var(--border);
-  outline-offset: 2px;
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5;
+  animation: edge-flow 0.5s linear infinite;
 }
-.arch-output:hover { border-color: var(--accent) !important; }
-.arch-output.arch-active {
-  border-color: var(--accent) !important;
-  outline-color: var(--node-glow) !important;
-  background: var(--accent-muted);
-}
-.arch-output.arch-completed {
-  border-color: var(--accent) !important;
-  outline-color: var(--node-glow) !important;
-  opacity: 0.7;
+
+@keyframes edge-flow {
+  to { stroke-dashoffset: -10; }
 }
 
 /* ================================
