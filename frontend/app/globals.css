@@ -32,7 +32,7 @@
   --score-bar-bg: #1a1a1a;
 }
 
-/* Light theme — scoped to html to avoid React Flow's .light class */
+/* Light theme */
 html.light {
   --bg: #f5f0eb;
   --bg-card: #ffffff;
@@ -80,73 +80,42 @@ body {
 }
 
 /* ================================
-   REACT FLOW OVERRIDES
+   ARCHITECTURE DIAGRAM
    ================================ */
 
-/* Override all non-group nodes */
-.react-flow__node:not(.react-flow__node-group),
-.react-flow__node.selected:not(.react-flow__node-group) {
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-  outline: none !important;
-  color: inherit !important;
+/* Panel containers */
+.arch-panel {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  position: relative;
 }
 
-/* Hide connection handles — diagram is not interactive */
-.react-flow__handle {
-  opacity: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-}
-
-/* Group nodes */
-.react-flow__node-group {
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
-/* Group label text */
-.react-flow__node-group > div {
-  position: absolute;
-  top: -20px;
-  left: 8px;
+.arch-panel-header {
   font-size: 10px;
   font-family: ui-monospace, monospace;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  pointer-events: none;
+  letter-spacing: 0.1em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
 }
 
-/* Hide default node handles on group labels */
-.react-flow__node-default {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  color: var(--text-dim) !important;
-}
-.react-flow__node-default .react-flow__handle {
-  display: none !important;
+/* System nodes (build processors) */
+.arch-system {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 10px;
+  width: 170px;
 }
 
-.react-flow__edge-path {
-  stroke: var(--edge-query);
-  stroke-width: 1;
-}
-
-.react-flow__edge.animated .react-flow__edge-path {
-  stroke: var(--accent);
-  stroke-width: 2;
+/* Animated edge — flows like a current */
+.arch-edge-animated {
   stroke-dasharray: 5;
-  animation: edge-flow 0.5s linear infinite;
+  animation: arch-edge-flow 0.5s linear infinite;
 }
 
-@keyframes edge-flow {
+@keyframes arch-edge-flow {
   to { stroke-dashoffset: -10; }
 }
 
