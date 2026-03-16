@@ -87,7 +87,6 @@ body {
 .arch-panel {
   border: 1px solid var(--border);
   background: var(--bg);
-  position: relative;
 }
 
 .arch-panel-header {
@@ -105,18 +104,61 @@ body {
 .arch-system {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  padding: 10px;
-  width: 170px;
+  padding: 8px 10px;
+}
+.arch-system:hover { border-color: var(--accent) !important; opacity: 0.9; }
+
+/* Store nodes */
+.arch-store {
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  padding: 6px 10px;
+  text-align: center;
+}
+.arch-store:hover { border-color: var(--accent) !important; }
+.arch-store-active {
+  border-color: var(--accent) !important;
+  border-style: solid !important;
+  background: var(--accent-muted);
 }
 
-/* Animated edge — flows like a current */
-.arch-edge-animated {
-  stroke-dasharray: 5;
-  animation: arch-edge-flow 0.5s linear infinite;
+/* Pipeline nodes */
+.arch-pipeline {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+}
+.arch-pipeline:hover { border-color: var(--accent) !important; }
+.arch-pipeline.arch-active {
+  border-color: var(--accent) !important;
+  border-left-color: var(--accent) !important;
+  background: var(--accent-muted);
+}
+.arch-pipeline.arch-completed {
+  border-color: var(--accent) !important;
+  border-left-color: var(--accent) !important;
+  opacity: 0.7;
 }
 
-@keyframes arch-edge-flow {
-  to { stroke-dashoffset: -10; }
+/* Output nodes */
+.arch-output {
+  background: var(--bg-card);
+  border: 2px solid var(--border-hover);
+  padding: 8px 10px;
+  outline: 2px solid var(--border);
+  outline-offset: 2px;
+}
+.arch-output:hover { border-color: var(--accent) !important; }
+.arch-output.arch-active {
+  border-color: var(--accent) !important;
+  outline-color: var(--node-glow) !important;
+  background: var(--accent-muted);
+}
+.arch-output.arch-completed {
+  border-color: var(--accent) !important;
+  outline-color: var(--node-glow) !important;
+  opacity: 0.7;
 }
 
 /* ================================
