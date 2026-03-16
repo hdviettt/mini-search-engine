@@ -77,8 +77,52 @@ export default function CanvasLayout({
     );
   }, [stats, setNodes]);
 
-  // Update system nodes with job progress
+  // Update system nodes + store nodes + build edges during jobs
   useEffect(() => {
+    // Determine which build edges should be active
+    const activeBuildEdges: string[] = [];
+    const writingStores: string[] = [];
+
+    if (crawlProgress) {
+      activeBuildEdges.push("b-crawler-pages");
+      writingStores.push("pages_db");
+    }
+    if (indexProgress) {
+      activeBuildEdges.push("b-crawler-indexer", "b-indexer-index");
+      writingStores.push("inverted_index");
+      if (indexProgress.phase === "pagerank") {
+        activeBuildEdges.push("b-crawler-pr", "b-pr-scores");
+        writingStores.push("pr_scores");
+      }
+    }
+    if (embedProgress) {
+      if (embedProgress.chunks_done === 0) {
+        // Chunking phase
+        activeBuildEdges.push("b-crawler-chunker", "b-chunker-vectors");
+        writingStores.push("vector_store");
+      } else {
+        // Embedding phase
+        activeBuildEdges.push("b-chunker-embedder", "b-embedder-vectors");
+        writingStores.push("vector_store");
+      }
+    }
+
+    // Animate build edges
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (!e.id.startsWith("b-")) return e;
+        const isActive = activeBuildEdges.includes(e.id);
+        return {
+          ...e,
+          animated: isActive,
+          style: isActive
+            ? { stroke: "var(--accent)", strokeWidth: 2 }
+            : { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 },
+        };
+      })
+    );
+
+    // Update system nodes + store writing state
     setNodes((nds) =>
       nds.map((n) => {
         if (n.id === "crawler" && n.type === "system") {
@@ -89,34 +133,36 @@ export default function CanvasLayout({
         }
         if (n.id === "indexer" && n.type === "system") {
           if (indexProgress) {
-            return { ...n, data: { ...n.data, status: "running", progress: { done: indexProgress.pages_done, total: indexProgress.pages_total, label: `${indexProgress.phase}: ${indexProgress.unique_terms.toLocaleString()} terms` } } };
+            return { ...n, data: { ...n.data, status: "running", progress: { done: indexProgress.pages_done, total: indexProgress.pages_total, label: `${indexProgress.unique_terms.toLocaleString()} terms` } } };
           }
           return { ...n, data: { ...n.data, status: "ready", progress: null } };
         }
         if (n.id === "pr_compute" && n.type === "system") {
-          // PageRank runs as part of index rebuild
           if (indexProgress?.phase === "pagerank") {
             return { ...n, data: { ...n.data, status: "running", progress: null } };
           }
           return { ...n, data: { ...n.data, status: "ready", progress: null } };
         }
-        if (n.id === "embedder" && n.type === "system") {
-          if (embedProgress) {
-            return { ...n, data: { ...n.data, status: "running", progress: { done: embedProgress.chunks_done, total: embedProgress.chunks_total, label: embedProgress.current_chunk_preview?.slice(0, 40) } } };
-          }
-          return { ...n, data: { ...n.data, status: "ready", progress: null } };
-        }
         if (n.id === "chunker" && n.type === "system") {
-          // Chunker runs as part of embed rebuild
           if (embedProgress && embedProgress.chunks_done === 0) {
             return { ...n, data: { ...n.data, status: "running", progress: null } };
           }
           return { ...n, data: { ...n.data, status: "ready", progress: null } };
         }
+        if (n.id === "embedder" && n.type === "system") {
+          if (embedProgress && embedProgress.chunks_done > 0) {
+            return { ...n, data: { ...n.data, status: "running", progress: { done: embedProgress.chunks_done, total: embedProgress.chunks_total, label: embedProgress.current_chunk_preview?.slice(0, 40) } } };
+          }
+          return { ...n, data: { ...n.data, status: "ready", progress: null } };
+        }
+        // Highlight stores being written to
+        if (n.type === "store") {
+          return { ...n, data: { ...n.data, reading: writingStores.includes(n.id) } };
+        }
         return n;
       })
     );
-  }, [crawlProgress, indexProgress, embedProgress, setNodes]);
+  }, [crawlProgress, indexProgress, embedProgress, setNodes, setEdges]);
 
   // Update pipeline nodes with trace data (data only — state managed by phase animation)
   useEffect(() => {

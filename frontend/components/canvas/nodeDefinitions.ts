@@ -231,6 +231,7 @@ export const initialEdges: Edge[] = [
   { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
   { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
   { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+  { id: "b-chunker-vectors", source: "chunker", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // STORE → QUERY (read paths)
