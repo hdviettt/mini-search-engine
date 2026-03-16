@@ -3,7 +3,7 @@
 import { PipelineTrace } from "@/lib/types";
 import { OverviewTrace } from "@/lib/api";
 
-type ActiveStep = null | "tokenize" | "index" | "bm25" | "pagerank" | "combine" | "ai_fanout" | "ai_retrieval" | "ai_synthesis" | "query_input" | "embed_query" | "llm";
+type ActiveStep = null | "tokenize" | "index" | "index_lookup" | "bm25" | "pagerank" | "combine" | "ai_fanout" | "ai_retrieval" | "ai_synthesis" | "query_input" | "embed_query" | "llm";
 
 interface GroundedDataProps {
   activeStep: ActiveStep;
@@ -78,7 +78,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace, overvie
   }
 
   // Index Lookup
-  if (activeStep === "index" && trace) {
+  if ((activeStep === "index" || activeStep === "index_lookup") && trace) {
     const t = trace.index_lookup;
     return (
       <div className="p-2 space-y-2">

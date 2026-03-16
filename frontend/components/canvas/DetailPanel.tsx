@@ -7,7 +7,7 @@ import OperationsTab from "@/components/playground/OperationsTab";
 import PageRankTuning from "./PageRankTuning";
 import CrawlSchedulePanel from "./CrawlSchedulePanel";
 import { useResizable } from "@/hooks/useResizable";
-import type { PipelineTrace, ExplainResponse, CrawlProgressData } from "@/lib/types";
+import type { PipelineTrace, ExplainResponse, CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
 import type { OverviewTrace } from "@/lib/api";
 import { rebuildIndex, rebuildEmbeddings } from "@/lib/api";
 
@@ -16,6 +16,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const nodeToStep: Record<string, ActiveStep> = {
   query_input: "query_input",
   tokenize: "tokenize",
+  index_lookup: "index_lookup",
   indexer: "index",
   bm25: "bm25",
   pr_lookup: "pagerank",
@@ -288,6 +289,22 @@ function StoreIntro({ nodeId }: { nodeId: string }) {
   );
 }
 
+function ProgressIndicator({ done, total, label }: { done: number; total: number; label?: string }) {
+  const pct = Math.round((done / Math.max(total, 1)) * 100);
+  return (
+    <div className="px-3 py-2 space-y-1.5">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-[var(--accent)] font-mono font-medium">{done.toLocaleString()}/{total.toLocaleString()}</span>
+        <span className="text-[var(--text-dim)]">{pct}%</span>
+      </div>
+      <div className="w-full h-2 bg-[var(--score-bar-bg)]">
+        <div className="h-full bg-[var(--accent)] transition-all duration-300" style={{ width: `${pct}%` }} />
+      </div>
+      {label && <div className="text-[10px] text-[var(--text-dim)] truncate">{label}</div>}
+    </div>
+  );
+}
+
 function RebuildButton({ label, activeLabel, onRebuild }: { label: string; activeLabel: string; onRebuild: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -439,21 +456,23 @@ interface DetailPanelProps {
   onClose: () => void;
   trace: PipelineTrace | null;
   overviewTrace: OverviewTrace | null;
-  crawlProgress: unknown;
-  indexProgress: unknown;
-  embedProgress: unknown;
+  crawlProgress: CrawlProgressData | null;
+  indexProgress: IndexProgressData | null;
+  embedProgress: EmbedProgressData | null;
   logEntries: string[];
   crawledPages: CrawlProgressData[];
   activeCrawlJobId: string | null;
   onCrawlStarted: (id: string) => void;
   searchData: ExplainResponse | null;
   overviewText: string;
+  buildComplete?: boolean;
+  buildError?: string | null;
 }
 
 export default function DetailPanel({
   nodeId, onClose, trace, overviewTrace,
   crawlProgress, indexProgress, embedProgress, logEntries, crawledPages, activeCrawlJobId, onCrawlStarted,
-  searchData, overviewText,
+  searchData, overviewText, buildComplete, buildError,
 }: DetailPanelProps) {
   const { width, onMouseDown } = useResizable({ initial: 420, min: 320, max: 700, direction: "right" });
 
@@ -506,8 +525,9 @@ export default function DetailPanel({
       );
     }
 
-    // PageRank compute — intro + scores + tuning
+    // PageRank compute — intro + live status or scores + tuning
     if (isPRNode) {
+      const prRunning = indexProgress?.phase === "pagerank";
       return (
         <>
           <div className="px-3 pt-3 pb-0">
@@ -516,29 +536,56 @@ export default function DetailPanel({
               Damping factor (d): probability a random surfer follows a link vs. jumping to a random page.
             </div>
           </div>
-          <StoreIntro nodeId="pr_scores" />
-          <StorePreview nodeId="pr_scores" />
+          {prRunning ? (
+            <div className="px-3 py-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="w-2 h-2 bg-[var(--accent)] animate-pulse" />
+                <span className="text-[var(--accent)] font-medium">Computing PageRank...</span>
+              </div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">Iterating over link graph to distribute authority scores.</div>
+            </div>
+          ) : (
+            <>
+              <StoreIntro nodeId="pr_scores" />
+              <StorePreview nodeId="pr_scores" />
+            </>
+          )}
           <PageRankTuning />
         </>
       );
     }
 
-    // Indexer — intro + inverted_index preview + rebuild button
+    // Indexer — intro + live progress or store preview
     if (nodeId === "indexer") {
       return (
         <>
           <div className="px-3 pt-3 pb-0">
             <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">{buildIntros.indexer}</div>
           </div>
-          <StoreIntro nodeId="inverted_index" />
-          <StorePreview nodeId="inverted_index" />
+          {indexProgress ? (
+            <div className="px-3 py-2">
+              <div className="text-[11px] text-[var(--accent)] font-medium mb-1">Indexing in progress...</div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-2">{indexProgress.phase}</div>
+              <ProgressIndicator
+                done={indexProgress.pages_done}
+                total={indexProgress.pages_total}
+                label={`${indexProgress.unique_terms.toLocaleString()} unique terms found`}
+              />
+            </div>
+          ) : (
+            <>
+              <StoreIntro nodeId="inverted_index" />
+              <StorePreview nodeId="inverted_index" />
+            </>
+          )}
           <RebuildButton label="Rebuild Index" activeLabel="Building..." onRebuild={async () => { await rebuildIndex(); }} />
         </>
       );
     }
 
-    // Chunker — intro + chunk preview
+    // Chunker — intro + live status or chunk preview
     if (storeId === "chunker_preview") {
+      const chunking = embedProgress && embedProgress.chunks_done === 0;
       return (
         <>
           <div className="px-3 pt-3 pb-0">
@@ -547,12 +594,22 @@ export default function DetailPanel({
               ~300 tokens keeps each chunk within the embedding model&apos;s sweet spot for semantic accuracy.
             </div>
           </div>
-          <StorePreview nodeId={storeId} />
+          {chunking ? (
+            <div className="px-3 py-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="w-2 h-2 bg-[var(--accent)] animate-pulse" />
+                <span className="text-[var(--accent)] font-medium">Splitting pages into chunks...</span>
+              </div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">Breaking text at sentence boundaries into ~300-token segments.</div>
+            </div>
+          ) : (
+            <StorePreview nodeId={storeId} />
+          )}
         </>
       );
     }
 
-    // Embedder — intro + embed preview + rebuild button
+    // Embedder — intro + live progress or preview + rebuild button
     if (storeId === "embedder_preview") {
       return (
         <>
@@ -563,7 +620,20 @@ export default function DetailPanel({
               <div>Dims: <span className="text-[var(--accent)] font-mono">512</span> | Similarity: <span className="font-mono">cosine</span></div>
             </div>
           </div>
-          <StorePreview nodeId={storeId} />
+          {embedProgress ? (
+            <div className="px-3 py-2">
+              <div className="text-[11px] text-[var(--accent)] font-medium mb-1">
+                {embedProgress.chunks_done === 0 ? "Chunking pages..." : "Embedding chunks..."}
+              </div>
+              <ProgressIndicator
+                done={embedProgress.chunks_done}
+                total={embedProgress.chunks_total}
+                label={embedProgress.current_chunk_preview?.slice(0, 60)}
+              />
+            </div>
+          ) : (
+            <StorePreview nodeId={storeId} />
+          )}
           <RebuildButton label="Rebuild Embeddings" activeLabel="Embedding..." onRebuild={async () => { await rebuildEmbeddings(); }} />
         </>
       );
@@ -577,13 +647,15 @@ export default function DetailPanel({
             <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">{buildIntros.crawler}</div>
           </div>
           <OperationsTab
-            crawlProgress={crawlProgress as never}
-            indexProgress={indexProgress as never}
-            embedProgress={embedProgress as never}
+            crawlProgress={crawlProgress}
+            indexProgress={indexProgress}
+            embedProgress={embedProgress}
             logEntries={logEntries}
             crawledPages={crawledPages}
             activeCrawlJobId={activeCrawlJobId}
             onCrawlStarted={onCrawlStarted}
+            buildComplete={buildComplete}
+            buildError={buildError}
           />
           <CrawlSchedulePanel />
         </>

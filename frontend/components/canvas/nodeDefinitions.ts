@@ -3,17 +3,21 @@ import type { Node, Edge } from "@xyflow/react";
 /*
   BUILD ZONE:
                     Crawler
-                   /       \
-          Indexer  PR_Compute  Chunker → Embedder
+                      |
+                   Pages DB      ← store (write)
+                  /    |    \
+          Indexer  PR_Compute  Chunker → Embedder  (read from Pages DB)
+            |        |            \      /
+      Inv.Index  PR Scores     Vector Store  ← stores (write)
 
   DATA STORES:
     Pages DB | Inverted Index | PR Scores | Vector Store
 
   QUERY ZONE:
-    ┌─ SEARCH PATH ──────────────────────────┐
-    │ Query → Tokenize → BM25 + PR → Combine │
-    │                                → Results│
-    └────────────────────────────────────────┘
+    ┌─ SEARCH PATH ─────────────────────────────────────┐
+    │ Query → Tokenize → Index Lookup → BM25 + PR → Combine │
+    │                                            → Results   │
+    └────────────────────────────────────────────────────┘
     ┌─ AI OVERVIEW PATH ─────────────────────┐
     │ Query → Embed → Fan-out → Vector Search│
     │                       → LLM → AI Ovw   │
@@ -25,6 +29,7 @@ const BUILD_ROW2 = 180;
 const STORE_Y = 40;
 const Q_ROW1 = 50;
 const Q_ROW2 = 190;
+const Q_ROW2_5 = 260; // Index Lookup row (between tokenize and bm25)
 const Q_ROW3 = 330;
 const Q_ROW4 = 470;
 
@@ -97,28 +102,28 @@ export const initialNodes: Node[] = [
     type: "store",
     position: { x: 30, y: STORE_Y },
     parentId: "group_stores",
-    data: { label: "Pages DB", icon: "database", description: "Crawled pages", stats: [], color: "emerald", reading: false },
+    data: { label: "Pages DB", icon: "database", description: "Crawled pages", stats: [], color: "emerald", active: false },
   },
   {
     id: "inverted_index",
     type: "store",
     position: { x: 280, y: STORE_Y },
     parentId: "group_stores",
-    data: { label: "Inverted Index", icon: "inverted_index", description: "term → [docs...]", stats: [], color: "blue", reading: false },
+    data: { label: "Inverted Index", icon: "inverted_index", description: "term → [docs...]", stats: [], color: "blue", active: false },
   },
   {
     id: "pr_scores",
     type: "store",
     position: { x: 540, y: STORE_Y },
     parentId: "group_stores",
-    data: { label: "PR Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", reading: false },
+    data: { label: "PR Scores", icon: "scores", description: "Authority per page", stats: [], color: "indigo", active: false },
   },
   {
     id: "vector_store",
     type: "store",
     position: { x: 830, y: STORE_Y },
     parentId: "group_stores",
-    data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", reading: false },
+    data: { label: "Vector Store", icon: "vector_store", description: "Chunk embeddings", stats: [], color: "purple", active: false },
   },
 
   // ============================================================
@@ -152,6 +157,13 @@ export const initialNodes: Node[] = [
     position: { x: 50, y: Q_ROW2 },
     parentId: "group_query",
     data: { label: "Tokenize", icon: "tokenize", description: "Query → tokens", color: "amber", phase: "tokenizing", timeMs: null, summary: null, detail: null, state: "idle" },
+  },
+  {
+    id: "index_lookup",
+    type: "pipeline",
+    position: { x: 50, y: Q_ROW2_5 },
+    parentId: "group_query",
+    data: { label: "Index Lookup", icon: "inverted_index", description: "Term → doc list", color: "amber", phase: "indexLookup", timeMs: null, summary: null, detail: null, state: "idle" },
   },
   {
     id: "bm25",
@@ -221,27 +233,33 @@ export const initialNodes: Node[] = [
 ];
 
 export const initialEdges: Edge[] = [
-  // BUILD: Crawler branches down
-  { id: "b-crawler-indexer", source: "crawler", target: "indexer", style: { stroke: "var(--edge-color)" } },
-  { id: "b-crawler-pr", source: "crawler", target: "pr_compute", style: { stroke: "var(--edge-color)" } },
-  { id: "b-crawler-chunker", source: "crawler", target: "chunker", style: { stroke: "var(--edge-color)" } },
-  { id: "b-chunker-embedder", source: "chunker", target: "embedder", style: { stroke: "var(--edge-color)" } },
-
-  // BUILD → STORE (dashed write paths)
+  // BUILD: Crawler writes to Pages DB (dashed = write)
   { id: "b-crawler-pages", source: "crawler", target: "pages_db", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+
+  // Pages DB feeds the three processors (solid = read from store)
+  { id: "b-pages-indexer", source: "pages_db", target: "indexer", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-pr", source: "pages_db", target: "pr_compute", style: { stroke: "var(--edge-color)" } },
+  { id: "b-pages-chunker", source: "pages_db", target: "chunker", style: { stroke: "var(--edge-color)" } },
+
+  // Processors write to their stores (dashed = write)
   { id: "b-indexer-index", source: "indexer", target: "inverted_index", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
   { id: "b-pr-scores", source: "pr_compute", target: "pr_scores", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
-  { id: "b-chunker-vectors", source: "chunker", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
+
+  // Chunker → Embedder (internal build flow)
+  { id: "b-chunker-embedder", source: "chunker", target: "embedder", style: { stroke: "var(--edge-color)" } },
+
+  // Embedder writes to Vector Store (dashed = write)
   { id: "b-embedder-vectors", source: "embedder", target: "vector_store", style: { strokeDasharray: "4,4", stroke: "var(--edge-color)" } },
 
   // STORE → QUERY (read paths)
-  { id: "q-index-bm25", source: "inverted_index", target: "bm25", style: { stroke: "var(--edge-query)" } },
+  { id: "q-store-lookup", source: "inverted_index", target: "index_lookup", style: { stroke: "var(--edge-query)" } },
   { id: "q-scores-prlookup", source: "pr_scores", target: "pr_lookup", style: { stroke: "var(--edge-query)" } },
   { id: "q-vectors-vsearch", source: "vector_store", target: "vector_search", style: { stroke: "var(--edge-query)" } },
 
   // SEARCH PATH
   { id: "q-input-tokenize", source: "query_input", target: "tokenize", style: { stroke: "var(--edge-query)" } },
-  { id: "q-token-bm25", source: "tokenize", target: "bm25", style: { stroke: "var(--edge-query)" } },
+  { id: "q-token-lookup", source: "tokenize", target: "index_lookup", style: { stroke: "var(--edge-query)" } },
+  { id: "q-lookup-bm25", source: "index_lookup", target: "bm25", style: { stroke: "var(--edge-query)" } },
   { id: "q-token-prlookup", source: "tokenize", target: "pr_lookup", style: { stroke: "var(--edge-query)" } },
   { id: "q-bm25-combine", source: "bm25", target: "combine", style: { stroke: "var(--edge-query)" } },
   { id: "q-prlookup-combine", source: "pr_lookup", target: "combine", style: { stroke: "var(--edge-query)" } },
@@ -259,8 +277,8 @@ export const initialEdges: Edge[] = [
 export const phaseEdgeMap: Record<string, string[]> = {
   queryInput: [],
   tokenizing: ["q-input-tokenize"],
-  indexLookup: ["q-token-bm25", "q-index-bm25"],
-  bm25: ["q-index-bm25", "q-token-bm25"],
+  indexLookup: ["q-token-lookup", "q-store-lookup"],
+  bm25: ["q-lookup-bm25"],
   pagerank: ["q-scores-prlookup", "q-token-prlookup"],
   combining: ["q-bm25-combine", "q-prlookup-combine"],
   results: ["q-combine-results"],
@@ -274,7 +292,7 @@ export const phaseEdgeMap: Record<string, string[]> = {
 export const phaseNodeMap: Record<string, string> = {
   queryInput: "query_input",
   tokenizing: "tokenize",
-  indexLookup: "tokenize",
+  indexLookup: "index_lookup",
   bm25: "bm25",
   pagerank: "pr_lookup",
   combining: "combine",

@@ -14,6 +14,8 @@ interface OperationsTabProps {
   crawledPages?: CrawlProgressData[];
   activeCrawlJobId: string | null;
   onCrawlStarted: (jobId: string) => void;
+  buildComplete?: boolean;
+  buildError?: string | null;
 }
 
 function CrawlFeed({ pages, progress, finished }: { pages: CrawlProgressData[]; progress: CrawlProgressData | null; finished: boolean }) {
@@ -77,6 +79,7 @@ function CrawlFeed({ pages, progress, finished }: { pages: CrawlProgressData[]; 
 
 export default function OperationsTab({
   crawlProgress, indexProgress, embedProgress, logEntries, crawledPages, activeCrawlJobId, onCrawlStarted,
+  buildComplete, buildError,
 }: OperationsTabProps) {
   const [seedUrl, setSeedUrl] = useState("https://en.wikipedia.org/wiki/Association_football");
   const [maxPages, setMaxPages] = useState(50);
@@ -252,6 +255,20 @@ export default function OperationsTab({
       {/* Crawl Feed */}
       <CrawlFeed pages={crawledPages || []} progress={crawlProgress} finished={!crawlStarted && (crawledPages || []).length > 0} />
 
+      {/* Build Complete Banner */}
+      {buildComplete && (
+        <div className="border border-emerald-600/40 bg-emerald-500/10 p-3 text-center">
+          <span className="text-[12px] text-emerald-500 font-medium font-mono">Build complete — all data stores updated</span>
+        </div>
+      )}
+
+      {/* Build Error Banner */}
+      {buildError && (
+        <div className="border border-red-600/40 bg-red-500/10 p-3">
+          <span className="text-[12px] text-red-500 font-medium font-mono">Error: {buildError}</span>
+        </div>
+      )}
+
       {/* Build Pipeline Status */}
       <div className="space-y-3">
         <div className="text-[12px] font-medium text-[var(--text)]">Build Pipeline</div>
@@ -262,22 +279,26 @@ export default function OperationsTab({
         {/* Pipeline steps */}
         <div className="space-y-1">
           {[
-            { label: "Crawl", active: !!crawlProgress, done: !crawlStarted && (crawledPages || []).length > 0 && !crawlProgress },
-            { label: "Index", active: !!indexProgress, done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, detail: indexProgress ? `${indexProgress.pages_done}/${indexProgress.pages_total} pages · ${indexProgress.unique_terms.toLocaleString()} terms` : null },
-            { label: "PageRank", active: indexProgress?.phase === "pagerank", done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0 },
-            { label: "Chunk + Embed", active: !!embedProgress, done: !embedProgress && !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, detail: embedProgress ? `${embedProgress.chunks_done}/${embedProgress.chunks_total} chunks` : null },
+            { label: "Crawl", active: !!crawlProgress, done: !crawlStarted && (crawledPages || []).length > 0 && !crawlProgress, error: false, detail: null as string | null },
+            { label: "Index", active: !!indexProgress && indexProgress.phase !== "pagerank", done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, error: false, detail: indexProgress && indexProgress.phase !== "pagerank" ? `${indexProgress.pages_done}/${indexProgress.pages_total} pages · ${indexProgress.unique_terms.toLocaleString()} terms` : null },
+            { label: "PageRank", active: indexProgress?.phase === "pagerank", done: !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, error: false, detail: null as string | null },
+            { label: "Chunk", active: !!embedProgress && embedProgress.chunks_done === 0, done: !embedProgress && !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, error: false, detail: null as string | null },
+            { label: "Embed", active: !!embedProgress && embedProgress.chunks_done > 0, done: !embedProgress && !indexProgress && !crawlProgress && !crawlStarted && (crawledPages || []).length > 0, error: false, detail: embedProgress && embedProgress.chunks_done > 0 ? `${embedProgress.chunks_done}/${embedProgress.chunks_total} chunks` : null },
           ].map((step) => (
             <div key={step.label} className={`flex items-center gap-2 p-2 border ${
+              step.error ? "border-red-600/40 bg-red-500/10" :
               step.active ? "border-[var(--accent)] bg-[var(--accent-muted)]" :
               step.done ? "border-emerald-600/20" :
               "border-[var(--border)]"
             }`}>
               <span className={`w-2 h-2 shrink-0 ${
+                step.error ? "bg-red-500" :
                 step.active ? "bg-[var(--accent)] animate-pulse" :
                 step.done ? "bg-emerald-500" :
                 "bg-[var(--border-hover)]"
               }`} />
               <span className={`text-[11px] font-medium ${
+                step.error ? "text-red-500" :
                 step.active ? "text-[var(--accent)]" :
                 step.done ? "text-emerald-500" :
                 "text-[var(--text-dim)]"
@@ -288,8 +309,11 @@ export default function OperationsTab({
               {step.active && !step.detail && (
                 <span className="text-[10px] text-[var(--accent)] ml-auto">running...</span>
               )}
-              {step.done && (
+              {step.done && !step.error && (
                 <span className="text-[10px] text-emerald-600 ml-auto">done</span>
+              )}
+              {step.error && (
+                <span className="text-[10px] text-red-500 ml-auto">failed</span>
               )}
             </div>
           ))}

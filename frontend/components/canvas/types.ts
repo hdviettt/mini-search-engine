@@ -31,7 +31,7 @@ export interface StoreNodeData {
   description: string;
   stats: { label: string; value: string }[];
   color: string;
-  reading: boolean; // true when query-time is reading from this store
+  active: boolean; // true when store is being read (query-time) or written to (build-time)
 }
 
 // Query-time processing steps

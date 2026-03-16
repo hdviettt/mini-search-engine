@@ -4,7 +4,7 @@ import { Handle, Position } from "@xyflow/react";
 import type { StoreNodeData } from "../types";
 
 export default function StoreNode({ data }: { data: StoreNodeData }) {
-  const active = data.reading;
+  const active = data.active;
 
   return (
     <div className="relative cursor-pointer group" style={{ width: 160, height: 100 }}>

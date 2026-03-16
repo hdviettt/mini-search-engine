@@ -88,17 +88,17 @@ export default function CanvasLayout({
       writingStores.push("pages_db");
     }
     if (indexProgress) {
-      activeBuildEdges.push("b-crawler-indexer", "b-indexer-index");
+      activeBuildEdges.push("b-pages-indexer", "b-indexer-index");
       writingStores.push("inverted_index");
       if (indexProgress.phase === "pagerank") {
-        activeBuildEdges.push("b-crawler-pr", "b-pr-scores");
+        activeBuildEdges.push("b-pages-pr", "b-pr-scores");
         writingStores.push("pr_scores");
       }
     }
     if (embedProgress) {
       if (embedProgress.chunks_done === 0) {
         // Chunking phase
-        activeBuildEdges.push("b-crawler-chunker", "b-chunker-vectors");
+        activeBuildEdges.push("b-pages-chunker", "b-chunker-embedder");
         writingStores.push("vector_store");
       } else {
         // Embedding phase
@@ -112,12 +112,16 @@ export default function CanvasLayout({
       eds.map((e) => {
         if (!e.id.startsWith("b-")) return e;
         const isActive = activeBuildEdges.includes(e.id);
+        // Determine if this is a "write" edge (dashed by default) or "read" edge (solid by default)
+        const isWriteEdge = ["b-crawler-pages", "b-indexer-index", "b-pr-scores", "b-embedder-vectors"].includes(e.id);
         return {
           ...e,
           animated: isActive,
           style: isActive
             ? { stroke: "var(--accent)", strokeWidth: 2 }
-            : { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 },
+            : isWriteEdge
+              ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+              : { stroke: "var(--edge-color)", strokeWidth: 1 },
         };
       })
     );
@@ -157,7 +161,7 @@ export default function CanvasLayout({
         }
         // Highlight stores being written to
         if (n.type === "store") {
-          return { ...n, data: { ...n.data, reading: writingStores.includes(n.id) } };
+          return { ...n, data: { ...n.data, active: writingStores.includes(n.id) } };
         }
         return n;
       })
@@ -177,6 +181,10 @@ export default function CanvasLayout({
         if (n.id === "tokenize" && n.type === "pipeline") {
           return { ...n, data: { ...n.data, timeMs: t.tokenization.time_ms,
             summary: `[${t.tokenization.tokens.join(", ")}]` } };
+        }
+        if (n.id === "index_lookup" && n.type === "pipeline") {
+          return { ...n, data: { ...n.data, timeMs: t.index_lookup.time_ms,
+            summary: `${Object.keys(t.index_lookup.terms_found).length} terms found` } };
         }
         if (n.id === "bm25" && n.type === "pipeline") {
           return { ...n, data: { ...n.data, timeMs: t.bm25_scoring.time_ms,
@@ -252,6 +260,8 @@ export default function CanvasLayout({
         const isBuildEdge = e.id.startsWith("b-");
         const isActive = activeEdges.includes(e.id);
         const isCompleted = completedEdges.has(e.id);
+        // Determine if this is a "write" edge (dashed by default) or "read" edge (solid by default)
+        const isWriteEdge = ["b-crawler-pages", "b-indexer-index", "b-pr-scores", "b-embedder-vectors"].includes(e.id);
         return {
           ...e,
           animated: isActive,
@@ -260,7 +270,9 @@ export default function CanvasLayout({
             : isCompleted
               ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.5 }
               : isBuildEdge
-                ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+                ? isWriteEdge
+                  ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+                  : { stroke: "var(--edge-color)", strokeWidth: 1 }
                 : { stroke: "var(--edge-query)", strokeWidth: 1 },
         };
       })
@@ -277,7 +289,7 @@ export default function CanvasLayout({
           }
         }
         if (n.type === "store") {
-          return { ...n, data: { ...n.data, reading: activeStores.includes(n.id) } };
+          return { ...n, data: { ...n.data, active: activeStores.includes(n.id) } };
         }
         return n;
       })
@@ -292,7 +304,7 @@ export default function CanvasLayout({
         nds.map((n) => {
           if (n.type === "pipeline") return { ...n, data: { ...n.data, state: "idle", timeMs: null, summary: null } };
           if (n.type === "output") return { ...n, data: { ...n.data, state: "idle", content: null } };
-          if (n.type === "store") return { ...n, data: { ...n.data, reading: false } };
+          if (n.type === "store") return { ...n, data: { ...n.data, active: false } };
           return n;
         })
       );

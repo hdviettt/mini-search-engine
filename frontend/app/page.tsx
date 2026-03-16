@@ -18,11 +18,11 @@ const DEFAULT_PARAMS: SearchParams = { bm25_k1: 1.2, bm25_b: 0.75, rank_alpha: 0
 const SEARCH_PHASES: { phase: FlowPhase; delay: number }[] = [
   { phase: "queryInput", delay: 0 },
   { phase: "tokenizing", delay: 300 },
-  { phase: "indexLookup", delay: 600 },
-  { phase: "bm25", delay: 900 },
-  { phase: "pagerank", delay: 1200 },
-  { phase: "combining", delay: 1500 },
-  { phase: "results", delay: 1800 },
+  { phase: "indexLookup", delay: 550 },
+  { phase: "bm25", delay: 800 },
+  { phase: "pagerank", delay: 1100 },
+  { phase: "combining", delay: 1400 },
+  { phase: "results", delay: 1700 },
 ];
 
 export default function Home() {
@@ -50,6 +50,8 @@ export default function Home() {
   const [logEntries, setLogEntries] = useState<string[]>([]);
   const [crawledPages, setCrawledPages] = useState<CrawlProgressData[]>([]);
   const [activeCrawlJobId, setActiveCrawlJobId] = useState<string | null>(null);
+  const [buildComplete, setBuildComplete] = useState(false);
+  const [buildError, setBuildError] = useState<string | null>(null);
 
   const { lastMessage } = useWebSocket();
   const abortRef = useRef<AbortController | null>(null);
@@ -68,21 +70,34 @@ export default function Home() {
       setCrawledPages((prev) => [...prev.slice(-100), d]);
       setLogEntries((prev) => [...prev.slice(-200), `[${d.pages_crawled}/${d.max_pages}] ${d.status === "ok" ? "OK" : "FAIL"} ${d.title || d.current_url}`]);
     } else if (type === "crawl_complete") {
+      const d = data as Record<string, unknown>;
+      if (d.status === "failed") {
+        setBuildError((d.error as string) || "Crawl failed");
+      }
       setLogEntries((prev) => [...prev, "Crawl complete."]);
       setCrawlProgress(null);
       getStats().then(setStats);
     } else if (type === "index_progress") {
-      setIndexProgress(data as IndexProgressData);
+      const d = data as IndexProgressData;
+      setIndexProgress(d);
+      // Refresh stats every 100 pages to keep store nodes up to date
+      if (d.pages_done % 100 === 0) getStats().then(setStats);
     } else if (type === "index_complete") {
       setIndexProgress(null);
       getStats().then(setStats);
     } else if (type === "embed_progress") {
-      setEmbedProgress(data as EmbedProgressData);
+      const d = data as EmbedProgressData;
+      setEmbedProgress(d);
+      // Refresh stats every 200 chunks
+      if (d.chunks_done % 200 === 0) getStats().then(setStats);
     } else if (type === "embed_complete") {
       setEmbedProgress(null);
       getStats().then(setStats);
     } else if (type === "build_complete") {
       getStats().then(setStats);
+      setBuildComplete(true);
+      setBuildError(null);
+      setTimeout(() => setBuildComplete(false), 10000);
     }
   }, [lastMessage]);
 
@@ -221,6 +236,8 @@ export default function Home() {
           onCrawlStarted={(id) => { setCrawledPages([]); setActiveCrawlJobId(id); }}
           searchData={searchData}
           overviewText={overviewText}
+          buildComplete={buildComplete}
+          buildError={buildError}
         />
       </div>
 
