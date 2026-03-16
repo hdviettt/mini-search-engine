@@ -134,6 +134,14 @@ body {
   display: none !important;
 }
 
+/* Edges render behind nodes */
+.react-flow__edges {
+  z-index: 0 !important;
+}
+.react-flow__nodes {
+  z-index: 1 !important;
+}
+
 .react-flow__edge-path {
   stroke: var(--edge-query);
   stroke-width: 1;
