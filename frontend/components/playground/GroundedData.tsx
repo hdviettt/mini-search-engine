@@ -3,12 +3,20 @@
 import { PipelineTrace } from "@/lib/types";
 import { OverviewTrace } from "@/lib/api";
 
-type ActiveStep = null | "tokenize" | "index" | "bm25" | "pagerank" | "combine" | "ai_fanout" | "ai_retrieval" | "ai_synthesis";
+type ActiveStep = null | "tokenize" | "index" | "bm25" | "pagerank" | "combine" | "ai_fanout" | "ai_retrieval" | "ai_synthesis" | "query_input" | "embed_query" | "llm";
 
 interface GroundedDataProps {
   activeStep: ActiveStep;
   trace: PipelineTrace | null;
   overviewTrace: OverviewTrace | null;
+}
+
+function Intro({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] text-[var(--text-dim)] leading-relaxed mb-2 px-0.5">
+      {children}
+    </div>
+  );
 }
 
 export default function GroundedData({ activeStep, trace, overviewTrace }: GroundedDataProps) {
@@ -20,13 +28,33 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     );
   }
 
+  // Query Input
+  if (activeStep === "query_input") {
+    return (
+      <div className="p-2 space-y-2">
+        <div className="text-[10px] text-[var(--accent)] font-medium">Search Query</div>
+        <Intro>Natural language input &mdash; both the search path and AI overview path begin here.</Intro>
+        {trace ? (
+          <div className="p-2 bg-[var(--bg-card)] border border-[var(--border)] font-mono text-[10px] text-[var(--text-muted)]">
+            &quot;{trace.tokenization.input}&quot;
+          </div>
+        ) : (
+          <div className="text-[10px] text-[var(--text-dim)] text-center py-2">Search to see query data.</div>
+        )}
+      </div>
+    );
+  }
+
   // Tokenize
   if (activeStep === "tokenize" && trace) {
     const t = trace.tokenization;
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Tokenizer Output</div>
-        <div className="text-[10px] text-[var(--text-dim)] mb-1">Input text is lowercased, cleaned, and split. Stopwords are removed.</div>
+        <Intro>Breaks raw text into searchable terms. Normalization ensures &quot;FIFA&quot; and &quot;fifa&quot; match the same index entries.</Intro>
+        <div className="text-[9px] text-[var(--text-dim)] font-mono px-1 py-1 border-l-2 border-[var(--accent)]/30">
+          1. lowercase &rarr; 2. clean &rarr; 3. split &rarr; 4. remove stopwords
+        </div>
         <div className="p-1.5 bg-[var(--bg-card)] text-[10px] font-mono text-[var(--text-muted)]">
           &quot;{t.input}&quot;
         </div>
@@ -36,6 +64,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
             <span key={i} className="px-1.5 py-0.5 bg-[var(--accent-muted)] text-[var(--accent)] text-[10px] font-mono border border-[var(--accent)]/20">{tok}</span>
           ))}
         </div>
+        <div className="text-[9px] text-[var(--text-dim)]">{t.tokens.length} tokens</div>
         {t.stopwords_removed.length > 0 && (
           <div className="text-[10px] text-[var(--text-dim)]">
             Removed: {t.stopwords_removed.map((w, i) => (
@@ -52,7 +81,8 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     const t = trace.index_lookup;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-[var(--accent)] font-medium">Inverted Index</div>
+        <div className="text-[10px] text-[var(--accent)] font-medium">Inverted Index Lookup</div>
+        <Intro>Each token is looked up in the inverted index to find which documents contain it and how rare it is (IDF).</Intro>
         <div className="text-[10px] text-[var(--text-dim)]">
           {t.corpus_stats.total_docs.toLocaleString()} docs indexed, avg {Math.round(t.corpus_stats.avg_doc_length)} tokens/doc
         </div>
@@ -89,9 +119,18 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">BM25 Scored Pages</div>
-        <div className="text-[10px] text-[var(--text-dim)]">
-          k1={t.params.k1} b={t.params.b} | {t.total_matched} pages matched
+        <Intro>BM25: relevance scoring using term frequency, rarity, and document length. The classic ranking function behind most search engines.</Intro>
+        <div className="space-y-1 mb-2">
+          <div className="flex items-center gap-2 text-[9px] p-1 border border-dashed border-[var(--border)]">
+            <span className="text-[var(--accent)] font-mono w-6">k1={t.params.k1}</span>
+            <span className="text-[var(--text-dim)]">Term frequency saturation &mdash; higher = repeated terms matter more</span>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] p-1 border border-dashed border-[var(--border)]">
+            <span className="text-[var(--accent)] font-mono w-6">b={t.params.b}</span>
+            <span className="text-[var(--text-dim)]">Length normalization &mdash; higher = longer docs penalized more</span>
+          </div>
         </div>
+        <div className="text-[10px] text-[var(--text-dim)]">{t.total_matched} pages matched</div>
         <div className="space-y-0.5">
           {t.top_scores.slice(0, 8).map((s, i) => (
             <div key={i} className="flex items-center gap-1.5 py-0.5 px-1 hover:bg-[var(--accent-muted)]">
@@ -110,13 +149,14 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     );
   }
 
-  // PageRank
+  // PageRank Lookup
   if (activeStep === "pagerank" && trace) {
     const t = trace.pagerank;
     const maxScore = t.top_scores[0]?.score || 1;
     return (
       <div className="p-2 space-y-2">
-        <div className="text-[10px] text-[var(--accent)] font-medium">PageRank Scores</div>
+        <div className="text-[10px] text-[var(--accent)] font-medium">PageRank Lookup</div>
+        <Intro>For each BM25 result, fetch its PageRank authority score. Pages linked to by many others score higher.</Intro>
         <div className="text-[10px] text-[var(--text-dim)]">Authority from link graph (d={t.damping})</div>
         <div className="space-y-0.5">
           {t.top_scores.slice(0, 8).map((s, i) => (
@@ -139,10 +179,17 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
   // Combine
   if (activeStep === "combine" && trace) {
     const t = trace.combination;
+    const alpha = t.alpha;
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Combined Rankings</div>
-        <div className="text-[10px] text-[var(--text-dim)]">{t.formula}</div>
+        <Intro>Merges relevance (BM25) with authority (PageRank) into a single final score.</Intro>
+        <div className="p-1.5 border border-dashed border-[var(--border)] text-[9px] text-[var(--text-dim)] font-mono">
+          {t.formula}
+        </div>
+        <div className="text-[10px] text-[var(--text-muted)]">
+          &alpha;={alpha} means {Math.round(alpha * 100)}% relevance + {Math.round((1 - alpha) * 100)}% authority
+        </div>
         <div className="space-y-0.5">
           {t.rank_changes.slice(0, 8).map((rc, i) => {
             const changed = rc.bm25_rank !== rc.final_rank;
@@ -169,7 +216,7 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Query Fan-out</div>
-        <div className="text-[10px] text-[var(--text-dim)]">LLM generates alternative queries for broader retrieval</div>
+        <Intro>LLM rewrites your query into alternative phrasings for broader retrieval. This captures synonyms and related concepts the original query might miss.</Intro>
         <div className="space-y-1">
           {f.expanded.map((q, i) => (
             <div key={i} className={`p-1.5 text-[10px] font-mono ${i === 0 ? "bg-[var(--accent-muted)] border border-[var(--accent)]/20 text-[var(--accent)]" : "bg-[var(--bg-card)] text-[var(--text-dim)]"}`}>
@@ -179,17 +226,48 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
             </div>
           ))}
         </div>
+        {f.time_ms && (
+          <div className="text-[9px] text-[var(--text-dim)]">Fan-out took {f.time_ms.toFixed(0)}ms</div>
+        )}
       </div>
     );
   }
 
-  // AI Retrieval
+  // Embed Query
+  if (activeStep === "embed_query") {
+    return (
+      <div className="p-2 space-y-2">
+        <div className="text-[10px] text-[var(--accent)] font-medium">Query Embedding</div>
+        <Intro>The query text is converted into a 768-dimensional vector using the same embedding model as the stored chunks, so they can be compared by cosine similarity.</Intro>
+        <div className="p-2 border border-dashed border-[var(--border)] space-y-1.5">
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-[var(--text-dim)]">Model:</span>
+            <span className="text-[var(--accent)] font-mono">all-MiniLM-L6-v2</span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-[var(--text-dim)]">Dimensions:</span>
+            <span className="text-[var(--accent)] font-mono">768</span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-[var(--text-dim)]">Similarity:</span>
+            <span className="text-[var(--text-muted)] font-mono">cosine</span>
+          </div>
+        </div>
+        <div className="text-[9px] text-[var(--text-dim)]">
+          Query text &rarr; dense vector &rarr; nearest-neighbor search against chunk embeddings
+        </div>
+      </div>
+    );
+  }
+
+  // Vector Search / AI Retrieval
   if (activeStep === "ai_retrieval" && overviewTrace?.retrieval) {
     const r = overviewTrace.retrieval;
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">Retrieved Chunks</div>
-        <div className="text-[10px] text-[var(--text-dim)]">{r.chunks_retrieved} chunks via vector + keyword search</div>
+        <Intro>Hybrid retrieval: combines vector similarity (semantic meaning) with keyword overlap (exact term matching) for better recall.</Intro>
+        <div className="text-[10px] text-[var(--text-dim)]">{r.chunks_retrieved} chunks retrieved</div>
         <div className="space-y-1">
           {r.chunks.slice(0, 4).map((c, i) => (
             <div key={i} className="p-1.5 bg-[var(--accent-muted)] border border-[var(--accent)]/15">
@@ -198,26 +276,53 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
                 <span className="text-[10px] text-[var(--text-muted)] truncate">{c.title.replace(" - Wikipedia", "")}</span>
               </div>
               <div className="text-[9px] text-[var(--text-dim)] line-clamp-2">{c.content_preview}</div>
+              <div className="flex gap-3 mt-1 text-[9px]">
+                <span className="text-[var(--text-dim)]">vec: <span className="text-[var(--accent)] font-mono">{c.vector_score}</span></span>
+                <span className="text-[var(--text-dim)]">kw: <span className="text-[var(--text-muted)] font-mono">{c.keyword_score}</span></span>
+              </div>
               <div className="flex gap-2 mt-0.5 text-[8px] text-[var(--text-dim)]">
-                <span>vec: {c.vector_score}</span>
-                <span>kw: {c.keyword_score}</span>
+                <span>Cosine similarity (0&ndash;1)</span>
+                <span>|</span>
+                <span>BM25-style term matching</span>
               </div>
             </div>
           ))}
         </div>
+        {r.time_ms && (
+          <div className="text-[9px] text-[var(--text-dim)]">Retrieval took {r.time_ms.toFixed(0)}ms</div>
+        )}
       </div>
     );
   }
 
-  // AI Synthesis
-  if (activeStep === "ai_synthesis" && overviewTrace?.synthesis) {
+  // LLM Synthesis
+  if (activeStep === "llm" || activeStep === "ai_synthesis") {
+    if (overviewTrace?.synthesis) {
+      return (
+        <div className="p-2 space-y-2">
+          <div className="text-[10px] text-[var(--accent)] font-medium">LLM Synthesis</div>
+          <Intro>The language model reads retrieved chunks and generates a concise answer with source citations.</Intro>
+          <div className="p-2 border border-dashed border-[var(--border)] space-y-1">
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-[var(--text-dim)]">Model:</span>
+              <span className="text-[var(--accent)] font-mono">{overviewTrace.synthesis.model}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-[var(--text-dim)]">Generation time:</span>
+              <span className="text-[var(--text-muted)] font-mono">{overviewTrace.synthesis.time_ms.toFixed(0)}ms</span>
+            </div>
+          </div>
+          {overviewTrace.total_ms && (
+            <div className="text-[9px] text-[var(--text-dim)]">Total AI pipeline: {overviewTrace.total_ms.toFixed(0)}ms</div>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">LLM Synthesis</div>
-        <div className="text-[10px] text-[var(--text-dim)]">Model: {overviewTrace.synthesis.model}</div>
-        <div className="p-2 bg-[var(--bg-card)] text-[10px] text-[var(--text-dim)] leading-relaxed">
-          The model reads the retrieved chunks and generates a concise 2-3 sentence summary with source citations [1], [2], etc.
-        </div>
+        <Intro>The language model reads retrieved chunks and generates a concise answer with source citations.</Intro>
+        <div className="text-[10px] text-[var(--text-dim)] text-center py-2">Search to see synthesis data.</div>
       </div>
     );
   }

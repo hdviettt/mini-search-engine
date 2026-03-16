@@ -210,6 +210,8 @@ export default function Home() {
           logEntries={logEntries}
           activeCrawlJobId={activeCrawlJobId}
           onCrawlStarted={setActiveCrawlJobId}
+          searchData={searchData}
+          overviewText={overviewText}
         />
       </div>
 
