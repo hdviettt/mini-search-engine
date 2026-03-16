@@ -5,7 +5,7 @@
    ================================ */
 
 /* Dark theme (default) */
-:root,
+:root:not(.light),
 .dark {
   --bg: #0d0d0d;
   --bg-card: #111111;
