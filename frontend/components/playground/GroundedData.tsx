@@ -329,25 +329,27 @@ export default function GroundedData({ activeStep, trace, overviewTrace }: Groun
       <div className="p-2 space-y-2">
         <div className="text-[10px] text-[var(--accent)] font-medium">LLM Synthesis</div>
         <Intro>The language model reads retrieved chunks and generates a concise answer with inline source citations [1], [2], etc.</Intro>
-        {synth ? (
-          <div className="border border-[var(--border)] p-2 space-y-1.5">
-            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Configuration</div>
-            <div className="flex items-center gap-2 text-[9px]">
-              <span className="text-[var(--text-dim)] w-16">Model</span>
-              <span className="text-[var(--accent)] font-mono">{synth.model}</span>
-            </div>
-            <div className="flex items-center gap-2 text-[9px]">
-              <span className="text-[var(--text-dim)] w-16">Task</span>
-              <span className="text-[var(--text-muted)]">Summarize top chunks into 2-3 sentences</span>
-            </div>
-            {synth.time_ms != null && (
-              <div className="flex items-center gap-2 text-[9px]">
-                <span className="text-[var(--text-dim)] w-16">Time</span>
-                <span className="text-[var(--text-muted)] font-mono">{synth.time_ms.toFixed(0)}ms</span>
-              </div>
-            )}
+        <div className="border border-[var(--border)] p-2 space-y-1.5">
+          <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">Configuration</div>
+          <div className="flex items-center gap-2 text-[9px]">
+            <span className="text-[var(--text-dim)] w-16">Model</span>
+            <span className="text-[var(--accent)] font-mono">{synth?.model || "Groq — Llama 3.3 70B"}</span>
           </div>
-        ) : null}
+          <div className="flex items-center gap-2 text-[9px]">
+            <span className="text-[var(--text-dim)] w-16">Task</span>
+            <span className="text-[var(--text-muted)]">Summarize top chunks into 2-3 sentences</span>
+          </div>
+          <div className="flex items-center gap-2 text-[9px]">
+            <span className="text-[var(--text-dim)] w-16">Prompt</span>
+            <span className="text-[var(--text-muted)]">Cite sources as [1], [2]. Be factual.</span>
+          </div>
+          {synth?.time_ms != null && (
+            <div className="flex items-center gap-2 text-[9px]">
+              <span className="text-[var(--text-dim)] w-16">Time</span>
+              <span className="text-[var(--text-muted)] font-mono">{synth.time_ms.toFixed(0)}ms</span>
+            </div>
+          )}
+        </div>
         <div className="text-[9px] text-[var(--text-dim)] font-mono p-1.5 border-l-2 border-[var(--accent)]/30">
           retrieved chunks &rarr; system prompt &rarr; LLM &rarr; cited summary
         </div>
