@@ -123,10 +123,14 @@ class CrawlManager:
         return row[0]
 
     def crawl(self, stop_event=None, max_pages_override=None, max_depth_override=None, progress_callback=None):
-        """Main crawl loop — BFS through the queue until limits are hit."""
+        """Main crawl loop — BFS through the queue until limits are hit.
+
+        max_pages is the number of NEW pages to crawl this session (not total in DB).
+        """
         max_pages = max_pages_override or MAX_PAGES
         max_depth = max_depth_override or MAX_DEPTH
-        print(f"Starting crawl (max {max_pages} pages, max depth {max_depth})...")
+        pages_this_session = 0
+        print(f"Starting crawl (max {max_pages} new pages, max depth {max_depth})...")
         print(f"Domains: {', '.join(ALLOWED_DOMAINS)}")
 
         while True:
@@ -135,8 +139,7 @@ class CrawlManager:
                 print("\nCrawl stopped by user.")
                 break
 
-            crawled_count = self._count_crawled()
-            if crawled_count >= max_pages:
+            if pages_this_session >= max_pages:
                 print(f"\nReached page limit ({max_pages}). Stopping.")
                 break
 
@@ -156,15 +159,17 @@ class CrawlManager:
                 continue
 
             # Fetch
+            pages_this_session += 1
             domain = urlparse(url).netloc
-            print(f"[{crawled_count + 1}/{max_pages}] depth={depth} [{domain}] {url}")
+            print(f"[{pages_this_session}/{max_pages}] depth={depth} [{domain}] {url}")
             response = self.fetcher.fetch(url)
 
             if response is None:
                 self._mark_queue_status(url, "failed")
                 if progress_callback:
                     progress_callback({
-                        "pages_crawled": crawled_count,
+                        "pages_crawled": pages_this_session,
+                        "max_pages": max_pages,
                         "queue_size": self._count_pending(),
                         "current_url": url,
                         "title": "",
@@ -191,7 +196,7 @@ class CrawlManager:
             # Report progress
             if progress_callback:
                 progress_callback({
-                    "pages_crawled": crawled_count + 1,
+                    "pages_crawled": pages_this_session,
                     "max_pages": max_pages,
                     "queue_size": self._count_pending(),
                     "current_url": url,
@@ -203,5 +208,5 @@ class CrawlManager:
                 })
 
         self.fetcher.close()
-        final_count = self._count_crawled()
-        print(f"\nCrawl complete. {final_count} pages stored.")
+        total = self._count_crawled()
+        print(f"\nCrawl complete. {total} pages stored ({pages_this_session} new this session).")
