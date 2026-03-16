@@ -157,10 +157,7 @@ export default function CanvasLayout({
           }
           return { ...n, data: { ...n.data, status: "ready", progress: null } };
         }
-        // Highlight stores being written to
-        if (n.type === "store") {
-          return { ...n, data: { ...n.data, active: writingStores.includes(n.id) } };
-        }
+        // Store highlighting handled by phase effect below
         return n;
       })
     );
@@ -234,8 +231,23 @@ export default function CanvasLayout({
   // Ordered list of all phases — used to determine which nodes are "completed"
   const PHASE_ORDER = ["queryInput", "tokenizing", "indexLookup", "bm25", "pagerank", "combining", "results", "aiFanout", "aiEmbedding", "aiRetrieval", "aiSynthesis", "aiComplete"];
 
-  // Animate edges and nodes based on current phase
+  // Animate edges, nodes, and stores based on current phase
   useEffect(() => {
+    // Always update stores (build + query), even when idle
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.type !== "store") return n;
+        const queryActive = phase !== "idle" ? (phaseStoreMap[phase] || []).includes(n.id) : false;
+        const buildActive = !!(
+          (crawlProgress && n.id === "pages_db") ||
+          (indexProgress && n.id === "inverted_index") ||
+          (indexProgress?.phase === "pagerank" && n.id === "pr_scores") ||
+          (embedProgress && n.id === "vector_store")
+        );
+        return { ...n, data: { ...n.data, active: queryActive || buildActive } };
+      })
+    );
+
     if (phase === "idle") return;
 
     const currentIdx = PHASE_ORDER.indexOf(phase);
@@ -288,21 +300,11 @@ export default function CanvasLayout({
             return { ...n, data: { ...n.data, state: "completed" } };
           }
         }
-        if (n.type === "store") {
-          const isQueryActive = activeStores.includes(n.id);
-          // Preserve build-time active state (from the build effect)
-          const isBuildActive = !!(
-            (crawlProgress && n.id === "pages_db") ||
-            (indexProgress && n.id === "inverted_index") ||
-            (indexProgress?.phase === "pagerank" && n.id === "pr_scores") ||
-            (embedProgress && n.id === "vector_store")
-          );
-          return { ...n, data: { ...n.data, active: isQueryActive || isBuildActive } };
-        }
+        // Stores handled above
         return n;
       })
     );
-  }, [phase, setEdges, setNodes]);
+  }, [phase, crawlProgress, indexProgress, embedProgress, setEdges, setNodes]);
 
   // Reset pipeline nodes on new search
   useEffect(() => {
