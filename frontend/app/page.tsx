@@ -259,8 +259,8 @@ export default function Home() {
           </button>
         ) : (
           <div className="flex-1 flex flex-col min-w-0 border-l border-[var(--border)]">
-        {/* Search bar */}
-        <div className="p-3 border-b border-[var(--border)] shrink-0">
+        {/* Search bar — prominent, centered */}
+        <div className="px-5 pt-5 pb-3 shrink-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -268,7 +268,7 @@ export default function Home() {
               const q = input.value.trim();
               if (q) handleSearch(q);
             }}
-            className="flex gap-2"
+            className="flex gap-2 items-center"
           >
             <button
               type="button"
@@ -278,15 +278,21 @@ export default function Home() {
             >
               &rsaquo;
             </button>
-            <input
-              type="text"
-              defaultValue={query}
-              placeholder="> search football..."
-              className="flex-1 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-dim)] outline-none focus:border-[var(--accent)]/50 font-mono"
-            />
+            <div className="flex-1 flex items-center bg-[var(--bg-card)] border border-[var(--border)] focus-within:border-[var(--accent)]/50 transition-colors">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4 text-[var(--text-dim)] ml-3 shrink-0">
+                <circle cx="9" cy="9" r="6" />
+                <line x1="13.5" y1="13.5" x2="18" y2="18" />
+              </svg>
+              <input
+                type="text"
+                defaultValue={query}
+                placeholder="Search football..."
+                className="flex-1 bg-transparent px-3 py-2.5 text-[14px] text-[var(--text)] placeholder-[var(--text-dim)] outline-none"
+              />
+            </div>
             <button
               type="submit"
-              className="bg-[var(--accent)] hover:brightness-90 text-white px-5 py-2 text-sm font-medium cursor-pointer transition-colors"
+              className="bg-[var(--accent)] hover:brightness-90 text-white px-6 py-2.5 text-[13px] font-medium cursor-pointer transition-colors"
             >
               Search
             </button>
@@ -297,13 +303,14 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           {!searchData ? (
             <div className="flex flex-col items-center justify-center h-full px-6">
-              <p className="text-[var(--text-dim)] text-sm mb-4 text-center font-mono">try a search to see the pipeline in action</p>
+              <div className="text-[40px] font-bold text-[var(--accent)] opacity-20 mb-4 font-mono">search</div>
+              <p className="text-[var(--text-dim)] text-sm mb-6 text-center">Try a query to see the search pipeline in action</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"].map((q) => (
                   <button
                     key={q}
                     onClick={() => handleSearch(q)}
-                    className="text-[11px] px-3 py-1.5 border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors font-mono"
+                    className="text-[12px] px-4 py-2 border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors"
                   >
                     {q}
                   </button>
@@ -311,37 +318,46 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <div className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-sm text-[var(--text-muted)]">
-                  {searchData.total_results} results in {(searchData.time_ms ?? 0).toFixed(0)}ms
-                </span>
-                <span className="text-[10px] text-[var(--text-dim)]">for &ldquo;{query}&rdquo;</span>
+            <div className="px-5 py-3">
+              <div className="text-[12px] text-[var(--text-dim)] mb-4">
+                About {searchData.total_results} results ({(searchData.time_ms ?? 0).toFixed(0)}ms)
               </div>
 
               <AIOverview text={overviewText} sources={overviewSources} loading={overviewLoading} streaming={overviewStreaming} />
 
-              <div className="space-y-2">
-                {searchData.results.map((r, i) => (
-                  <a
-                    key={i}
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)]/30 transition-colors group"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] text-[var(--text-dim)]">#{i + 1}</span>
-                      <span className="text-xs text-[var(--text)] group-hover:text-[var(--accent)] group-hover:underline truncate">{r.title}</span>
-                    </div>
-                    <p className="text-[10px] text-[var(--text-dim)] line-clamp-2 leading-relaxed">{r.snippet}</p>
-                    <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[var(--text-dim)]">
-                      <span>BM25: {r.bm25_score}</span>
-                      <span>PR: {r.pagerank_score}</span>
-                      <span>= {r.final_score}</span>
-                    </div>
-                  </a>
-                ))}
+              <div className="space-y-5">
+                {searchData.results.map((r, i) => {
+                  let domain = "";
+                  try { domain = new URL(r.url).hostname; } catch { domain = r.url; }
+                  const path = r.url.replace(/https?:\/\/[^/]+/, "").slice(0, 60);
+                  return (
+                    <a
+                      key={i}
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block group"
+                    >
+                      {/* URL breadcrumb */}
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[12px] text-[var(--text-muted)]">{domain}</span>
+                        <span className="text-[11px] text-[var(--text-dim)]">{path}</span>
+                      </div>
+                      {/* Title */}
+                      <h3 className="text-[16px] text-[var(--accent)] group-hover:underline leading-snug mb-1">
+                        {r.title}
+                      </h3>
+                      {/* Snippet */}
+                      <p className="text-[13px] text-[var(--text-muted)] leading-relaxed line-clamp-2">{r.snippet}</p>
+                      {/* Score pills */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-elevated)] text-[var(--text-dim)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                        <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-elevated)] text-[var(--text-dim)] font-mono">PR {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                        <span className="text-[10px] px-2 py-0.5 bg-[var(--accent-muted)] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}
