@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   MiniMap,
@@ -135,32 +135,62 @@ export default function CanvasLayout({
     );
   }, [overviewTrace, overviewText, setNodes]);
 
-  // Animate edges based on phase
+  // Animate edges based on phase — track completed nodes/edges
+  const completedNodesRef = useRef<Set<string>>(new Set());
+  const completedEdgesRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
+    if (phase === "idle") return;
+
+    // On new search, reset tracking
+    if (phase === "tokenizing") {
+      completedNodesRef.current.clear();
+      completedEdgesRef.current.clear();
+    }
+
+    // Mark current phase's edges as completed for future phases
     const activeEdges = phaseEdgeMap[phase] || [];
+    for (const e of activeEdges) completedEdgesRef.current.add(e);
+
+    // Mark current active node
+    const activeNode = phaseNodeMap[phase];
+
     setEdges((eds) =>
       eds.map((e) => {
         const isBuildEdge = e.id.startsWith("b-");
         const isActive = activeEdges.includes(e.id);
+        const isCompleted = completedEdgesRef.current.has(e.id);
         return {
           ...e,
           animated: isActive,
           style: isActive
             ? { stroke: "var(--accent)", strokeWidth: 2 }
-            : isBuildEdge
-              ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
-              : { stroke: "var(--edge-query)", strokeWidth: 1 },
+            : isCompleted
+              ? { stroke: "var(--accent)", strokeWidth: 1.5, opacity: 0.4 }
+              : isBuildEdge
+                ? { strokeDasharray: "4,4", stroke: "var(--edge-color)", strokeWidth: 1 }
+                : { stroke: "var(--edge-query)", strokeWidth: 1 },
         };
       })
     );
 
-    // Glow active node + highlight stores being read
-    const activeNode = phaseNodeMap[phase];
+    // Mark previous active node as completed, set new active node
+    if (activeNode) {
+      // Add the previous active to completed set
+      completedNodesRef.current.forEach(() => {}); // keep all
+      completedNodesRef.current.add(activeNode);
+    }
     const activeStores = phaseStoreMap[phase] || [];
     setNodes((nds) =>
       nds.map((n) => {
-        if (n.id === activeNode && (n.type === "pipeline" || n.type === "output")) {
-          return { ...n, data: { ...n.data, state: "active" } };
+        if (n.type === "pipeline" || n.type === "output") {
+          if (n.id === activeNode) {
+            return { ...n, data: { ...n.data, state: "active" } };
+          }
+          // Previously visited nodes stay "completed"
+          if (completedNodesRef.current.has(n.id) && n.id !== activeNode) {
+            return { ...n, data: { ...n.data, state: "completed" } };
+          }
         }
         if (n.type === "store") {
           return { ...n, data: { ...n.data, reading: activeStores.includes(n.id) } };
