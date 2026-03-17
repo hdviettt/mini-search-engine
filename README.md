@@ -1,30 +1,39 @@
-# Mini Search Engine with AI Overviews
+# VietSearch — Search Engine Built from Scratch
 
-A search engine built from scratch — crawler, indexer, ranker, and AI-generated overviews. Built to deeply understand how search engines work under the hood.
+An interactive search engine that visually demonstrates how search works under the hood. Crawl the web, build an inverted index, rank with BM25 + PageRank, and generate AI overviews — all visible on a live canvas UI.
+
+**Live demo**: [search.hoangducviet.work](https://search.hoangducviet.work)
 
 ## Architecture
 
 ```
-[User] → Next.js (frontend) → FastAPI (backend) → PostgreSQL
-                                    ↓
-                              Claude API (AI Overviews)
+User → Next.js (React Flow canvas) → FastAPI → PostgreSQL (pgvector)
+                                        ↓
+                                  Groq API (LLM) + Voyage AI (embeddings)
 ```
 
-### Search Pipeline
+## How It Works
 
-1. **Crawler** — BFS web crawler with robots.txt compliance and rate limiting
+### Build Pipeline
+1. **Crawler** — BFS web crawler with robots.txt compliance, rate limiting (1.5s/req), scoped to Wikipedia, BBC Sport, and ESPN soccer
 2. **Indexer** — Inverted index with tokenization and stopword removal
-3. **Ranker** — BM25 text relevance + PageRank link authority
-4. **AI Overviews** — Claude-powered summaries from top search results
+3. **Embedder** — Pages chunked into ~300-token paragraphs, embedded with Voyage AI, stored as pgvector
+
+### Query Pipeline
+4. **BM25** — Text relevance scoring (term frequency, IDF, length normalization)
+5. **PageRank** — Link authority scoring (iterative, damping=0.85, handles dangling nodes)
+6. **Ranking** — Combined score: 70% BM25 + 30% PageRank, min-max normalized
+7. **AI Overview** — Query fan-out → hybrid retrieval (vector + keyword) → streamed LLM synthesis via Groq
 
 ## Tech Stack
 
 | Layer | Tech |
 |-------|------|
-| Frontend | Next.js (React) |
-| Backend | FastAPI (Python) |
-| Database | PostgreSQL |
-| AI | Claude API (Sonnet) |
+| Frontend | Next.js 16, React 19, React Flow, Tailwind v4, TypeScript |
+| Backend | FastAPI, Python 3.12+ |
+| Database | PostgreSQL + pgvector |
+| LLM | Groq (Llama 3.3 70B) |
+| Embeddings | Voyage AI (voyage-3-lite, 768d) |
 | Hosting | Railway |
 
 ## Project Structure
@@ -32,43 +41,45 @@ A search engine built from scratch — crawler, indexer, ranker, and AI-generate
 ```
 search-engine/
 ├── backend/
-│   ├── crawler/        # web crawler (fetcher, parser, BFS manager)
+│   ├── crawler/        # BFS web crawler (fetcher, parser, queue manager)
 │   ├── indexer/        # inverted index builder + tokenizer
 │   ├── ranker/         # BM25 + PageRank scoring
 │   ├── search/         # query engine (score combination, snippets)
-│   ├── ai_overview/    # Claude API integration + caching
-│   ├── api/            # FastAPI endpoints
-│   ├── scripts/        # CLI tools (crawl, index, pagerank)
-│   ├── config.py       # settings
-│   ├── db.py           # database schema + connection
+│   ├── rag/            # hybrid retrieval — chunker, embedder, retriever, query fan-out
+│   ├── ai_overview/    # Groq LLM integration, streaming SSE, response caching
+│   ├── api/            # playground endpoints + WebSocket for live progress
+│   ├── scripts/        # CLI tools (crawl, index, pagerank, build_rag)
+│   ├── config.py       # settings + domain allowlists
+│   ├── db.py           # schema (9 tables) + connection
 │   ├── models.py       # Pydantic models
 │   └── main.py         # FastAPI entry point
 │
-└── frontend/           # Next.js app (coming soon)
+└── frontend/
+    ├── app/            # Next.js app router (single-page canvas)
+    ├── components/
+    │   ├── canvas/     # React Flow nodes, edges, layout, search overlay
+    │   └── playground/ # detail panels, live logs, data explorer, tuning
+    ├── hooks/          # useResizable
+    └── lib/            # API client, types, WebSocket hook
 ```
 
-## How It Works
+## Frontend
 
-### Crawling
-The crawler uses breadth-first search to discover and fetch web pages. It respects `robots.txt`, enforces rate limiting (1.5s delay between requests), and scopes to whitelisted domains. The crawl queue is persisted in PostgreSQL so crawls can be stopped and resumed.
+The UI is a **React Flow canvas** that visualizes the entire search pipeline as a node graph:
 
-### Indexing
-Pages are tokenized (lowercase, stopword removal) and stored in an inverted index. Each term maps to the documents it appears in, along with term frequency — the core data structure that makes search fast.
-
-### Ranking
-Results are scored using two signals:
-- **BM25** (70% weight) — measures how relevant a document's text is to the query
-- **PageRank** (30% weight) — measures a page's authority based on incoming links
-
-### AI Overviews
-For queries with 3+ results, the top 5 results are sent to Claude to generate a concise summary with source citations — similar to Google's AI Overviews.
+- **Build-time flow** (left) — Crawler → Indexer → Embedder → data stores
+- **Query-time flow** (right) — Tokenize → Index Lookup → BM25 → PageRank → Combine → Results → AI Overview
+- **Live animation** — search a query and watch data flow through each pipeline stage
+- **Clickable nodes** — open detail panels showing real data (crawl progress, BM25 scores, PageRank values, RAG traces)
+- **WebSocket** — real-time progress during crawl/index/embed jobs
+- **Search panel** — Google-style results with score breakdowns
 
 ## Setup
 
 ### Prerequisites
 - Python 3.12+
-- PostgreSQL (or Docker)
-- Node.js 18+ (for frontend)
+- PostgreSQL 16+ with pgvector extension
+- Node.js 18+
 
 ### Backend
 
@@ -76,32 +87,36 @@ For queries with 3+ results, the top 5 results are sent to Claude to generate a 
 cd backend
 pip install -e .
 
-# Start local Postgres with Docker
+# Start Postgres with pgvector
 docker run -d --name search-pg \
   -e POSTGRES_USER=searchengine \
   -e POSTGRES_PASSWORD=searchengine \
   -e POSTGRES_DB=searchengine \
-  -p 5432:5432 postgres:16
+  -p 5432:5432 pgvector/pgvector:pg16
+
+# Set up environment
+cp .env.example .env  # add GROQ_API_KEY, VOYAGE_API_KEY
 
 # Initialize database
 python db.py
 
-# Run the crawler
-python scripts/crawl.py
+# Build the search index
+python scripts/crawl.py        # crawl web pages
+python scripts/index.py        # build inverted index
+python scripts/pagerank.py     # compute PageRank
+python scripts/build_rag.py    # chunk + embed for RAG
 
-# Build the index
-python scripts/index.py
-
-# Compute PageRank
-python scripts/pagerank.py
-
-# Start the API server
+# Start API server
 uvicorn main:app --reload
 ```
 
-## Status
+### Frontend
 
-🚧 Under active development — Phase 1 (Crawler + Storage)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ## Author
 
