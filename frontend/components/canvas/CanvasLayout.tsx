@@ -5,6 +5,7 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
+  MiniMap,
   useNodesState,
   useEdgesState,
   type NodeTypes,
@@ -18,6 +19,7 @@ import StoreNode from "./nodes/StoreNode";
 import LabelNode from "./nodes/LabelNode";
 import CanvasLegend from "./CanvasLegend";
 import ThemeToggle from "./ThemeToggle";
+import GuidedTour from "./GuidedTour";
 import { initialNodes, initialEdges, phaseEdgeMap, phaseNodeMap, phaseStoreMap } from "./nodeDefinitions";
 import type { FlowPhase, PipelineNodeData, OutputNodeData, SystemNodeData } from "./types";
 import type { ExplainResponse, Stats, PipelineTrace, CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
@@ -51,6 +53,15 @@ export default function CanvasLayout({
 }: CanvasLayoutProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [tourActive, setTourActive] = useState(false);
+
+  // Auto-start tour for first-time visitors
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("tour-seen")) {
+      const timer = setTimeout(() => setTourActive(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Update system nodes with stats
   useEffect(() => {
@@ -254,6 +265,40 @@ export default function CanvasLayout({
     }
   }, [phase, setNodes]);
 
+  // Animate build edges during live operations
+  useEffect(() => {
+    const activeEdges = new Set<string>();
+    if (crawlProgress) activeEdges.add("b-crawler-pages");
+    if (indexProgress) {
+      activeEdges.add("b-pages-indexer");
+      activeEdges.add("b-indexer-index");
+      if (indexProgress.phase === "pagerank") {
+        activeEdges.add("b-pages-pr");
+        activeEdges.add("b-pr-scores");
+      }
+    }
+    if (embedProgress) {
+      activeEdges.add("b-pages-chunker");
+      activeEdges.add("b-chunker-embedder");
+      if (embedProgress.chunks_done > 0) activeEdges.add("b-embedder-vectors");
+    }
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (!e.id.startsWith("b-")) return e;
+        if (activeEdges.has(e.id)) {
+          return { ...e, className: "edge-active-build", style: { stroke: "var(--accent)", strokeWidth: 1.5, strokeDasharray: "6,4" } };
+        }
+        const original = initialEdges.find((oe) => oe.id === e.id);
+        return original ? { ...e, className: undefined, style: original.style } : e;
+      })
+    );
+  }, [crawlProgress, indexProgress, embedProgress, setEdges]);
+
+  const handleTourComplete = useCallback(() => {
+    setTourActive(false);
+    localStorage.setItem("tour-seen", "true");
+  }, []);
+
   const handleNodeClick = useCallback((_: unknown, node: { id: string }) => {
     onNodeClick(node.id);
   }, [onNodeClick]);
@@ -286,9 +331,28 @@ export default function CanvasLayout({
         className="!bg-[var(--bg)]"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={0.8} color="var(--dot-color)" />
+        <MiniMap
+          nodeColor={(node) => {
+            if (node.type === "group" || node.type === "label") return "transparent";
+            if (node.type === "store" || node.type === "output") return "var(--accent)";
+            return "var(--text-dim)";
+          }}
+          maskColor="var(--minimap-mask)"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+          pannable
+          zoomable
+        />
+        {tourActive && <GuidedTour onComplete={handleTourComplete} />}
       </ReactFlow>
       <CanvasLegend />
       <ThemeToggle />
+      <button
+        onClick={() => setTourActive(true)}
+        className="absolute top-3 left-[48px] z-10 w-8 h-8 flex items-center justify-center bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors text-[13px] font-mono"
+        title="Restart guided tour"
+      >
+        ?
+      </button>
     </div>
   );
 }

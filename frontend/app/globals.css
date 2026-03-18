@@ -149,6 +149,25 @@ body {
 
 /* No animated glow on edges */
 
+/* Build edge flow animation (Phase 5) */
+.react-flow__edge.edge-active-build .react-flow__edge-path {
+  animation: edge-flow 0.6s linear infinite;
+}
+
+@keyframes edge-flow {
+  to { stroke-dashoffset: -10; }
+}
+
+/* Tour tooltip fade-in */
+.tour-tooltip {
+  animation: tour-fade-in 0.2s ease-out;
+}
+
+@keyframes tour-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* ================================
    DETAIL PANEL ANIMATION
    ================================ */
