@@ -40,6 +40,7 @@ export interface PipelineNodeData {
   icon: string;
   description: string;
   color: string;
+  path?: "search" | "ai";
   phase: FlowPhase;
   timeMs: number | null;
   summary: string | null;

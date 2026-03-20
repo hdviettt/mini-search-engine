@@ -30,6 +30,10 @@
   --store-top-active: rgba(232, 138, 26, 0.08);
   --cylinder-stroke: #333;
   --score-bar-bg: #1a1a1a;
+  --dock-bg: #0d0d0d;
+  --color-search: #d97706;
+  --color-ai: #7c3aed;
+  --color-build: #059669;
 }
 
 /* Light theme — scoped to html to avoid React Flow's .light class */
@@ -57,6 +61,10 @@ html.light {
   --store-top-active: rgba(198, 113, 15, 0.08);
   --cylinder-stroke: #b0a999;
   --score-bar-bg: #e8e3dc;
+  --dock-bg: #f5f0eb;
+  --color-search: #b45309;
+  --color-ai: #6d28d9;
+  --color-build: #047857;
 }
 
 /* Force sharp corners everywhere */
@@ -69,7 +77,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
 }
@@ -147,17 +155,6 @@ body {
   stroke-width: 1;
 }
 
-/* No animated glow on edges */
-
-/* Build edge flow animation (Phase 5) */
-.react-flow__edge.edge-active-build .react-flow__edge-path {
-  animation: edge-flow 0.6s linear infinite;
-}
-
-@keyframes edge-flow {
-  to { stroke-dashoffset: -10; }
-}
-
 /* Tour tooltip fade-in */
 .tour-tooltip {
   animation: tour-fade-in 0.2s ease-out;
@@ -169,8 +166,17 @@ body {
 }
 
 /* ================================
-   DETAIL PANEL ANIMATION
+   ANIMATIONS
    ================================ */
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
 
 @keyframes slide-in-from-right {
   from { transform: translateX(100%); }
@@ -188,6 +194,11 @@ body {
 
 .animate-slide-left {
   animation: slide-in-from-left 0.15s ease-out;
+}
+
+@keyframes node-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--accent)); }
+  50% { filter: drop-shadow(0 0 12px var(--accent)); }
 }
 
 /* ================================

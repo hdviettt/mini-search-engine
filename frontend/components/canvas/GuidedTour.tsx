@@ -55,7 +55,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     title: "Try It Out!",
     description:
-      'Search in the right panel and watch data flow through each node in real time. Try "Messi" or "World Cup" to see the full pipeline animate.',
+      'Search using the bar at the top and watch data flow through each node in real time. Try "Messi" or "World Cup" to see the full pipeline animate.',
     nodeIds: [],
   },
 ];
