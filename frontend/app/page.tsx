@@ -65,11 +65,6 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView }: { en
   return (
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
-        {/* AI Overview */}
-        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-4xl pt-2">
-          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
-        </div>
-
         {/* Results */}
         <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-3xl py-2 space-y-4 @lg:space-y-5">
           <div className="text-[12px] @lg:text-[13px] text-[#70757a]">
@@ -172,7 +167,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* Content */}
+      {/* AI Overview — ABOVE the grid, never transitions, never re-renders */}
+      {hasResults && view === "search" && (
+        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-4xl">
+          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
+        </div>
+      )}
+
+      {/* Content grid */}
       {hasResults && (
         <div
           className="lg:grid lg:overflow-hidden"
