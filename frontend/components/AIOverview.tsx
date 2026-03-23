@@ -45,11 +45,12 @@ function GoogleSparkle() {
   );
 }
 
-function SourceCard({ source }: { source: OverviewSource }) {
+function SourceCard({ source, highlighted }: { source: OverviewSource; highlighted: boolean }) {
   let domain = "";
   try { domain = new URL(source.url).hostname.replace("www.", ""); } catch { domain = source.url; }
   return (
-    <a href={source.url} target="_blank" rel="noopener noreferrer" className="block group py-2.5 border-b border-[#ebebeb] last:border-0">
+    <a id={`aio-source-${source.index}`} href={source.url} target="_blank" rel="noopener noreferrer"
+      className={`block group py-2.5 border-b border-[#ebebeb] last:border-0 rounded px-1.5 -mx-1.5 transition-colors ${highlighted ? "bg-[#e8f0fe]" : ""}`}>
       <div className="text-[14px] text-[#1a0dab] group-hover:underline leading-snug">
         {source.title}
       </div>
@@ -64,6 +65,7 @@ function SourceCard({ source }: { source: OverviewSource }) {
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [expanded, setExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
+  const [highlightedSource, setHighlightedSource] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,11 +112,16 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
                   let d = "";
                   try { d = new URL(src.url).hostname.replace("www.", "").split(".")[0]; } catch { d = "source"; }
                   return (
-                    <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
+                    <button key={i}
+                      onClick={() => {
+                        setHighlightedSource(part.index ?? null);
+                        document.getElementById(`aio-source-${part.index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        setTimeout(() => setHighlightedSource(null), 2000);
+                      }}
                       className="inline-flex items-center gap-0.5 mx-0.5 px-1.5 py-0 rounded bg-[#f0f4f9] hover:bg-[#e3e8ef] text-[11px] text-[#1a73e8] font-medium align-baseline transition-colors cursor-pointer whitespace-nowrap">
                       <img src={`https://www.google.com/s2/favicons?domain=${src.url}&sz=16`} alt="" width={10} height={10} className="rounded-full" />
                       {d.charAt(0).toUpperCase() + d.slice(1)}
-                    </a>
+                    </button>
                   );
                 })()
               )}
@@ -141,7 +148,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
             <div className="sm:w-64 lg:w-72 shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden">
               <div className="px-3 pt-2 pb-0.5">
                 {sources.map((s) => (
-                  <SourceCard key={s.index} source={s} />
+                  <SourceCard key={s.index} source={s} highlighted={highlightedSource === s.index} />
                 ))}
               </div>
             </div>
