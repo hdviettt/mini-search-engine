@@ -1,0 +1,876 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { getStats, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks } from "@/lib/api";
+import type { OverviewSource } from "@/lib/api";
+import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
+
+// ─── Types ──────────────────────────────────────────────────────
+
+type NodeId =
+  // Build
+  | "crawler" | "pages_db" | "indexer" | "pr_compute" | "chunker" | "embedder"
+  // Stores
+  | "inv_index" | "pr_scores" | "vector_store"
+  // Query — search path
+  | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "results"
+  // Query — AI path
+  | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview"
+  // Final output
+  | "final_output";
+
+type NodeStatus = "idle" | "ready" | "active" | "done";
+
+interface NodeDef {
+  id: NodeId;
+  label: string;
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  fill: string;
+  stroke: string;
+  activeFill: string;
+  kind: "process" | "store" | "io";
+}
+
+interface ArrowDef {
+  path: string;
+  dashed?: boolean;
+  dim?: boolean;
+  label?: string;
+  labelX?: number;
+  labelY?: number;
+}
+
+// ─── Layout ─────────────────────────────────────────────────────
+
+const LANES = [
+  { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
+  { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
+  { label: "Query", sub: "(per search)", y: 338, h: 530, bg: "#eff6ff" },
+];
+
+const NODES: NodeDef[] = [
+  // ── BUILD ──
+  { id: "crawler",    label: "Crawler",         cx: 390, cy: 42,  w: 120, h: 40, fill: "#a7f3d0", stroke: "#6ee7b7", activeFill: "#6ee7b7", kind: "process" },
+  { id: "pages_db",   label: "Pages DB",        cx: 390, cy: 112, w: 115, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "indexer",    label: "Indexer",          cx: 150, cy: 192, w: 110, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "process" },
+  { id: "pr_compute", label: "PageRank Compute", cx: 390, cy: 192, w: 155, h: 40, fill: "#c7d2fe", stroke: "#a5b4fc", activeFill: "#a5b4fc", kind: "process" },
+  { id: "chunker",    label: "Chunker",          cx: 630, cy: 192, w: 110, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "embedder",   label: "Embedder",         cx: 630, cy: 245, w: 110, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "process" },
+  // ── STORES ──
+  { id: "inv_index",    label: "Inverted Index", cx: 150, cy: 300, w: 125, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "pr_scores",    label: "PR Scores",      cx: 390, cy: 300, w: 115, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "vector_store", label: "Vector Store",   cx: 630, cy: 300, w: 120, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  // ── QUERY — shared ──
+  { id: "query_input", label: "Search Query",    cx: 390, cy: 385, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "io" },
+  // ── QUERY — search path ──
+  { id: "tokenize",     label: "Tokenize",       cx: 195, cy: 460, w: 115, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
+  { id: "index_lookup", label: "Index Lookup",   cx: 195, cy: 530, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
+  { id: "bm25",         label: "BM25 Scoring",   cx: 195, cy: 603, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
+  { id: "pr_lookup",    label: "PR Lookup",      cx: 345, cy: 603, w: 110, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
+  { id: "combine",      label: "Combine Scores", cx: 265, cy: 678, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
+  { id: "results",      label: "Ranked Results",  cx: 265, cy: 748, w: 135, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "io" },
+  // ── QUERY — AI path ──
+  { id: "fanout",        label: "Fan-out",          cx: 530, cy: 460, w: 100, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "embed_query",   label: "Embed Query",     cx: 670, cy: 460, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "vector_search", label: "Vector Search",   cx: 600, cy: 530, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 603, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 678, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
+  // ── FINAL OUTPUT ──
+  { id: "final_output",  label: "Search Results Page", cx: 400, cy: 810, w: 175, h: 44, fill: "#bfdbfe", stroke: "#3b82f6", activeFill: "#60a5fa", kind: "io" },
+];
+
+const ARROWS: ArrowDef[] = [
+  // BUILD
+  { path: "M 390 62 V 92" },                                     // crawler → pages_db
+  { path: "M 390 132 V 152 H 150 V 172" },                       // pages_db → indexer
+  { path: "M 390 132 V 172" },                                    // pages_db → pr_compute
+  { path: "M 390 132 V 152 H 630 V 172" },                       // pages_db → chunker
+  { path: "M 150 212 V 280" },                                    // indexer → inv_index
+  { path: "M 390 212 V 280" },                                    // pr_compute → pr_scores
+  { path: "M 630 212 V 225" },                                    // chunker → embedder
+  { path: "M 630 265 V 280" },                                    // embedder → vector_store
+  // BRIDGE (dashed, dim)
+  { path: "M 150 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
+  { path: "M 390 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
+  { path: "M 630 320 V 500 H 600 V 510", dashed: true, dim: true },   // vector_store → vector_search
+  // QUERY — from query_input (all share same V-turn for clean fan-out)
+  { path: "M 390 405 V 430 H 195 V 440" },                       // query → tokenize
+  { path: "M 458 385 H 530 V 440" },                              // query → fanout (from right edge)
+  { path: "M 458 385 H 670 V 440" },                              // query → embed_query (from right edge)
+  // QUERY — search path
+  { path: "M 195 480 V 510" },                                    // tokenize → index_lookup
+  { path: "M 230 480 V 495 H 345 V 583" },                       // tokenize → pr_lookup (down, right, down)
+  { path: "M 195 550 V 583" },                                    // index_lookup → bm25
+  { path: "M 195 623 V 648 H 265 V 658" },                       // bm25 → combine
+  { path: "M 345 623 V 648 H 265 V 658" },                       // pr_lookup → combine
+  { path: "M 265 698 V 728" },                                    // combine → results
+  // QUERY — AI path
+  { path: "M 530 480 V 502 H 600 V 510" },                       // fanout → vector_search
+  { path: "M 670 480 V 502 H 600 V 510" },                       // embed_query → vector_search
+  { path: "M 600 550 V 583" },                                    // vector_search → llm
+  { path: "M 600 623 V 658" },                                    // llm → ai_overview
+  // FINAL OUTPUT
+  { path: "M 265 768 V 778 H 400 V 788" },                       // results → final_output
+  { path: "M 600 698 V 778 H 400 V 788" },                       // ai_overview → final_output
+];
+
+// ─── Animation ──────────────────────────────────────────────────
+
+const NODE_STEP: Record<NodeId, number> = {
+  // Build nodes start as "ready"
+  crawler: -1, pages_db: -1, indexer: -1, pr_compute: -1, chunker: -1, embedder: -1,
+  inv_index: -1, pr_scores: -1, vector_store: -1,
+  // Query animation steps
+  query_input: 0,
+  tokenize: 1,
+  index_lookup: 2, // inv_index also activates
+  bm25: 3,
+  pr_lookup: 4, // pr_scores also activates
+  combine: 5,
+  results: 6,
+  fanout: 7, embed_query: 7,
+  vector_search: 8, // vector_store also activates
+  llm: 9,
+  ai_overview: 10,
+  final_output: 11,
+};
+
+// Stores that activate with query steps
+const STORE_ACTIVATE: Record<number, NodeId[]> = {
+  2: ["inv_index"],
+  4: ["pr_scores"],
+  8: ["vector_store"],
+};
+
+function useAnimatedSteps(trace: PipelineTrace | null) {
+  const [step, setStep] = useState(-1);
+  const prev = useRef<PipelineTrace | null>(null);
+
+  useEffect(() => {
+    if (!trace || trace === prev.current) return;
+    prev.current = trace;
+    setStep(-1);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i <= 11; i++) {
+      timers.push(setTimeout(() => setStep(i), 300 * (i + 1)));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [trace]);
+
+  return step;
+}
+
+function getNodeStatus(id: NodeId, activeStep: number): NodeStatus {
+  const s = NODE_STEP[id];
+  if (s === -1) return "ready"; // build/store nodes are always ready
+  if (activeStep < s) return "idle";
+  if (activeStep === s) return "active";
+  // Check if this store is activated by current step
+  const storeActivations = STORE_ACTIVATE[activeStep];
+  if (storeActivations?.includes(id)) return "active";
+  return "done";
+}
+
+// ─── SVG Flowchart ──────────────────────────────────────────────
+
+function Flowchart({
+  activeStep,
+  selectedNode,
+  onSelectNode,
+  data,
+}: {
+  activeStep: number;
+  selectedNode: NodeId | null;
+  onSelectNode: (id: NodeId | null) => void;
+  data: ExplainResponse | null;
+}) {
+  return (
+    <div className="overflow-x-auto -mx-4 px-4">
+      <div style={{ minWidth: 700 }}>
+        <svg viewBox="0 0 770 860" className="w-full h-auto">
+          <defs>
+            <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
+            </pattern>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
+            </marker>
+            <marker id="arr-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#cbd5e1" />
+            </marker>
+          </defs>
+
+          <rect width="770" height="860" fill="url(#dots)" rx="12" />
+
+          {/* Swimlane bands */}
+          {LANES.map((lane) => (
+            <g key={lane.label}>
+              <rect x="42" y={lane.y + 4} width="720" height={lane.h - 8} rx="8" fill={lane.bg} opacity="0.5" />
+              <text
+                x="16" y={lane.y + lane.h / 2 - (lane.sub ? 4 : 0)}
+                textAnchor="middle" fontSize="10" fill="#94a3b8" fontWeight="700" letterSpacing="0.05em"
+                transform={`rotate(-90, 16, ${lane.y + lane.h / 2})`}
+              >
+                {lane.label.toUpperCase()}
+              </text>
+              {lane.sub && (
+                <text
+                  x="28" y={lane.y + lane.h / 2 + 4}
+                  textAnchor="middle" fontSize="8" fill="#cbd5e1"
+                  transform={`rotate(-90, 28, ${lane.y + lane.h / 2})`}
+                >
+                  {lane.sub}
+                </text>
+              )}
+            </g>
+          ))}
+
+          {/* Sub-path labels — on the left edge of each column, rotated vertically */}
+          <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+            transform="rotate(-90, 128, 590)">SEARCH PATH</text>
+          <text x="710" y="570" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+            transform="rotate(-90, 710, 570)">AI OVERVIEW PATH</text>
+
+          {/* Subtle divider between the two query paths */}
+          <line x1="415" y1="450" x2="415" y2="770" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+
+          {/* Arrows */}
+          {ARROWS.map((a, i) => (
+            <path
+              key={i}
+              d={a.path}
+              fill="none"
+              stroke={a.dim ? "#cbd5e1" : "#94a3b8"}
+              strokeWidth={a.dim ? "1" : "1.5"}
+              strokeDasharray={a.dashed ? "5,4" : undefined}
+              strokeLinejoin="round"
+              markerEnd={a.dim ? "url(#arr-dim)" : "url(#arr)"}
+              opacity={a.dim ? 0.5 : 1}
+            />
+          ))}
+
+          {/* Nodes */}
+          {NODES.map((node) => {
+            const status = getNodeStatus(node.id, activeStep);
+            const selected = selectedNode === node.id;
+            const clickable = status !== "idle";
+            const x = node.cx - node.w / 2;
+            const y = node.cy - node.h / 2;
+            const isStore = node.kind === "store";
+
+            let fill = "#f5f5f5";
+            let strokeColor = "#d4d4d4";
+            if (status === "active") { fill = node.activeFill; strokeColor = node.stroke; }
+            else if (status === "done" || status === "ready") { fill = node.fill; strokeColor = node.stroke; }
+
+            return (
+              <g
+                key={node.id}
+                onClick={() => clickable ? onSelectNode(selected ? null : node.id) : undefined}
+                style={{ cursor: clickable ? "pointer" : "default" }}
+              >
+                {/* Active pulse */}
+                {status === "active" && (
+                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={10} fill="none"
+                    stroke={node.stroke} strokeWidth="2" opacity="0.5">
+                    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
+                  </rect>
+                )}
+
+                {/* Selection ring */}
+                {selected && (
+                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={10} fill="none"
+                    stroke="#2563eb" strokeWidth="2" />
+                )}
+
+                {/* Node rect */}
+                <rect
+                  x={x} y={y} width={node.w} height={node.h} rx={8}
+                  fill={fill} stroke={strokeColor} strokeWidth="1.5"
+                  strokeDasharray={isStore ? "5,3" : undefined}
+                />
+
+                {/* Label */}
+                <text x={node.cx} y={node.cy + 1} textAnchor="middle" dominantBaseline="central"
+                  fontSize="10.5" fontWeight="600"
+                  fill={status === "idle" ? "#a3a3a3" : "#1e293b"}>
+                  {node.label}
+                </text>
+
+                {/* Done indicator */}
+                {status === "done" && (
+                  <circle cx={x + node.w - 5} cy={y + 5} r="4" fill="#22c55e" />
+                )}
+              </g>
+            );
+          })}
+
+          {/* Annotations — positioned to the right of nodes, avoiding arrows */}
+          {data && activeStep >= 1 && (
+            <Annotation x={265} y={450} text={`${data.pipeline.tokenization.tokens.join(", ")}`} />
+          )}
+          {data && activeStep >= 3 && (
+            <Annotation x={270} y={593} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
+          )}
+          {data && activeStep >= 6 && (
+            <Annotation x={345} y={740} text={`${data.total_results} results`} />
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function Annotation({ x, y, text }: { x: number; y: number; text: string }) {
+  const clipped = text.length > 30 ? text.slice(0, 28) + "…" : text;
+  const w = Math.max(clipped.length * 6 + 14, 48);
+  return (
+    <g style={{ animation: "fade-in 0.3s ease-out" }}>
+      <rect x={x} y={y} width={w} height={22} rx="5" fill="#fefce8" stroke="#fde047" strokeWidth="1" />
+      <polygon points={`${x},${y + 7} ${x - 5},${y + 11} ${x},${y + 15}`} fill="#fefce8" stroke="#fde047" strokeWidth="1" />
+      <text x={x + w / 2} y={y + 14} textAnchor="middle" fontSize="9.5" fill="#854d0e" fontFamily="var(--font-mono, monospace)">
+        {clipped}
+      </text>
+    </g>
+  );
+}
+
+// ─── Detail Panel ───────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">{children}</div>;
+}
+
+function IOBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="bg-[var(--bg-elevated)] rounded-lg px-3 py-2">{children}</div>
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between text-xs">
+      <span className="text-[var(--text-dim)]">{label}</span>
+      <span className="font-mono text-[var(--text)]">{value}</span>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className="w-full text-xs px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors text-left">
+      {children}
+    </button>
+  );
+}
+
+function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewText, overviewSources, overviewLoading }: {
+  nodeId: NodeId;
+  data: ExplainResponse | null;
+  stats: Stats | null;
+  onClose: () => void;
+  onRefreshStats: () => void;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
+}) {
+  const node = NODES.find((n) => n.id === nodeId)!;
+  const trace = data?.pipeline;
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+
+  async function runAction(fn: () => Promise<unknown>, msg: string) {
+    setActionMsg(msg);
+    try { await fn(); onRefreshStats(); }
+    catch { setActionMsg("Failed"); }
+    finally { setTimeout(() => setActionMsg(null), 3000); }
+  }
+
+  return (
+    <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden h-fit" style={{ animation: "fade-in 0.15s ease-out" }}>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
+        <div className="w-3 h-3 rounded" style={{ background: node.fill, border: `1.5px solid ${node.stroke}` }} />
+        <span className="text-sm font-semibold text-[var(--text)] flex-1">{node.label}</span>
+        <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] cursor-pointer p-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <div className="px-4 py-3 space-y-3 text-sm max-h-[70vh] overflow-y-auto">
+        {actionMsg && <div className="text-xs text-[var(--accent)] font-medium animate-pulse">{actionMsg}</div>}
+
+        {nodeId === "crawler" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Fetches web pages via breadth-first search from seed URLs.</p>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Pages crawled" value={stats.pages_crawled.toLocaleString()} />
+                <StatRow label="Pending" value={stats.pages_pending.toLocaleString()} />
+                <StatRow label="Failed" value={stats.pages_failed.toLocaleString()} />
+                {stats.last_crawl_at && <StatRow label="Last crawl" value={new Date(stats.last_crawl_at).toLocaleDateString()} />}
+              </div>
+            )}
+            <ActionButton onClick={() => runAction(() => startCrawl(["https://en.wikipedia.org/wiki/Association_football"], 500, 2), "Starting crawl...")}>
+              Start new crawl (Wikipedia football, 500 pages)
+            </ActionButton>
+          </>
+        )}
+
+        {nodeId === "indexer" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Tokenizes each page and builds the inverted index (term → doc list).</p>
+            {stats ? (
+              <div className="space-y-1">
+                <StatRow label="Unique terms" value={stats.total_terms.toLocaleString()} />
+                <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
+              </div>
+            ) : <p className="text-xs text-[var(--text-dim)]">No index built yet.</p>}
+            <ActionButton onClick={() => runAction(rebuildIndex, "Rebuilding index...")}>
+              Rebuild inverted index
+            </ActionButton>
+          </>
+        )}
+
+        {nodeId === "pr_compute" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Computes authority scores from the link graph between pages.</p>
+            {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
+          </>
+        )}
+
+        {nodeId === "chunker" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Splits pages into ~300-token chunks at sentence boundaries.</p>
+            {stats ? (
+              <div className="space-y-1">
+                <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
+                <StatRow label="Avg per page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
+              </div>
+            ) : <p className="text-xs text-[var(--text-dim)]">No chunks created yet.</p>}
+          </>
+        )}
+
+        {nodeId === "embedder" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Generates 512-dim vectors for each chunk using Voyage AI.</p>
+            {stats ? (
+              <div className="space-y-1">
+                <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
+                <StatRow label="Dimensions" value="512" />
+              </div>
+            ) : <p className="text-xs text-[var(--text-dim)]">No embeddings generated yet.</p>}
+            <ActionButton onClick={() => runAction(rebuildEmbeddings, "Rebuilding embeddings...")}>
+              Rebuild embeddings
+            </ActionButton>
+          </>
+        )}
+
+        {/* STORES — actual database records */}
+        {nodeId === "pages_db" && <DbTableView endpoint="pages" />}
+        {nodeId === "inv_index" && <DbTableView endpoint="index" />}
+        {nodeId === "pr_scores" && <DbTableView endpoint="pagerank" />}
+        {nodeId === "vector_store" && <DbTableView endpoint="chunks" />}
+
+        {/* FINAL OUTPUT — SERP preview */}
+        {nodeId === "final_output" && data && (
+          <FinalOutputDetail data={data} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+        )}
+        {nodeId === "final_output" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see the final output.</p>}
+
+        {/* QUERY nodes */}
+        {nodeId === "query_input" && data && (
+          <IOBlock label="Query">
+            <span className="font-mono text-sm text-[var(--text)]">&quot;{data.query}&quot;</span>
+          </IOBlock>
+        )}
+        {nodeId === "query_input" && !data && <p className="text-xs text-[var(--text-dim)]">Search for something to see data flow through the pipeline.</p>}
+
+        {nodeId === "tokenize" && trace && (
+          <>
+            <IOBlock label="Input">
+              <span className="font-mono text-xs text-[var(--text)]">&quot;{trace.tokenization.input}&quot;</span>
+            </IOBlock>
+            <IOBlock label="Output tokens">
+              <div className="flex flex-wrap gap-1">
+                {trace.tokenization.tokens.map((t, i) => (
+                  <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">{t}</span>
+                ))}
+              </div>
+            </IOBlock>
+            {trace.tokenization.stopwords_removed.length > 0 && (
+              <IOBlock label="Stopwords removed">
+                <div className="flex flex-wrap gap-1">
+                  {trace.tokenization.stopwords_removed.map((w, i) => (
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-red-50 text-red-400 rounded line-through">{w}</span>
+                  ))}
+                </div>
+              </IOBlock>
+            )}
+            <StatRow label="Time" value={`${trace.tokenization.time_ms.toFixed(1)}ms`} />
+          </>
+        )}
+        {nodeId === "tokenize" && !trace && <p className="text-xs text-[var(--text-dim)]">Run a search to see tokenization output.</p>}
+
+        {nodeId === "index_lookup" && trace && <IndexDetail trace={trace} />}
+        {nodeId === "bm25" && trace && <BM25Detail trace={trace} />}
+        {nodeId === "pr_lookup" && trace && <PageRankDetail trace={trace} />}
+        {nodeId === "combine" && trace && <CombineDetail trace={trace} />}
+
+        {nodeId === "results" && data && <ResultsDetail data={data} />}
+        {nodeId === "results" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see ranked results.</p>}
+
+        {nodeId === "fanout" && (
+          <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader coverage. Runs asynchronously after the search path completes.</p>
+        )}
+        {nodeId === "embed_query" && (
+          <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
+        )}
+        {nodeId === "vector_search" && (
+          <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors. Returns top-K chunks ranked by score.</p>
+        )}
+        {nodeId === "llm" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks. Grounded in retrieved context to reduce hallucination.</p>
+            <div className="space-y-1 mt-2">
+              <StatRow label="Provider" value="Groq" />
+              <StatRow label="Model" value="Llama 3.3 70B" />
+            </div>
+          </>
+        )}
+        {nodeId === "ai_overview" && (
+          <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages. Streams to the user token by token.</p>
+        )}
+
+        {/* Fallback for query nodes without data */}
+        {["index_lookup", "bm25", "pr_lookup", "combine"].includes(nodeId) && !trace && (
+          <p className="text-xs text-[var(--text-dim)]">Run a search to see data for this step.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Step detail renderers ──────────────────────────────────────
+
+function IndexDetail({ trace }: { trace: PipelineTrace }) {
+  const t = trace.index_lookup;
+  return (
+    <div className="space-y-3">
+      <IOBlock label="Terms found">
+        <div className="space-y-1.5">
+          {Object.entries(t.terms_found).map(([term, info]) => (
+            <div key={term} className="flex items-center gap-2 text-xs">
+              <span className="font-mono text-[var(--accent)] font-medium">&quot;{term}&quot;</span>
+              <span className="text-[var(--text-dim)]">&rarr;</span>
+              <span className="text-[var(--text-muted)]">{info.doc_freq} docs</span>
+              <span className="text-[var(--text-dim)] font-mono ml-auto">IDF {info.idf.toFixed(2)}</span>
+            </div>
+          ))}
+          {t.terms_missing.length > 0 && t.terms_missing.map((term) => (
+            <div key={term} className="flex items-center gap-2 text-xs">
+              <span className="font-mono text-red-400">&quot;{term}&quot;</span>
+              <span className="text-red-300">not found</span>
+            </div>
+          ))}
+        </div>
+      </IOBlock>
+      <div className="space-y-1">
+        <StatRow label="Corpus size" value={`${t.corpus_stats.total_docs.toLocaleString()} docs`} />
+        <StatRow label="Avg doc length" value={`${t.corpus_stats.avg_doc_length.toFixed(0)} tokens`} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+    </div>
+  );
+}
+
+function BM25Detail({ trace }: { trace: PipelineTrace }) {
+  const t = trace.bm25_scoring;
+  const max = t.top_scores[0]?.score ?? 1;
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="k1" value={t.params.k1} />
+        <StatRow label="b" value={t.params.b} />
+        <StatRow label="Docs matched" value={t.total_matched} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      <IOBlock label="Top scores">
+        <div className="space-y-1.5">
+          {t.top_scores.slice(0, 5).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
+                <div className="h-1 bg-[var(--bg)] rounded-full mt-0.5 overflow-hidden">
+                  <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-[var(--text-dim)] w-9 text-right shrink-0">{s.score.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      </IOBlock>
+    </div>
+  );
+}
+
+function PageRankDetail({ trace }: { trace: PipelineTrace }) {
+  const t = trace.pagerank;
+  const max = t.top_scores[0]?.score ?? 1;
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Damping factor" value={t.damping} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      <IOBlock label="Top scores">
+        <div className="space-y-1.5">
+          {t.top_scores.slice(0, 5).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
+                <div className="h-1 bg-[var(--bg)] rounded-full mt-0.5 overflow-hidden">
+                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-[var(--text-dim)] w-14 text-right shrink-0">{s.score.toFixed(6)}</span>
+            </div>
+          ))}
+        </div>
+      </IOBlock>
+    </div>
+  );
+}
+
+function CombineDetail({ trace }: { trace: PipelineTrace }) {
+  const t = trace.combination;
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Alpha (α)" value={t.alpha} />
+        <StatRow label="Formula" value={t.formula} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      {t.rank_changes.length > 0 && (
+        <IOBlock label="Rank changes (BM25 → Final)">
+          <div className="space-y-1">
+            {t.rank_changes.slice(0, 5).map((rc, i) => {
+              const bm25r = typeof rc.bm25_rank === "number" ? rc.bm25_rank : 99;
+              const delta = bm25r - rc.final_rank;
+              return (
+                <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-[var(--text)] truncate flex-1 min-w-0">{rc.title}</span>
+                  <span className="font-mono text-[var(--text-dim)]">#{typeof rc.bm25_rank === "number" ? rc.bm25_rank : "—"}</span>
+                  <span className="text-[var(--text-dim)]">&rarr;</span>
+                  <span className="font-mono text-[var(--text)]">#{rc.final_rank}</span>
+                  {delta !== 0 && <span className={`font-mono ${delta > 0 ? "text-green-500" : "text-red-400"}`}>{delta > 0 ? `+${delta}` : delta}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </IOBlock>
+      )}
+    </div>
+  );
+}
+
+function ResultsDetail({ data }: { data: ExplainResponse }) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Total results" value={data.total_results} />
+        <StatRow label="Time" value={`${data.time_ms}ms`} />
+      </div>
+      <IOBlock label="Top results">
+        <div className="space-y-2">
+          {data.results.slice(0, 4).map((r, i) => (
+            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+              className="block group">
+              <div className="text-[11px] text-[var(--accent)] group-hover:underline truncate">{r.title}</div>
+              <div className="flex gap-2 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
+                <span>BM25 {r.bm25_score.toFixed(1)}</span>
+                <span>PR {r.pagerank_score.toFixed(4)}</span>
+                <span className="text-[var(--accent)]">{r.final_score.toFixed(2)}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </IOBlock>
+    </div>
+  );
+}
+
+// ─── Database Table View ────────────────────────────────────────
+
+function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | "chunks" }) {
+  const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const fetcher = endpoint === "pages" ? explorePages(8)
+      : endpoint === "index" ? exploreIndex(12)
+      : endpoint === "pagerank" ? explorePageRank(10)
+      : exploreChunks(6);
+    fetcher.then((res) => {
+      const data = res.pages || res.terms || res.chunks || [];
+      setRows(Array.isArray(data) ? data : []);
+    }).catch(() => setRows([])).finally(() => setLoading(false));
+  }, [endpoint]);
+
+  if (loading) return <div className="text-xs text-[var(--text-dim)] animate-pulse py-2">Loading records...</div>;
+  if (!rows || rows.length === 0) return <p className="text-xs text-[var(--text-dim)]">No records found.</p>;
+
+  const columns = Object.keys(rows[0]).slice(0, 5);
+
+  return (
+    <div className="overflow-x-auto -mx-4 px-4">
+      <table className="w-full text-[11px] border-collapse min-w-[300px]">
+        <thead>
+          <tr className="border-b border-[var(--border)]">
+            {columns.map((col) => (
+              <th key={col} className="text-left py-1.5 px-2 text-[var(--text-dim)] font-semibold uppercase tracking-wider text-[10px]">{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-elevated)] transition-colors">
+              {columns.map((col) => {
+                const val = row[col];
+                let display: string;
+                if (val === null || val === undefined) display = "—";
+                else if (typeof val === "number") display = Number.isInteger(val) ? val.toLocaleString() : val.toFixed(6);
+                else if (Array.isArray(val)) display = `[${val.length} items]`;
+                else if (typeof val === "object") display = JSON.stringify(val).slice(0, 30);
+                else display = String(val).slice(0, 40);
+                return (
+                  <td key={col} className="py-1.5 px-2 text-[var(--text)] font-mono truncate max-w-[120px]" title={String(val)}>
+                    {display}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-[var(--text-dim)] mt-2">Showing {rows.length} rows</p>
+    </div>
+  );
+}
+
+// ─── Final Output Detail (SERP preview) ─────────────────────────
+
+function FinalOutputDetail({ data, overviewText, overviewSources, overviewLoading }: {
+  data: ExplainResponse;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* AI Overview section */}
+      {(overviewLoading || overviewText) && (
+        <div className="bg-[var(--bg-elevated)] rounded-lg p-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#sg)"/><defs><linearGradient id="sg" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
+            <span className="text-xs font-semibold text-[var(--text)]">AI Overview</span>
+          </div>
+          {overviewLoading ? (
+            <div className="space-y-1.5">
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-full" />
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[85%]" />
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[60%]" />
+            </div>
+          ) : (
+            <p className="text-xs leading-[1.7] text-[var(--text)]">{overviewText}</p>
+          )}
+          {overviewSources.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[var(--border)]">
+              {overviewSources.map((s) => {
+                let domain = "";
+                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                return (
+                  <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[9px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={10} height={10} className="rounded-sm" />
+                    {s.title.replace(" - Wikipedia", "").slice(0, 18)}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Search Results */}
+      <div>
+        <div className="text-[10px] text-[var(--text-dim)] mb-2">About {data.total_results} results ({(data.time_ms / 1000).toFixed(2)}s)</div>
+        <div className="space-y-3">
+          {data.results.map((r, i) => {
+            let domain = "";
+            try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
+            return (
+              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
+                  <span className="text-[10px] text-[var(--text-dim)]">{domain}</span>
+                </div>
+                <div className="text-[13px] text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Exported Component ──────────────────────────────────────
+
+export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading }: {
+  data: ExplainResponse | null;
+  stats: Stats | null;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
+}) {
+  const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
+  const [stats, setStats] = useState<Stats | null>(propStats);
+  const activeStep = useAnimatedSteps(data?.pipeline ?? null);
+
+  useEffect(() => { if (!stats) getStats().then(setStats).catch(() => {}); }, [stats]);
+  useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="lg:flex lg:gap-5 lg:items-start">
+        <div className="lg:flex-1 min-w-0">
+          <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
+          {data && activeStep >= 6 && !selectedNode && (
+            <p className="text-center text-xs text-[var(--text-dim)] mt-3" style={{ animation: "fade-in 0.4s ease-out" }}>
+              Click any node to inspect its data
+            </p>
+          )}
+        </div>
+        {selectedNode && (
+          <div className={`mt-4 lg:mt-0 lg:shrink-0 lg:sticky lg:top-4 ${selectedNode === "final_output" ? "lg:w-[420px]" : "lg:w-80"}`}>
+            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+          </div>
+        )}
+      </div>
+      {data && activeStep >= 11 && (
+        <div className="text-center pt-4" style={{ animation: "fade-in 0.4s ease-out" }}>
+          <span className="text-sm text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
+        </div>
+      )}
+    </div>
+  );
+}
