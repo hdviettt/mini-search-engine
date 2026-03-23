@@ -65,8 +65,13 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView }: { en
   return (
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
+        {/* AI Overview */}
+        <div className="px-4 sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-4xl pt-2">
+          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
+        </div>
+
         {/* Results */}
-        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-3xl py-2 space-y-4 @lg:space-y-5">
+        <div className="px-4 sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-3xl py-2 space-y-4 @lg:space-y-5">
           <div className="text-[12px] @lg:text-[13px] text-[#70757a]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
@@ -167,24 +172,22 @@ export default function Home() {
         </div>
       )}
 
-      {/* AI Overview — ABOVE the grid, never transitions, never re-renders */}
-      {hasResults && view === "search" && (
-        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-4xl">
-          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
-        </div>
-      )}
-
-      {/* Content grid */}
+      {/* Content */}
       {hasResults && (
-        <div
-          className="lg:grid lg:overflow-hidden"
-          style={{
-            gridTemplateColumns: view === "explore" ? "65% 1fr" : "0% 1fr",
-            transition: "grid-template-columns 500ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-        >
-          {/* Pipeline */}
-          <div className={`overflow-hidden ${view === "explore" ? "block" : "max-h-0 lg:max-h-none lg:block opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto"}`}>
+        <div className="relative overflow-hidden">
+          {/* SERP — always full width, never changes layout */}
+          <div className={`transition-[margin-left] duration-500 ease-in-out ${
+            view === "explore" ? "lg:ml-[65%]" : "ml-0"
+          }`}>
+            <SerpSidePanel engine={engine} onToggleView={toggleView} />
+          </div>
+
+          {/* Pipeline — slides in from the left, overlays on top */}
+          <div className={`lg:absolute lg:top-0 lg:left-0 lg:w-[65%] lg:h-full transition-transform duration-500 ease-in-out ${
+            view === "explore"
+              ? "translate-x-0 opacity-100"
+              : "max-h-0 lg:max-h-none lg:-translate-x-full lg:opacity-0 lg:pointer-events-none overflow-hidden"
+          }`}>
             <PipelineExplorer
               data={engine.searchData}
               stats={engine.stats}
@@ -192,15 +195,6 @@ export default function Home() {
               overviewSources={engine.overviewSources}
               overviewLoading={engine.overviewLoading || engine.overviewStreaming}
             />
-          </div>
-
-          {/* SERP */}
-          <div className={`lg:overflow-hidden lg:overflow-y-auto ${
-            view === "explore"
-              ? "max-h-0 lg:max-h-none opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto overflow-hidden lg:block lg:border-l border-[var(--border)]"
-              : "block"
-          }`}>
-            <SerpSidePanel engine={engine} onToggleView={toggleView} />
           </div>
         </div>
       )}
