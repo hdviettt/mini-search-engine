@@ -848,8 +848,8 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
           </div>
 
-          {/* Desktop fixed panel */}
-          <div className="hidden lg:block fixed z-50 bg-[var(--bg-card)] shadow-xl overflow-hidden top-28 right-[36%] rounded-xl max-h-[calc(100vh-128px)] w-80"
+          {/* Desktop fixed panel — right edge of canvas, just left of SERP */}
+          <div className="hidden lg:block fixed z-50 bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden top-16 right-[36%] rounded-xl max-h-[calc(100vh-80px)] w-72"
             style={{ animation: "fade-in 0.15s ease-out" }}>
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
           </div>
