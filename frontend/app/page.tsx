@@ -68,14 +68,14 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
         {/* AI Overview — shifts right when pipeline overlays */}
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${
-          isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-4xl"
+          isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-4xl"
         }`}>
           <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
         </div>
 
         {/* Results — shifts right when pipeline overlays */}
         <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${
-          isExploring ? "lg:pl-[67%] lg:pr-4 max-w-none" : "sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-3xl"
+          isExploring ? "lg:pl-[67%] lg:pr-4 max-w-none" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-3xl"
         }`}>
           <div className="text-[12px] @lg:text-[13px] text-[#70757a]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
@@ -160,7 +160,7 @@ export default function Home() {
       ) : (
         /* Results state — dynamic island pill bar */
         <div className="sticky top-0 z-30 bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="max-w-3xl mx-auto px-3 sm:px-4">
+          <div className="px-3 sm:px-4 lg:pl-[152px] lg:pr-4 max-w-4xl">
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
               className="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-3 sm:px-4"
             >

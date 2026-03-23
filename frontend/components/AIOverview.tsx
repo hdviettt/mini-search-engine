@@ -148,7 +148,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming }: A
 
       {/* Content */}
       {(text || streaming) && !loading && (
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+        <div className="flex flex-col @md:flex-row gap-4 @md:gap-6">
           {/* Text column */}
           <div className="flex-1 min-w-0">
             <div
@@ -174,7 +174,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming }: A
 
           {/* Sources panel — right side on desktop, below on mobile */}
           {sources.length > 0 && (
-            <div className="sm:w-64 lg:w-72 shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden">
+            <div className="@md:w-64 @lg:w-72 shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden">
               <div className="px-3 pt-2 pb-0.5">
                 {sources.map((s) => (
                   <SourceCard key={s.index} source={s} highlighted={highlightedSource === s.index} />
