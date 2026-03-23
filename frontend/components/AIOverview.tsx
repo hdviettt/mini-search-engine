@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, memo, useCallback } from "react";
 import { OverviewSource } from "@/lib/api";
 
 interface AIOverviewProps {
@@ -115,14 +115,14 @@ function CitationChip({ source, index, onHighlight }: {
   );
 }
 
-export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
+export default memo(function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [highlightedSource, setHighlightedSource] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
-  function highlight(idx: number) {
+  const highlight = useCallback((idx: number) => {
     setHighlightedSource(idx);
     setTimeout(() => setHighlightedSource(null), 2000);
-  }
+  }, []);
 
   if (!loading && !streaming && !text && sources.length === 0) return null;
 
@@ -189,4 +189,4 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
       <div className="mt-5 sm:mt-6 border-b border-[#ebebeb]" />
     </div>
   );
-}
+});

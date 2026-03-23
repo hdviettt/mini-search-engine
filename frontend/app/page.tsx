@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import PipelineExplorer from "@/components/PipelineExplorer";
@@ -60,7 +60,7 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
   );
 }
 
-function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; onToggleView: () => void }) {
+const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; onToggleView: () => void }) {
   if (!engine.searchData) return null;
   return (
     <div className="@container bg-[var(--bg)]">
@@ -118,12 +118,13 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
       </div>
     </div>
   );
-}
+});
 
 export default function Home() {
   const engine = useSearchEngine();
   const [view, setView] = useState<View>("search");
   const hasResults = engine.searchData !== null;
+  const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -197,7 +198,7 @@ export default function Home() {
               ? "max-h-0 lg:max-h-none opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto overflow-hidden lg:block lg:border-l border-[var(--border)]"
               : "block"
           }`}>
-            <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} />
+            <SerpSidePanel engine={engine} onToggleView={toggleView} />
           </div>
         </div>
       )}
