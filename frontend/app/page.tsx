@@ -34,10 +34,7 @@ function urlBreadcrumb(url: string) {
     const domain = u.hostname.replace("www.", "");
     const segments = u.pathname.split("/").filter(Boolean);
     if (segments.length === 0) return { domain, breadcrumb: "" };
-    return {
-      domain,
-      breadcrumb: segments.map((s) => decodeURIComponent(s).replace(/_/g, " ")).join(" › "),
-    };
+    return { domain, breadcrumb: segments.map((s) => decodeURIComponent(s).replace(/_/g, " ")).join(" › ") };
   } catch {
     return { domain: url, breadcrumb: "" };
   }
@@ -46,26 +43,19 @@ function urlBreadcrumb(url: string) {
 function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
     <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-[11px] sm:text-xs">
-      <button
-        onClick={() => onChange("search")}
-        className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
-          view === "search"
-            ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
-            : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
-        }`}
-      >
-        Search
-      </button>
-      <button
-        onClick={() => onChange("explore")}
-        className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
-          view === "explore"
-            ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
-            : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
-        }`}
-      >
-        Explore
-      </button>
+      {(["search", "explore"] as const).map((v) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer capitalize ${
+            view === v
+              ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
+              : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
+          }`}
+        >
+          {v}
+        </button>
+      ))}
     </div>
   );
 }
@@ -77,16 +67,11 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
       <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)" }}>
         {/* AI Overview */}
         {(engine.overviewLoading || engine.overviewStreaming || engine.overviewText) && (
-          <div className="px-3 @lg:px-4 py-3 @lg:py-4 @lg:max-w-3xl @lg:mx-auto">
+          <div className="px-3 @lg:px-4 py-2 @lg:py-4 @lg:max-w-3xl @lg:mx-auto">
             <div className="hidden @lg:block">
-              <AIOverview
-                text={engine.overviewText}
-                sources={engine.overviewSources}
-                loading={engine.overviewLoading}
-                streaming={engine.overviewStreaming}
-              />
+              <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
             </div>
-            <div className="@lg:hidden border-b border-[var(--border)] pb-3">
+            <div className="@lg:hidden border-b border-[var(--border)] pb-2">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#spk)"/><defs><linearGradient id="spk" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
                 <span className="text-[10px] font-semibold text-[var(--text)]">AI Overview</span>
@@ -98,14 +83,14 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
                   <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
                 </div>
               ) : (
-                <p className="text-[12px] leading-[1.6] text-[var(--text)] line-clamp-6">{engine.overviewText}</p>
+                <p className="text-[12px] leading-[1.5] text-[var(--text)] line-clamp-4">{engine.overviewText}</p>
               )}
             </div>
           </div>
         )}
 
-        {/* Results list — adapts via container queries */}
-        <div className="px-3 @lg:px-4 py-2 @lg:py-3 @lg:max-w-3xl @lg:mx-auto space-y-3 @lg:space-y-5">
+        {/* Results */}
+        <div className="px-3 @lg:px-4 py-2 @lg:py-3 @lg:max-w-3xl @lg:mx-auto space-y-2.5 @lg:space-y-5">
           <div className="text-[10px] @lg:text-[13px] text-[var(--text-dim)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
@@ -114,7 +99,7 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
             return (
               <div key={i} className="group">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-sm" />
+                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-sm shrink-0" />
                   <span className="text-[10px] @lg:text-sm text-[var(--text-muted)] truncate">{domain}</span>
                   {breadcrumb && <span className="text-xs text-[var(--text-dim)] truncate hidden @lg:inline">{breadcrumb}</span>}
                 </div>
@@ -131,11 +116,8 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
             );
           })}
 
-          <div className="mt-6 @lg:mt-8 text-center">
-            <button
-              onClick={onToggleView}
-              className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-            >
+          <div className="pt-4 @lg:pt-6 text-center">
+            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-[11px] @lg:text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer">
               <span className="@lg:hidden">Explore pipeline</span>
               <span className="hidden @lg:inline">See how these results were computed</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,16 +138,17 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Hero / Search Section */}
-      <div className={`transition-all duration-500 ${hasResults ? "pt-4 sm:pt-5 pb-3 border-b border-[var(--border)] bg-[var(--bg-card)] shadow-sm" : "pt-[20vh] sm:pt-[25vh] pb-6 sm:pb-8"}`}>
+      {/* Header */}
+      <div className={`transition-all duration-500 ${hasResults ? "sticky top-0 z-30 pt-3 sm:pt-4 pb-2 sm:pb-3 border-b border-[var(--border)] bg-[var(--bg-card)] shadow-sm" : "pt-[18vh] sm:pt-[25vh] pb-5 sm:pb-8"}`}>
         <div className={`mx-auto px-3 sm:px-4 ${hasResults ? "max-w-6xl" : "max-w-2xl"}`}>
           {/* Logo + toggle */}
-          <div className={`transition-all duration-500 ${hasResults ? "mb-2 sm:mb-3 flex items-center gap-2 sm:gap-3" : "mb-6 sm:mb-8 text-center"}`}>
-            <h1 className={`font-semibold tracking-tight text-[var(--text)] transition-all duration-500 ${hasResults ? "text-lg sm:text-xl" : "text-3xl sm:text-5xl"}`}>
-              Search Engine
+          <div className={`transition-all duration-500 ${hasResults ? "mb-2 flex items-center gap-2" : "mb-5 sm:mb-8 text-center"}`}>
+            <h1 className={`font-semibold tracking-tight text-[var(--text)] transition-all duration-500 ${hasResults ? "text-base sm:text-xl truncate" : "text-3xl sm:text-5xl"}`}>
+              {hasResults ? <span className="hidden sm:inline">Search Engine</span> : "Search Engine"}
+              {hasResults && <span className="sm:hidden">Search</span>}
             </h1>
             {!hasResults && (
-              <p className="text-[var(--text-dim)] text-xs sm:text-sm mt-1.5 sm:mt-2">
+              <p className="text-[var(--text-dim)] text-xs sm:text-sm mt-1 sm:mt-2">
                 Built from scratch — BM25, PageRank, and AI Overviews
               </p>
             )}
@@ -177,66 +160,44 @@ export default function Home() {
           </div>
 
           {/* Search Bar */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const q = new FormData(e.currentTarget).get("q") as string;
-              if (q.trim()) engine.handleSearch(q.trim());
-            }}
-            className="relative"
-          >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]"
-            >
+          <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="relative">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
             </svg>
             <input
-              name="q"
-              type="text"
-              placeholder="Search anything..."
-              defaultValue={engine.query}
-              key={engine.query}
-              autoFocus
-              className={`w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] text-sm sm:text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none focus:shadow-md transition-all ${
-                hasResults ? "rounded-full shadow-sm hover:shadow-md" : "rounded-full shadow-md hover:shadow-lg sm:py-3"
+              name="q" type="text" placeholder="Search anything..."
+              defaultValue={engine.query} key={engine.query}
+              className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:shadow-md transition-all ${
+                hasResults ? "rounded-full shadow-sm" : "rounded-full shadow-md hover:shadow-lg sm:py-3"
               }`}
             />
           </form>
 
-          {/* Suggestions (hero state only) */}
+          {/* Suggestions */}
           {!hasResults && (
             <div className="mt-3 sm:mt-5 flex flex-wrap justify-center gap-1.5 sm:gap-2">
               {SUGGESTIONS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => engine.handleSearch(q)}
-                  className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 hover:shadow-sm cursor-pointer transition-all"
-                >
+                <button key={q} onClick={() => engine.handleSearch(q)}
+                  className="text-xs sm:text-sm px-2.5 sm:px-4 py-1 sm:py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-all">
                   {q}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Pipeline Progress — the subtle hint (search view only) */}
+          {/* Pipeline progress */}
           {view === "search" && engine.phase !== "idle" && hasResults && (
-            <div className="mt-2 flex items-center gap-1 text-[11px] text-[var(--text-dim)]">
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] sm:text-[11px] text-[var(--text-dim)] overflow-x-auto">
               {PHASE_STEPS.map((step, i) => {
                 const stepIdx = PHASE_ORDER.indexOf(step.key);
                 const currentIdx = phaseIndex(engine.phase);
-                const isActive = stepIdx === currentIdx ||
-                  (step.key === "combining" && engine.phase === "pagerank");
+                const isActive = stepIdx === currentIdx || (step.key === "combining" && engine.phase === "pagerank");
                 const isComplete = currentIdx > stepIdx;
                 return (
-                  <span key={step.key} className="flex items-center gap-1">
+                  <span key={step.key} className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                     {i > 0 && <span className="text-[var(--border)]">›</span>}
-                    <span
-                      className={`transition-colors duration-300 ${
-                        isComplete ? "text-[var(--accent)]" : isActive ? "text-[var(--accent)] font-medium" : ""
-                      }`}
-                      style={isActive ? { animation: "pulse-dot 1s ease-in-out infinite" } : undefined}
-                    >
+                    <span className={`transition-colors duration-300 ${isComplete ? "text-[var(--accent)]" : isActive ? "text-[var(--accent)] font-medium" : ""}`}
+                      style={isActive ? { animation: "pulse-dot 1s ease-in-out infinite" } : undefined}>
                       {step.label}
                     </span>
                   </span>
@@ -247,7 +208,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Content — CSS Grid with smooth column transition on desktop */}
+      {/* Content */}
       {hasResults && (
         <div
           className="lg:grid overflow-hidden"
@@ -256,7 +217,7 @@ export default function Home() {
             transition: "grid-template-columns 500ms cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
-          {/* Pipeline Explorer */}
+          {/* Pipeline */}
           <div className={`overflow-hidden ${view === "explore" ? "block" : "hidden lg:block"}`}>
             <PipelineExplorer
               data={engine.searchData}
@@ -269,22 +230,32 @@ export default function Home() {
 
           {/* SERP */}
           <div className={`overflow-hidden overflow-y-auto ${
-            view === "explore"
-              ? "hidden lg:block lg:border-l border-[var(--border)]"
-              : "block"
+            view === "explore" ? "hidden lg:block lg:border-l border-[var(--border)]" : "block"
           }`}>
             <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} />
           </div>
         </div>
       )}
 
+      {/* Mobile: floating "back to search" button when in explore mode */}
+      {hasResults && view === "explore" && (
+        <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-30">
+          <button
+            onClick={() => setView("search")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-all"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            Back to results
+          </button>
+        </div>
+      )}
+
       {/* Hero explore link */}
       {!hasResults && (
-        <div className="text-center mt-8">
-          <button
-            onClick={() => setView("explore")}
-            className="inline-flex items-center gap-2 text-sm text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-          >
+        <div className="text-center mt-5 sm:mt-8">
+          <button onClick={() => setView("explore")} className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer">
             Explore the search pipeline
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />

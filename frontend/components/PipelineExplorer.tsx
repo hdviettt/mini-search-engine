@@ -180,9 +180,9 @@ function Flowchart({
   data: ExplainResponse | null;
 }) {
   return (
-    <div className="overflow-x-auto -mx-4 px-4">
-      <div style={{ minWidth: 700 }}>
-        <svg viewBox="0 0 770 800" className="w-full h-auto">
+    <div className="overflow-x-auto -mx-2 px-2 sm:-mx-4 sm:px-4">
+      <div style={{ minWidth: 500 }}>
+        <svg viewBox="0 0 770 800" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
@@ -433,15 +433,15 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden h-fit" style={{ animation: "fade-in 0.15s ease-out" }}>
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
-        <div className="w-3 h-3 rounded" style={{ background: node.fill, border: `1.5px solid ${node.stroke}` }} />
-        <span className="text-sm font-semibold text-[var(--text)] flex-1">{node.label}</span>
-        <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] cursor-pointer p-1">
+    <div className="bg-[var(--bg-card)] overflow-hidden h-fit">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[var(--border)]">
+        <div className="w-3 h-3 rounded shrink-0" style={{ background: node.fill, border: `1.5px solid ${node.stroke}` }} />
+        <span className="text-xs sm:text-sm font-semibold text-[var(--text)] flex-1 truncate">{node.label}</span>
+        <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] cursor-pointer p-1.5 -mr-1 shrink-0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       </div>
-      <div className="px-4 py-3 space-y-3 text-sm max-h-[70vh] overflow-y-auto">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 space-y-2.5 sm:space-y-3 text-sm max-h-[50vh] lg:max-h-[60vh] overflow-y-auto">
         {actionMsg && <div className="text-xs text-[var(--accent)] font-medium animate-pulse">{actionMsg}</div>}
 
         {nodeId === "crawler" && (
@@ -822,7 +822,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
   useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-2 sm:px-4 py-3 sm:py-4">
       <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
       {data && activeStep >= 10 && !selectedNode && (
@@ -835,13 +835,22 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
       {selectedNode && (
         <>
           {/* Mobile: bottom sheet */}
-          <div className="lg:hidden fixed inset-0 bg-black/20 z-40" onClick={() => setSelectedNode(null)} />
-          <div
-            className="fixed z-50 bg-[var(--bg-card)] shadow-xl overflow-hidden
-              bottom-0 left-0 right-0 max-h-[55vh] rounded-t-2xl
-              lg:top-28 lg:bottom-auto lg:left-auto lg:right-[36%] lg:rounded-xl lg:max-h-[calc(100vh-128px)] lg:w-80"
-            style={{ animation: "slide-up 0.2s ease-out" }}
-          >
+          {/* Mobile backdrop */}
+          <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
+
+          {/* Mobile bottom sheet */}
+          <div className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden"
+            style={{ animation: "slide-up 0.2s ease-out" }}>
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1" onClick={() => setSelectedNode(null)}>
+              <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
+            </div>
+            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+          </div>
+
+          {/* Desktop fixed panel */}
+          <div className="hidden lg:block fixed z-50 bg-[var(--bg-card)] shadow-xl overflow-hidden top-28 right-[36%] rounded-xl max-h-[calc(100vh-128px)] w-80"
+            style={{ animation: "fade-in 0.15s ease-out" }}>
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
           </div>
         </>

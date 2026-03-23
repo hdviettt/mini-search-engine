@@ -54,37 +54,37 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
   const shouldTruncate = isLong && !expanded;
 
   return (
-    <div className="mb-6 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+    <div className="mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-5 pt-4 pb-2">
+      <div className="flex items-center gap-2 px-3 sm:px-5 pt-3 sm:pt-4 pb-1.5 sm:pb-2">
         <SparkleIcon />
-        <span className="text-sm font-semibold text-[var(--text)]">
+        <span className="text-xs sm:text-sm font-semibold text-[var(--text)]">
           AI Overview
         </span>
         {(loading || streaming) && !text && (
-          <span className="text-xs text-[var(--text-dim)] ml-1 animate-pulse">generating...</span>
+          <span className="text-[10px] sm:text-xs text-[var(--text-dim)] ml-1 animate-pulse">generating...</span>
         )}
       </div>
 
-      {/* Skeleton — shown until first text token arrives */}
+      {/* Skeleton */}
       {!text ? (
-        <div className="px-5 pb-5 space-y-3">
-          <div className="space-y-2.5">
-            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
-            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[95%]" />
-            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[80%]" />
-            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
+        <div className="px-3 sm:px-5 pb-4 sm:pb-5 space-y-2 sm:space-y-3">
+          <div className="space-y-2">
+            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
+            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[95%]" />
+            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[80%]" />
+            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-1.5 sm:gap-2 pt-1 sm:pt-2 overflow-hidden">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-8 bg-[var(--score-bar-bg)] animate-pulse rounded-full w-28" />
+              <div key={i} className="h-7 sm:h-8 bg-[var(--score-bar-bg)] animate-pulse rounded-full w-24 sm:w-28 shrink-0" />
             ))}
           </div>
         </div>
       ) : (
         <>
-          <div className="px-5 pb-3" style={{ animation: "fade-in 0.3s ease-out" }}>
-            <div className={`text-[14px] leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
+          <div className="px-3 sm:px-5 pb-2 sm:pb-3" style={{ animation: "fade-in 0.3s ease-out" }}>
+            <div className={`text-[13px] sm:text-[14px] leading-[1.6] sm:leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
@@ -108,26 +108,15 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
 
           {/* Source pills */}
           {sources.length > 0 && (
-            <div className="px-5 pb-4 pt-1 flex gap-2 overflow-x-auto">
+            <div className="px-3 sm:px-5 pb-3 sm:pb-4 pt-1 flex gap-1.5 sm:gap-2 overflow-x-auto">
               {sources.map((s) => {
                 let domain = "";
                 try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
                 return (
-                  <a
-                    key={s.index}
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors shrink-0 group"
-                  >
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
-                      alt=""
-                      width={14}
-                      height={14}
-                      className="rounded-sm"
-                    />
-                    <span className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text)] whitespace-nowrap max-w-[140px] truncate">
+                  <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors shrink-0 group">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm sm:w-[14px] sm:h-[14px]" />
+                    <span className="text-[10px] sm:text-xs text-[var(--text-muted)] group-hover:text-[var(--text)] whitespace-nowrap max-w-[100px] sm:max-w-[140px] truncate">
                       {s.title.replace(" - Wikipedia", "")}
                     </span>
                   </a>
