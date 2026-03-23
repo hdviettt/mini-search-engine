@@ -14,9 +14,9 @@
   --text: #171717;
   --text-muted: #525252;
   --text-dim: #a3a3a3;
-  --accent: #c0392b;
-  --accent-secondary: #1a6b3c;
-  --accent-muted: rgba(192, 57, 43, 0.08);
+  --accent: #2563eb;
+  --accent-secondary: #7c3aed;
+  --accent-muted: rgba(37, 99, 235, 0.08);
   --portugal-red: #c0392b;
   --portugal-green: #1a6b3c;
   --portugal-gold: #d4a843;
@@ -42,9 +42,9 @@
   --text: #e5e5e5;
   --text-muted: #a3a3a3;
   --text-dim: #666666;
-  --accent: #e74c3c;
-  --accent-secondary: #2ecc71;
-  --accent-muted: rgba(231, 76, 60, 0.1);
+  --accent: #60a5fa;
+  --accent-secondary: #a78bfa;
+  --accent-muted: rgba(96, 165, 250, 0.1);
   --portugal-red: #e74c3c;
   --portugal-green: #2ecc71;
   --portugal-gold: #f1c40f;
@@ -127,6 +127,14 @@ body {
 /* Dark mode SVG fix — invert colors so it's visible on dark bg */
 [data-theme="dark"] .dark-svg-fix {
   filter: invert(1) hue-rotate(180deg);
+}
+
+/* Dark mode pipeline canvas — mute the bright pastels */
+[data-theme="dark"] .pipeline-canvas {
+  filter: brightness(0.55) saturate(0.7);
+}
+[data-theme="dark"] .pipeline-canvas text {
+  filter: brightness(2.2);
 }
 
 /* SIU pose entrance animation */

@@ -182,10 +182,10 @@ function Flowchart({
   return (
     <div className="overflow-x-auto -mx-2 px-2 sm:-mx-4 sm:px-4">
       <div style={{ minWidth: 500 }}>
-        <svg viewBox="0 0 770 800" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 770 800" className="w-full h-auto pipeline-canvas" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
+              <circle cx="10" cy="10" r="0.7" fill="var(--border)" />
             </pattern>
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
               <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
