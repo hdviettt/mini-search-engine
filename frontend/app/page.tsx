@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, lazy, Suspense } from "react";
-import { useSearchEngine } from "@/hooks/useSearchEngine";
+import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import type { FlowPhase } from "@/components/canvas/types";
 
@@ -67,6 +67,64 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
       >
         Explore
       </button>
+    </div>
+  );
+}
+
+function SerpSidePanel({ engine, onSwitchToSearch }: { engine: SearchEngineState; onSwitchToSearch: () => void }) {
+  if (!engine.searchData) return null;
+  return (
+    <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--accent)]">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        <span className="text-sm font-semibold text-[var(--text)] flex-1">Results</span>
+        <button onClick={onSwitchToSearch} className="text-[10px] text-[var(--accent)] hover:underline cursor-pointer">
+          Full view
+        </button>
+      </div>
+      <div className="max-h-[75vh] overflow-y-auto">
+        {/* Compact AI Overview */}
+        {(engine.overviewLoading || engine.overviewStreaming || engine.overviewText) && (
+          <div className="px-4 py-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#spk)"/><defs><linearGradient id="spk" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
+              <span className="text-[10px] font-semibold text-[var(--text)]">AI Overview</span>
+            </div>
+            {engine.overviewLoading && !engine.overviewText ? (
+              <div className="space-y-1.5">
+                <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
+                <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[85%]" />
+                <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
+              </div>
+            ) : (
+              <p className="text-[12px] leading-[1.6] text-[var(--text)] line-clamp-6">{engine.overviewText}</p>
+            )}
+          </div>
+        )}
+
+        {/* Compact results list */}
+        <div className="px-4 py-3 space-y-3">
+          <div className="text-[10px] text-[var(--text-dim)]">
+            {engine.searchData.total_results} results · {engine.searchData.time_ms}ms
+          </div>
+          {engine.searchData.results.map((r, i) => {
+            let domain = "";
+            try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
+            return (
+              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
+                  <span className="text-[10px] text-[var(--text-dim)]">{domain}</span>
+                </div>
+                <div className="text-[13px] text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
+              </a>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -209,13 +267,13 @@ export default function Home() {
             })}
           </div>
 
-          <div className="mt-10 pt-6 border-t border-[var(--border)] text-center">
+          <div className="mt-8 text-center">
             <button
               onClick={() => setView("explore")}
-              className="inline-flex items-center gap-2 text-sm text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
             >
               See how these results were computed
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
               </svg>
             </button>
@@ -235,6 +293,12 @@ export default function Home() {
             overviewText={engine.overviewText}
             overviewSources={engine.overviewSources}
             overviewLoading={engine.overviewLoading}
+            sideContent={
+              <SerpSidePanel
+                engine={engine}
+                onSwitchToSearch={() => setView("search")}
+              />
+            }
           />
         </Suspense>
       )}

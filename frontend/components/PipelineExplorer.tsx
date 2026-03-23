@@ -835,12 +835,13 @@ function FinalOutputDetail({ data, overviewText, overviewSources, overviewLoadin
 
 // ─── Exported Component ──────────────────────────────────────
 
-export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading }: {
+export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading, sideContent }: {
   data: ExplainResponse | null;
   stats: Stats | null;
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
+  sideContent?: React.ReactNode;
 }) {
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
   const [stats, setStats] = useState<Stats | null>(propStats);
@@ -849,28 +850,32 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
   useEffect(() => { if (!stats) getStats().then(setStats).catch(() => {}); }, [stats]);
   useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
 
+  const hasSidePanel = selectedNode || sideContent;
+  const sideWidth = selectedNode === "final_output" ? "lg:w-[420px]" : "lg:w-96";
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       <div className="lg:flex lg:gap-5 lg:items-start">
         <div className="lg:flex-1 min-w-0">
           <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
-          {data && activeStep >= 6 && !selectedNode && (
-            <p className="text-center text-xs text-[var(--text-dim)] mt-3" style={{ animation: "fade-in 0.4s ease-out" }}>
-              Click any node to inspect its data
-            </p>
+          {data && activeStep >= 11 && (
+            <div className="text-center pt-3" style={{ animation: "fade-in 0.4s ease-out" }}>
+              <span className="text-xs text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
+            </div>
           )}
         </div>
-        {selectedNode && (
-          <div className={`mt-4 lg:mt-0 lg:shrink-0 lg:sticky lg:top-4 ${selectedNode === "final_output" ? "lg:w-[420px]" : "lg:w-80"}`}>
-            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+
+        {/* Side panel: node detail takes priority, otherwise show sideContent */}
+        {hasSidePanel && (
+          <div className={`mt-4 lg:mt-0 lg:shrink-0 lg:sticky lg:top-4 ${sideWidth}`}>
+            {selectedNode ? (
+              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+            ) : (
+              sideContent
+            )}
           </div>
         )}
       </div>
-      {data && activeStep >= 11 && (
-        <div className="text-center pt-4" style={{ animation: "fade-in 0.4s ease-out" }}>
-          <span className="text-sm text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
-        </div>
-      )}
     </div>
   );
 }
