@@ -194,38 +194,44 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults ? (
-        /* Hero state — clean, no shadows */
+        /* Hero state */
         <div className="min-h-screen flex flex-col items-center justify-center relative px-3 sm:px-4">
-          {/* Theme toggle */}
           <div className="absolute top-4 right-4 z-10">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
           <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
-            {/* Animated SVG football */}
-            <div className="mb-5 sm:mb-6">
-              <svg width="48" height="48" viewBox="0 0 48 48" className="mx-auto" style={{ animation: "ball-bounce 2s ease-in-out infinite" }}>
-                <circle cx="24" cy="24" r="20" fill="none" stroke="var(--text)" strokeWidth="1.5" opacity="0.8" />
-                <path d="M24 4 L30 16 L24 14 L18 16 Z" fill="var(--text)" opacity="0.12" />
-                <path d="M44 24 L32 30 L34 24 L32 18 Z" fill="var(--text)" opacity="0.12" />
-                <path d="M24 44 L18 32 L24 34 L30 32 Z" fill="var(--text)" opacity="0.12" />
-                <path d="M4 24 L16 18 L14 24 L16 30 Z" fill="var(--text)" opacity="0.12" />
-                <polygon points="20,10 28,10 32,17 28,23 20,23 16,17" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
-                <polygon points="34,17 38,24 34,31 28,29 28,19" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
-                <polygon points="28,35 20,35 16,31 20,25 28,25 32,31" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
-                <polygon points="14,31 10,24 14,17 20,19 20,29" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
-                <polygon points="20,10 16,17 20,23 28,23 32,17 28,10" fill="var(--text)" opacity="0.06" />
+            {/* Animated football */}
+            <div className="mb-6 sm:mb-8 relative h-20 sm:h-24 flex items-center justify-center">
+              <svg width="56" height="56" viewBox="0 0 100 100" className="football-kick">
+                {/* Ball body */}
+                <circle cx="50" cy="50" r="46" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
+                {/* Pentagon pattern */}
+                <polygon points="50,12 62,28 56,44 44,44 38,28" fill="var(--text)" opacity="0.15" stroke="var(--text)" strokeWidth="0.8" opacity="0.25" />
+                <polygon points="62,28 80,32 82,50 70,58 56,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="38,28 20,32 18,50 30,58 44,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="70,58 78,76 62,86 50,74 56,44" fill="var(--text)" opacity="0.1" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="30,58 22,76 38,86 50,74 44,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="62,86 50,96 38,86 50,74" fill="var(--text)" opacity="0.08" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
               </svg>
+              {/* Motion lines that appear during kick */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                <div className="motion-lines">
+                  <div className="w-4 h-px bg-[var(--text)] opacity-10 absolute -left-10 -top-2 rounded" />
+                  <div className="w-6 h-px bg-[var(--text)] opacity-[0.07] absolute -left-12 top-0 rounded" />
+                  <div className="w-3 h-px bg-[var(--text)] opacity-10 absolute -left-9 top-2 rounded" />
+                </div>
+              </div>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-2 sm:mb-3">
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-4">
               Football Search
             </h1>
-            <p className="text-[var(--text-dim)] text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed">
-              A search engine built from scratch — BM25, PageRank, and AI Overviews
+            <p className="text-[var(--text-muted)] text-sm sm:text-[15px] mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
+              A search engine built from scratch with BM25 ranking, PageRank authority scores, AI Overviews, and vector search
             </p>
 
-            {/* Search bar — no shadow */}
+            {/* Search bar */}
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="relative">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
@@ -242,13 +248,6 @@ export default function Home() {
                   style={{ animation: `fade-in 0.4s ease-out ${0.2 + i * 0.06}s both` }}>
                   {q}
                 </button>
-              ))}
-            </div>
-
-            {/* Tech stack */}
-            <div className="mt-10 sm:mt-12 flex justify-center gap-4 sm:gap-5">
-              {["BM25", "PageRank", "AI Overviews", "Vector Search"].map((tech) => (
-                <span key={tech} className="text-[10px] sm:text-xs font-mono text-[var(--text-dim)] opacity-30">{tech}</span>
               ))}
             </div>
           </div>

@@ -118,7 +118,51 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes ball-bounce {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(15deg); }
+/* Football kick arc — travels right with spin, resets smoothly */
+.football-kick {
+  animation: kick-arc 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+@keyframes kick-arc {
+  0% {
+    transform: translateX(-20px) translateY(0) rotate(0deg) scale(1);
+    opacity: 0.8;
+  }
+  10% {
+    transform: translateX(-10px) translateY(-12px) rotate(40deg) scale(1.02, 0.98);
+  }
+  30% {
+    transform: translateX(8px) translateY(-20px) rotate(120deg) scale(1);
+  }
+  50% {
+    transform: translateX(18px) translateY(-6px) rotate(200deg) scale(1);
+  }
+  60% {
+    transform: translateX(20px) translateY(0) rotate(240deg) scale(0.98, 1.04);
+  }
+  65% {
+    transform: translateX(18px) translateY(-4px) rotate(270deg) scale(1);
+  }
+  75% {
+    transform: translateX(10px) translateY(0) rotate(320deg) scale(1);
+    opacity: 0.8;
+  }
+  85% {
+    transform: translateX(-5px) translateY(0) rotate(345deg) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(-20px) translateY(0) rotate(360deg) scale(1);
+    opacity: 0.8;
+  }
+}
+
+.motion-lines {
+  animation: lines-fade 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+@keyframes lines-fade {
+  0%, 5% { opacity: 0; }
+  8%, 25% { opacity: 1; }
+  35%, 100% { opacity: 0; }
 }
