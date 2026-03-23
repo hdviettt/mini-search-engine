@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
-import SiuPose from "@/components/SiuPose";
 import PipelineExplorer from "@/components/PipelineExplorer";
 import type { FlowPhase } from "@/components/canvas/types";
 
@@ -203,7 +202,7 @@ export default function Home() {
 
           <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
             <div className="mb-6 sm:mb-8">
-              <SiuPose className="h-28 sm:h-40 mx-auto" />
+              <img src="/ronaldo.svg" alt="Ronaldo SIU celebration" className="h-36 sm:h-48 mx-auto siu-entrance" draggable={false} />
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-4">
