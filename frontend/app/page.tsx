@@ -263,7 +263,7 @@ export default function Home() {
               stats={engine.stats}
               overviewText={engine.overviewText}
               overviewSources={engine.overviewSources}
-              overviewLoading={engine.overviewLoading}
+              overviewLoading={engine.overviewLoading || engine.overviewStreaming}
             />
           </div>
 

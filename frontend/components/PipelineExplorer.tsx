@@ -15,9 +15,7 @@ type NodeId =
   // Query — search path
   | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "results"
   // Query — AI path
-  | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview"
-  // Final output
-  | "final_output";
+  | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview";
 
 type NodeStatus = "idle" | "ready" | "active" | "done";
 
@@ -48,7 +46,7 @@ interface ArrowDef {
 const LANES = [
   { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
   { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
-  { label: "Query", sub: "(per search)", y: 338, h: 530, bg: "#eff6ff" },
+  { label: "Query", sub: "(per search)", y: 338, h: 380, bg: "#eff6ff" },
 ];
 
 const NODES: NodeDef[] = [
@@ -78,8 +76,6 @@ const NODES: NodeDef[] = [
   { id: "vector_search", label: "Vector Search",   cx: 600, cy: 530, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 603, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 678, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
-  // ── FINAL OUTPUT ──
-  { id: "final_output",  label: "Search Results Page", cx: 400, cy: 810, w: 175, h: 44, fill: "#bfdbfe", stroke: "#3b82f6", activeFill: "#60a5fa", kind: "io" },
 ];
 
 const ARROWS: ArrowDef[] = [
@@ -112,9 +108,6 @@ const ARROWS: ArrowDef[] = [
   { path: "M 670 480 V 502 H 600 V 510" },                       // embed_query → vector_search
   { path: "M 600 550 V 583" },                                    // vector_search → llm
   { path: "M 600 623 V 658" },                                    // llm → ai_overview
-  // FINAL OUTPUT
-  { path: "M 265 768 V 778 H 400 V 788" },                       // results → final_output
-  { path: "M 600 698 V 778 H 400 V 788" },                       // ai_overview → final_output
 ];
 
 // ─── Animation ──────────────────────────────────────────────────
@@ -135,7 +128,6 @@ const NODE_STEP: Record<NodeId, number> = {
   vector_search: 8, // vector_store also activates
   llm: 9,
   ai_overview: 10,
-  final_output: 11,
 };
 
 // Stores that activate with query steps
@@ -154,7 +146,7 @@ function useAnimatedSteps(trace: PipelineTrace | null) {
     prev.current = trace;
     setStep(-1);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i <= 11; i++) {
+    for (let i = 0; i <= 10; i++) {
       timers.push(setTimeout(() => setStep(i), 300 * (i + 1)));
     }
     return () => timers.forEach(clearTimeout);
@@ -190,7 +182,7 @@ function Flowchart({
   return (
     <div className="overflow-x-auto -mx-4 px-4">
       <div style={{ minWidth: 700 }}>
-        <svg viewBox="0 0 770 860" className="w-full h-auto">
+        <svg viewBox="0 0 770 730" className="w-full h-auto">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
@@ -203,7 +195,7 @@ function Flowchart({
             </marker>
           </defs>
 
-          <rect width="770" height="860" fill="url(#dots)" rx="12" />
+          <rect width="770" height="730" fill="url(#dots)" rx="12" />
 
           {/* Swimlane bands */}
           {LANES.map((lane) => (
@@ -475,12 +467,6 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "inv_index" && <DbTableView endpoint="index" />}
         {nodeId === "pr_scores" && <DbTableView endpoint="pagerank" />}
         {nodeId === "vector_store" && <DbTableView endpoint="chunks" />}
-
-        {/* FINAL OUTPUT — SERP preview */}
-        {nodeId === "final_output" && data && (
-          <FinalOutputDetail data={data} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
-        )}
-        {nodeId === "final_output" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see the final output.</p>}
 
         {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
@@ -765,83 +751,14 @@ function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | 
   );
 }
 
-// ─── Final Output Detail (SERP preview) ─────────────────────────
-
-function FinalOutputDetail({ data, overviewText, overviewSources, overviewLoading }: {
-  data: ExplainResponse;
-  overviewText: string;
-  overviewSources: OverviewSource[];
-  overviewLoading: boolean;
-}) {
-  return (
-    <div className="space-y-4">
-      {/* AI Overview section */}
-      {(overviewLoading || overviewText) && (
-        <div className="bg-[var(--bg-elevated)] rounded-lg p-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#sg)"/><defs><linearGradient id="sg" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
-            <span className="text-xs font-semibold text-[var(--text)]">AI Overview</span>
-          </div>
-          {overviewLoading ? (
-            <div className="space-y-1.5">
-              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-full" />
-              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[85%]" />
-              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[60%]" />
-            </div>
-          ) : (
-            <p className="text-xs leading-[1.7] text-[var(--text)]">{overviewText}</p>
-          )}
-          {overviewSources.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[var(--border)]">
-              {overviewSources.map((s) => {
-                let domain = "";
-                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-                return (
-                  <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[9px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={10} height={10} className="rounded-sm" />
-                    {s.title.replace(" - Wikipedia", "").slice(0, 18)}
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Search Results */}
-      <div>
-        <div className="text-[10px] text-[var(--text-dim)] mb-2">About {data.total_results} results ({(data.time_ms / 1000).toFixed(2)}s)</div>
-        <div className="space-y-3">
-          {data.results.map((r, i) => {
-            let domain = "";
-            try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
-            return (
-              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
-                  <span className="text-[10px] text-[var(--text-dim)]">{domain}</span>
-                </div>
-                <div className="text-[13px] text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
-                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
-              </a>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Exported Component ──────────────────────────────────────
 
-export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading, sideContent }: {
+export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading }: {
   data: ExplainResponse | null;
   stats: Stats | null;
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
-  sideContent?: React.ReactNode;
 }) {
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
   const [stats, setStats] = useState<Stats | null>(propStats);
@@ -850,32 +767,23 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
   useEffect(() => { if (!stats) getStats().then(setStats).catch(() => {}); }, [stats]);
   useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
 
-  const hasSidePanel = selectedNode || sideContent;
-  const sideWidth = selectedNode === "final_output" ? "lg:w-[420px]" : "lg:w-96";
-
   return (
-    <div className="px-4 py-6">
-      <div className="lg:flex lg:gap-5 lg:items-start">
-        <div className="lg:flex-1 min-w-0">
-          <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
-          {data && activeStep >= 11 && (
-            <div className="text-center pt-3" style={{ animation: "fade-in 0.4s ease-out" }}>
-              <span className="text-xs text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
-            </div>
-          )}
-        </div>
+    <div className="px-4 py-4">
+      {/* Flowchart — always full width, never resizes */}
+      <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
-        {/* Side panel: node detail takes priority, otherwise show sideContent */}
-        {hasSidePanel && (
-          <div className={`mt-4 lg:mt-0 lg:shrink-0 lg:sticky lg:top-4 ${sideWidth}`}>
-            {selectedNode ? (
-              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
-            ) : (
-              sideContent
-            )}
-          </div>
-        )}
-      </div>
+      {data && activeStep >= 10 && !selectedNode && (
+        <div className="text-center pt-2" style={{ animation: "fade-in 0.4s ease-out" }}>
+          <span className="text-xs text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
+        </div>
+      )}
+
+      {/* Detail panel — below the canvas, no width change */}
+      {selectedNode && (
+        <div className="mt-3" style={{ animation: "fade-in 0.15s ease-out" }}>
+          <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+        </div>
+      )}
     </div>
   );
 }
