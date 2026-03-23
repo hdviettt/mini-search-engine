@@ -1,209 +1,40 @@
 @import "tailwindcss";
 
-/* ================================
-   THEME — Terminal / Brutalist
-   ================================ */
+/* ================================================================
+   Single clean theme
+   ================================================================ */
 
-/* Dark theme (default) */
-:root:not(.light),
-.dark {
-  --bg: #0d0d0d;
-  --bg-card: #111111;
-  --bg-elevated: #161616;
-  --border: #222222;
-  --border-hover: #333333;
-  --text: #e0e0e0;
-  --text-muted: #888888;
-  --text-dim: #555555;
-  --accent: #e88a1a;
-  --accent-muted: rgba(232, 138, 26, 0.15);
-  --dot-color: #1a1a1a;
-  --minimap-mask: rgba(13, 13, 13, 0.85);
-  --group-bg: rgba(232, 138, 26, 0.02);
-  --group-border: #2a2a2a;
-  --edge-color: #333;
-  --edge-query: #222;
-  --node-glow: rgba(232, 138, 26, 0.1);
-  --store-fill: #111;
-  --store-fill-active: rgba(232, 138, 26, 0.06);
-  --store-top: #161616;
-  --store-top-active: rgba(232, 138, 26, 0.08);
-  --cylinder-stroke: #333;
-  --score-bar-bg: #1a1a1a;
-  --dock-bg: #0d0d0d;
-  --color-search: #d97706;
-  --color-ai: #7c3aed;
-  --color-build: #059669;
-}
-
-/* Light theme — scoped to html to avoid React Flow's .light class */
-html.light {
-  --bg: #f5f0eb;
+:root {
+  --bg: #fafafa;
   --bg-card: #ffffff;
-  --bg-elevated: #f0ece7;
-  --border: #d4cfc8;
-  --border-hover: #b0a999;
-  --text: #1a1a1a;
-  --text-muted: #666666;
-  --text-dim: #777777;
-  --accent: #c6710f;
-  --accent-muted: rgba(198, 113, 15, 0.12);
-  --dot-color: #ddd8d1;
-  --minimap-mask: rgba(245, 240, 235, 0.85);
-  --group-bg: rgba(198, 113, 15, 0.03);
-  --group-border: #c8c2b8;
-  --edge-color: #b0a999;
-  --edge-query: #c8c2b8;
-  --node-glow: rgba(198, 113, 15, 0.1);
-  --store-fill: #ffffff;
-  --store-fill-active: rgba(198, 113, 15, 0.06);
-  --store-top: #f0ece7;
-  --store-top-active: rgba(198, 113, 15, 0.08);
-  --cylinder-stroke: #b0a999;
-  --score-bar-bg: #e8e3dc;
-  --dock-bg: #f5f0eb;
-  --color-search: #b45309;
-  --color-ai: #6d28d9;
-  --color-build: #047857;
-}
-
-/* Force sharp corners everywhere */
-* {
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  --bg-elevated: #f5f5f5;
+  --border: #e5e5e5;
+  --border-hover: #d4d4d4;
+  --text: #171717;
+  --text-muted: #525252;
+  --text-dim: #a3a3a3;
+  --accent: #2563eb;
+  --accent-secondary: #7c3aed;
+  --accent-muted: rgba(37, 99, 235, 0.08);
+  --score-bar-bg: #f0f0f0;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-family: var(--font-sans, system-ui), -apple-system, sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
-  transition: background 0.2s, color 0.2s;
 }
 
 ::selection {
   background: var(--accent);
-  color: var(--bg);
+  color: white;
 }
 
-/* ================================
-   REACT FLOW OVERRIDES
-   ================================ */
-
-/* Override all non-group nodes */
-.react-flow__node:not(.react-flow__node-group),
-.react-flow__node.selected:not(.react-flow__node-group) {
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-  outline: none !important;
-  color: inherit !important;
-}
-
-/* Hide connection handles — diagram is not interactive */
-.react-flow__handle {
-  opacity: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-}
-
-/* Group nodes */
-.react-flow__node-group {
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
-/* Group label text */
-.react-flow__node-group > div {
-  position: absolute;
-  top: -20px;
-  left: 8px;
-  font-size: 10px;
-  font-family: ui-monospace, monospace;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-}
-
-/* Hide default node handles on group labels */
-.react-flow__node-default {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  color: var(--text-dim) !important;
-}
-.react-flow__node-default .react-flow__handle {
-  display: none !important;
-}
-
-/* Edges render behind nodes */
-.react-flow__edges {
-  z-index: 0 !important;
-}
-.react-flow__nodes {
-  z-index: 1 !important;
-}
-
-.react-flow__edge-path {
-  stroke: var(--edge-query);
-  stroke-width: 1;
-}
-
-/* Tour tooltip fade-in */
-.tour-tooltip {
-  animation: tour-fade-in 0.2s ease-out;
-}
-
-@keyframes tour-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ================================
-   ANIMATIONS
-   ================================ */
-
-@keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
-}
-
-@keyframes slide-in-from-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-.animate-in {
-  animation: slide-in-from-right 0.15s ease-out;
-}
-
-@keyframes slide-in-from-left {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-.animate-slide-left {
-  animation: slide-in-from-left 0.15s ease-out;
-}
-
-@keyframes node-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px var(--accent)); }
-  50% { filter: drop-shadow(0 0 12px var(--accent)); }
-}
-
-/* ================================
-   SCROLLBAR — Terminal style
-   ================================ */
+/* ================================================================
+   Scrollbar
+   ================================================================ */
 
 ::-webkit-scrollbar {
   width: 5px;
@@ -230,4 +61,23 @@ body {
 
 *:hover {
   scrollbar-color: var(--border-hover) transparent;
+}
+
+/* ================================================================
+   Animations
+   ================================================================ */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }

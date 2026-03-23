@@ -38,7 +38,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
   const activeSrc = sources.find((s) => s.index === activeSource);
 
   return (
-    <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+    <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg overflow-hidden">
       <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
         <div className="w-1.5 h-1.5 bg-[var(--accent)]" />
         <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
@@ -80,7 +80,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
                   <button
                     key={i}
                     onClick={() => setActiveSource(activeSource === part.index ? null : part.index!)}
-                    className={`inline-flex items-center justify-center w-5 h-5 text-[9px] font-bold mx-0.5 transition-colors cursor-pointer border ${
+                    className={`inline-flex items-center justify-center w-5 h-5 text-[9px] font-bold mx-0.5 rounded transition-colors cursor-pointer border ${
                       activeSource === part.index
                         ? "bg-[var(--accent)] text-white border-[var(--accent)]"
                         : "bg-transparent text-[var(--accent)] border-[var(--accent)]/40 hover:border-[var(--accent)]"
