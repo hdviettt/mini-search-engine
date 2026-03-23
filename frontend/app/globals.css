@@ -124,9 +124,9 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Dark mode SVG fix — add subtle glow so white-outlined SVGs stay visible */
+/* Dark mode SVG fix — invert colors so it's visible on dark bg */
 [data-theme="dark"] .dark-svg-fix {
-  filter: drop-shadow(0 0 12px rgba(231, 76, 60, 0.15));
+  filter: invert(1) hue-rotate(180deg);
 }
 
 /* SIU pose entrance animation */
