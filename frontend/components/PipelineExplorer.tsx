@@ -842,11 +842,11 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Mobile only: bottom sheet for detail panel */}
-      {selectedNode && (
+      {/* Mobile bottom sheet — only when parent is NOT handling node selection */}
+      {selectedNode && !onNodeSelect && (
         <>
-          <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
-          <div className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden"
+          <div className="fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
+          <div className="fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden"
             style={{ animation: "slide-up 0.2s ease-out" }}>
             <div className="flex justify-center pt-2 pb-1" onClick={() => setSelectedNode(null)}>
               <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
