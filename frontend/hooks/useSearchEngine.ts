@@ -224,6 +224,7 @@ export function useSearchEngine(): SearchEngineState {
         }
 
         if (data.total_results >= 3) {
+          setOverviewLoading(true);
           const timer = setTimeout(() => streamOverview(q), 2100);
           timersRef.current.push(timer);
         }
