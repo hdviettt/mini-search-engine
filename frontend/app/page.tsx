@@ -66,12 +66,14 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
   return (
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
-        {/* AI Overview — always mounted, always visible */}
-        <div className="px-4 sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-4xl pt-2">
+        {/* AI Overview — shifts right when pipeline overlays */}
+        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${
+          isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-4xl"
+        }`}>
           <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
         </div>
 
-        {/* Results — shift right when pipeline overlays */}
+        {/* Results — shifts right when pipeline overlays */}
         <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${
           isExploring ? "lg:pl-[67%] lg:pr-4 max-w-none" : "sm:px-8 @lg:pl-[10%] @lg:pr-4 max-w-3xl"
         }`}>
