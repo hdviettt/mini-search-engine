@@ -50,7 +50,7 @@ function SourceCard({ source, highlighted }: { source: OverviewSource; highlight
   try { domain = new URL(source.url).hostname.replace("www.", ""); } catch { domain = source.url; }
   return (
     <a id={`aio-source-${source.index}`} href={source.url} target="_blank" rel="noopener noreferrer"
-      className={`block group py-2.5 border-b border-[#ebebeb] last:border-0 rounded px-1.5 -mx-1.5 transition-colors ${highlighted ? "bg-[#e8f0fe]" : ""}`}>
+      className={`block group py-2.5 border-b border-[#ebebeb] last:border-0 rounded px-1.5 -mx-1.5 transition-colors duration-300 ${highlighted ? "bg-[#e8f0fe]" : ""}`}>
       <div className="text-[14px] text-[#1a0dab] group-hover:underline leading-snug">
         {source.title}
       </div>
@@ -62,23 +62,76 @@ function SourceCard({ source, highlighted }: { source: OverviewSource; highlight
   );
 }
 
+// Inline citation chip with hover popover (like Google)
+function CitationChip({ source, index, onHighlight }: {
+  source: OverviewSource;
+  index: number;
+  onHighlight: (idx: number) => void;
+}) {
+  const [showPopover, setShowPopover] = useState(false);
+  let domain = "";
+  try { domain = new URL(source.url).hostname.replace("www.", ""); } catch { domain = source.url; }
+  let shortDomain = "";
+  try { shortDomain = new URL(source.url).hostname.replace("www.", "").split(".")[0]; } catch { shortDomain = "source"; }
+
+  return (
+    <span className="relative inline-block align-baseline mx-0.5">
+      <button
+        onMouseEnter={() => setShowPopover(true)}
+        onMouseLeave={() => setShowPopover(false)}
+        onClick={() => {
+          onHighlight(index);
+          document.getElementById(`aio-source-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }}
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[#f0f4f9] hover:bg-[#e3e8ef] text-[11px] text-[#1a73e8] font-medium transition-colors cursor-pointer whitespace-nowrap"
+      >
+        <img src={`https://www.google.com/s2/favicons?domain=${source.url}&sz=16`} alt="" width={10} height={10} className="rounded-full" />
+        {shortDomain.charAt(0).toUpperCase() + shortDomain.slice(1)}
+      </button>
+
+      {/* Hover popover — source preview card */}
+      {showPopover && (
+        <div
+          className="absolute z-50 bottom-full left-0 mb-1.5 w-64 bg-white rounded-xl border border-[#dadce0] shadow-lg p-3 pointer-events-none"
+          style={{ animation: "fade-in 0.15s ease-out" }}
+        >
+          <a href={source.url} target="_blank" rel="noopener noreferrer" className="pointer-events-auto">
+            <div className="text-[13px] text-[#1a0dab] leading-snug hover:underline">
+              {source.title}
+            </div>
+          </a>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={14} height={14} className="rounded-full" />
+            <span className="text-[12px] text-[#4d5156]">{domain}</span>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [highlightedSource, setHighlightedSource] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
+
+  function highlight(idx: number) {
+    setHighlightedSource(idx);
+    setTimeout(() => setHighlightedSource(null), 2000);
+  }
 
   if (!loading && !streaming && !text && sources.length === 0) return null;
 
   const parts = text ? parseOverviewWithCitations(text) : [];
 
   return (
-    <div className="mb-5 sm:mb-8">
+    <div className="pt-3 sm:pt-4 mb-2">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <GoogleSparkle />
         <span className="text-[14px] sm:text-[15px] font-normal text-[#1f1f1f]">AI Overview</span>
       </div>
 
-      {/* Skeleton — show while loading or waiting for first text */}
+      {/* Skeleton */}
       {(loading || (!text && !streaming)) && (
         <div className="space-y-2.5 max-w-2xl">
           <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-full" />
@@ -88,7 +141,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
         </div>
       )}
 
-      {/* Content — show as soon as text or streaming starts */}
+      {/* Content */}
       {(text || streaming) && !loading && (
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
           {/* Text column */}
@@ -102,26 +155,12 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
                   <span key={i}>{part.value}</span>
                 ) : (() => {
                   const src = sources.find(s => s.index === part.index);
-                  // Sources not loaded yet — show numbered badge
                   if (!src) return (
                     <span key={i} className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[#e8f0fe] text-[#1a73e8] align-top">
                       {part.index}
                     </span>
                   );
-                  let d = "";
-                  try { d = new URL(src.url).hostname.replace("www.", "").split(".")[0]; } catch { d = "source"; }
-                  return (
-                    <button key={i}
-                      onClick={() => {
-                        setHighlightedSource(part.index ?? null);
-                        document.getElementById(`aio-source-${part.index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                        setTimeout(() => setHighlightedSource(null), 2000);
-                      }}
-                      className="inline-flex items-center gap-0.5 mx-0.5 px-1.5 py-0 rounded bg-[#f0f4f9] hover:bg-[#e3e8ef] text-[11px] text-[#1a73e8] font-medium align-baseline transition-colors cursor-pointer whitespace-nowrap">
-                      <img src={`https://www.google.com/s2/favicons?domain=${src.url}&sz=16`} alt="" width={10} height={10} className="rounded-full" />
-                      {d.charAt(0).toUpperCase() + d.slice(1)}
-                    </button>
-                  );
+                  return <CitationChip key={i} source={src} index={part.index!} onHighlight={highlight} />;
                 })()
               )}
               {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
@@ -140,6 +179,9 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
           )}
         </div>
       )}
+
+      {/* Separator between AI Overview and search results */}
+      <div className="mt-5 sm:mt-6 border-b border-[#ebebeb]" />
     </div>
   );
 }
