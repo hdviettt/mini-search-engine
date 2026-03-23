@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { OverviewSource } from "@/lib/api";
 
 interface AIOverviewProps {
@@ -47,12 +47,20 @@ function GoogleSparkle() {
 
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  // Detect if text is actually overflowing the line-clamp
+  useEffect(() => {
+    const el = textRef.current;
+    if (el && text && !streaming) {
+      setIsClamped(el.scrollHeight > el.clientHeight + 2);
+    }
+  }, [text, streaming, expanded]);
 
   if (!loading && !streaming && !text && sources.length === 0) return null;
 
   const parts = text ? parseOverviewWithCitations(text) : [];
-  const isLong = text.length > 300;
-  const shouldTruncate = isLong && !expanded;
 
   return (
     <div className="mb-4 sm:mb-6 rounded-xl bg-[#f8f9fa] border border-[#dadce0] overflow-hidden">
@@ -73,17 +81,15 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
             <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[82%]" />
             <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[65%]" />
           </div>
-          <div className="flex gap-2 pt-1">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-10 bg-[#e8eaed] animate-pulse rounded-lg w-32 shrink-0" />
-            ))}
-          </div>
         </div>
       ) : (
         <div style={{ animation: "fade-in 0.3s ease-out" }}>
           {/* Body text */}
           <div className="px-4 pb-2">
-            <div className={`text-[14px] sm:text-[15px] leading-[1.65] text-[#1f1f1f] ${shouldTruncate ? "line-clamp-4 sm:line-clamp-5" : ""}`}>
+            <div
+              ref={textRef}
+              className={`text-[14px] sm:text-[15px] leading-[1.65] text-[#1f1f1f] ${!expanded ? "line-clamp-5" : ""}`}
+            >
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
@@ -102,51 +108,55 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
               {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
             </div>
 
-            {/* Show more/less */}
-            {isLong && !streaming && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer"
-              >
-                {expanded ? "Show less" : "Show more"}
+            {/* Show more — only when text is actually truncated */}
+            {isClamped && !streaming && !expanded && (
+              <button onClick={() => setExpanded(true)}
+                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer">
+                Show more
+              </button>
+            )}
+            {expanded && !streaming && (
+              <button onClick={() => setExpanded(false)}
+                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer">
+                Show less
               </button>
             )}
           </div>
 
-          {/* Source cards */}
+          {/* Sources — vertical list like Google */}
           {sources.length > 0 && (
-            <div className="px-4 pb-3 pt-1">
-              <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
-                {sources.map((s) => {
-                  let domain = "";
-                  try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-                  return (
-                    <a
-                      key={s.index}
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#dadce0] hover:border-[#bdc1c6] hover:shadow-sm transition-all shrink-0 group min-w-0"
-                    >
+            <div className="px-4 pb-3 pt-1 space-y-1">
+              {sources.map((s) => {
+                let domain = "";
+                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                return (
+                  <a
+                    key={s.index}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 py-1.5 group"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-white border border-[#dadce0] flex items-center justify-center shrink-0">
                       <img
                         src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
                         alt=""
-                        width={18}
-                        height={18}
-                        className="rounded-full shrink-0"
+                        width={16}
+                        height={16}
+                        className="rounded-full"
                       />
-                      <div className="min-w-0">
-                        <div className="text-[12px] text-[#1f1f1f] font-medium truncate max-w-[130px] sm:max-w-[160px] group-hover:text-[#1a73e8]">
-                          {s.title.replace(" - Wikipedia", "")}
-                        </div>
-                        <div className="text-[11px] text-[#70757a] truncate max-w-[130px] sm:max-w-[160px]">
-                          {domain}
-                        </div>
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[13px] text-[#1a73e8] group-hover:underline truncate block">
+                        {s.title.replace(" - Wikipedia", "")}
+                      </span>
+                      <span className="text-[11px] text-[#70757a] truncate block">
+                        {domain}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>
