@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { OverviewSource } from "@/lib/api";
 
 interface AIOverviewProps {
@@ -63,17 +63,8 @@ function SourceCard({ source, highlighted }: { source: OverviewSource; highlight
 }
 
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [isClamped, setIsClamped] = useState(false);
   const [highlightedSource, setHighlightedSource] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = textRef.current;
-    if (el && text && !streaming) {
-      setIsClamped(el.scrollHeight > el.clientHeight + 2);
-    }
-  }, [text, streaming, expanded]);
 
   if (!loading && !streaming && !text && sources.length === 0) return null;
 
@@ -101,14 +92,19 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
           <div className="flex-1 min-w-0">
             <div
               ref={textRef}
-              className={`text-[14px] sm:text-[15px] leading-[1.6] sm:leading-[1.65] text-[#1f1f1f] ${!expanded ? "line-clamp-6 sm:line-clamp-none" : ""}`}
+              className="text-[14px] sm:text-[15px] leading-[1.6] sm:leading-[1.65] text-[#1f1f1f]"
             >
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
                 ) : (() => {
                   const src = sources.find(s => s.index === part.index);
-                  if (!src) return <span key={i} className="text-[12px] text-[#70757a] align-super">{part.value}</span>;
+                  // Sources not loaded yet — show numbered badge
+                  if (!src) return (
+                    <span key={i} className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[#e8f0fe] text-[#1a73e8] align-top">
+                      {part.index}
+                    </span>
+                  );
                   let d = "";
                   try { d = new URL(src.url).hostname.replace("www.", "").split(".")[0]; } catch { d = "source"; }
                   return (
@@ -127,20 +123,6 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
               )}
               {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
             </div>
-
-            {/* Show more — mobile only, only when clamped */}
-            {isClamped && !streaming && !expanded && (
-              <button onClick={() => setExpanded(true)}
-                className="sm:hidden mt-2 text-[13px] font-medium text-[#1a73e8] cursor-pointer">
-                Show more
-              </button>
-            )}
-            {expanded && !streaming && (
-              <button onClick={() => setExpanded(false)}
-                className="sm:hidden mt-2 text-[13px] font-medium text-[#1a73e8] cursor-pointer">
-                Show less
-              </button>
-            )}
           </div>
 
           {/* Sources panel — right side on desktop, below on mobile */}
