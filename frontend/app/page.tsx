@@ -194,67 +194,61 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults ? (
-        /* Hero state */
-        <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-3 sm:px-4">
+        /* Hero state — clean, no shadows */
+        <div className="min-h-screen flex flex-col items-center justify-center relative px-3 sm:px-4">
           {/* Theme toggle */}
           <div className="absolute top-4 right-4 z-10">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
-          {/* Floating football emojis */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-            {["⚽", "🏆", "⚽", "🥅", "⚽", "🏆"].map((emoji, i) => (
-              <span
-                key={i}
-                className="absolute text-2xl sm:text-3xl opacity-[0.07]"
-                style={{
-                  left: `${15 + i * 14}%`,
-                  top: `${20 + (i % 3) * 25}%`,
-                  animation: `float ${6 + i * 1.5}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.8}s`,
-                }}
-              >
-                {emoji}
-              </span>
-            ))}
-          </div>
-
-          <div className="max-w-2xl w-full text-center relative z-1" style={{ animation: "fade-in 0.6s ease-out" }}>
-            {/* Logo with football accent */}
-            <div className="mb-3 sm:mb-4">
-              <span className="text-3xl sm:text-4xl">⚽</span>
+          <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
+            {/* Animated SVG football */}
+            <div className="mb-5 sm:mb-6">
+              <svg width="48" height="48" viewBox="0 0 48 48" className="mx-auto" style={{ animation: "ball-bounce 2s ease-in-out infinite" }}>
+                <circle cx="24" cy="24" r="20" fill="none" stroke="var(--text)" strokeWidth="1.5" opacity="0.8" />
+                <path d="M24 4 L30 16 L24 14 L18 16 Z" fill="var(--text)" opacity="0.12" />
+                <path d="M44 24 L32 30 L34 24 L32 18 Z" fill="var(--text)" opacity="0.12" />
+                <path d="M24 44 L18 32 L24 34 L30 32 Z" fill="var(--text)" opacity="0.12" />
+                <path d="M4 24 L16 18 L14 24 L16 30 Z" fill="var(--text)" opacity="0.12" />
+                <polygon points="20,10 28,10 32,17 28,23 20,23 16,17" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
+                <polygon points="34,17 38,24 34,31 28,29 28,19" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
+                <polygon points="28,35 20,35 16,31 20,25 28,25 32,31" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
+                <polygon points="14,31 10,24 14,17 20,19 20,29" fill="none" stroke="var(--text)" strokeWidth="1" opacity="0.3" />
+                <polygon points="20,10 16,17 20,23 28,23 32,17 28,10" fill="var(--text)" opacity="0.06" />
+              </svg>
             </div>
+
             <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-2 sm:mb-3">
               Football Search
             </h1>
-            <p className="text-[var(--text-dim)] text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto">
-              A search engine built from scratch with BM25 ranking, PageRank, and AI Overviews
+            <p className="text-[var(--text-dim)] text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed">
+              A search engine built from scratch — BM25, PageRank, and AI Overviews
             </p>
 
-            {/* Search bar */}
+            {/* Search bar — no shadow */}
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="relative">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
               <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl text-[var(--text)] text-sm sm:text-base placeholder:text-[var(--text-dim)] focus:outline-none shadow-lg hover:shadow-xl focus:shadow-xl focus:border-[var(--accent)]/30 transition-all" />
+                className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl text-[var(--text)] text-sm sm:text-base placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--accent)]/40 transition-colors" />
             </form>
 
             {/* Suggestion chips */}
-            <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-2.5">
+            <div className="mt-4 sm:mt-5 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((q, i) => (
                 <button key={q} onClick={() => engine.handleSearch(q)}
-                  className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 hover:shadow-sm cursor-pointer transition-all"
-                  style={{ animation: `fade-in 0.4s ease-out ${0.3 + i * 0.08}s both` }}>
+                  className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors"
+                  style={{ animation: `fade-in 0.4s ease-out ${0.2 + i * 0.06}s both` }}>
                   {q}
                 </button>
               ))}
             </div>
 
-            {/* Tech badges */}
-            <div className="mt-8 sm:mt-10 flex justify-center gap-3 sm:gap-4 text-[var(--text-dim)]">
+            {/* Tech stack */}
+            <div className="mt-10 sm:mt-12 flex justify-center gap-4 sm:gap-5">
               {["BM25", "PageRank", "AI Overviews", "Vector Search"].map((tech) => (
-                <span key={tech} className="text-[10px] sm:text-xs font-mono opacity-40">{tech}</span>
+                <span key={tech} className="text-[10px] sm:text-xs font-mono text-[var(--text-dim)] opacity-30">{tech}</span>
               ))}
             </div>
           </div>
