@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { searchExplain, getStats, getOverview, startCrawl, rebuildIndex, rebuildEmbeddings } from "@/lib/api";
+import { searchExplain, getStats, getOverview, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks } from "@/lib/api";
 import type { OverviewSource } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
 import Link from "next/link";
@@ -17,7 +17,9 @@ type NodeId =
   // Query — search path
   | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "results"
   // Query — AI path
-  | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview";
+  | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview"
+  // Final output
+  | "final_output";
 
 type NodeStatus = "idle" | "ready" | "active" | "done";
 
@@ -48,7 +50,7 @@ interface ArrowDef {
 const LANES = [
   { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
   { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
-  { label: "Query", sub: "(per search)", y: 338, h: 455, bg: "#eff6ff" },
+  { label: "Query", sub: "(per search)", y: 338, h: 530, bg: "#eff6ff" },
 ];
 
 const NODES: NodeDef[] = [
@@ -78,6 +80,8 @@ const NODES: NodeDef[] = [
   { id: "vector_search", label: "Vector Search",   cx: 600, cy: 530, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 603, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 678, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
+  // ── FINAL OUTPUT ──
+  { id: "final_output",  label: "Search Results Page", cx: 400, cy: 810, w: 175, h: 44, fill: "#bfdbfe", stroke: "#3b82f6", activeFill: "#60a5fa", kind: "io" },
 ];
 
 const ARROWS: ArrowDef[] = [
@@ -110,6 +114,9 @@ const ARROWS: ArrowDef[] = [
   { path: "M 670 480 V 502 H 600 V 510" },                       // embed_query → vector_search
   { path: "M 600 550 V 583" },                                    // vector_search → llm
   { path: "M 600 623 V 658" },                                    // llm → ai_overview
+  // FINAL OUTPUT
+  { path: "M 265 768 V 778 H 400 V 788" },                       // results → final_output
+  { path: "M 600 698 V 778 H 400 V 788" },                       // ai_overview → final_output
 ];
 
 // ─── Animation ──────────────────────────────────────────────────
@@ -130,6 +137,7 @@ const NODE_STEP: Record<NodeId, number> = {
   vector_search: 8, // vector_store also activates
   llm: 9,
   ai_overview: 10,
+  final_output: 11,
 };
 
 // Stores that activate with query steps
@@ -148,7 +156,7 @@ function useAnimatedSteps(trace: PipelineTrace | null) {
     prev.current = trace;
     setStep(-1);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 11; i++) {
       timers.push(setTimeout(() => setStep(i), 300 * (i + 1)));
     }
     return () => timers.forEach(clearTimeout);
@@ -184,7 +192,7 @@ function Flowchart({
   return (
     <div className="overflow-x-auto -mx-4 px-4">
       <div style={{ minWidth: 700 }}>
-        <svg viewBox="0 0 770 790" className="w-full h-auto">
+        <svg viewBox="0 0 770 860" className="w-full h-auto">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
@@ -197,7 +205,7 @@ function Flowchart({
             </marker>
           </defs>
 
-          <rect width="770" height="790" fill="url(#dots)" rx="12" />
+          <rect width="770" height="860" fill="url(#dots)" rx="12" />
 
           {/* Swimlane bands */}
           {LANES.map((lane) => (
@@ -363,12 +371,15 @@ function ActionButton({ onClick, children }: { onClick: () => void; children: Re
   );
 }
 
-function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
+function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewText, overviewSources, overviewLoading }: {
   nodeId: NodeId;
   data: ExplainResponse | null;
   stats: Stats | null;
   onClose: () => void;
   onRefreshStats: () => void;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
 }) {
   const node = NODES.find((n) => n.id === nodeId)!;
   const trace = data?.pipeline;
@@ -459,101 +470,17 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
           </>
         )}
 
-        {/* STORES — show schema + actual data structure */}
-        {nodeId === "inv_index" && (
-          <>
-            <SectionLabel>Schema</SectionLabel>
-            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
-              <div><span className="text-[var(--accent)]">term</span> → {"{"}</div>
-              <div className="pl-3">doc_freq: <span className="text-[var(--text-dim)]">int</span>,</div>
-              <div className="pl-3">idf: <span className="text-[var(--text-dim)]">float</span>,</div>
-              <div className="pl-3">postings: <span className="text-[var(--text-dim)]">[page_id, ...]</span></div>
-              <div>{"}"}</div>
-            </div>
-            {stats && <StatRow label="Entries" value={`${stats.total_terms.toLocaleString()} terms → ${stats.total_postings.toLocaleString()} postings`} />}
-            {trace && (
-              <IOBlock label="Sample entries (from last query)">
-                <div className="space-y-2">
-                  {Object.entries(trace.index_lookup.terms_found).map(([term, info]) => (
-                    <div key={term} className="font-mono text-[11px]">
-                      <span className="text-[var(--accent)]">&quot;{term}&quot;</span>
-                      <span className="text-[var(--text-dim)]"> → {"{"} doc_freq: </span>
-                      <span className="text-[var(--text)]">{info.doc_freq}</span>
-                      <span className="text-[var(--text-dim)]">, idf: </span>
-                      <span className="text-[var(--text)]">{info.idf.toFixed(2)}</span>
-                      <span className="text-[var(--text-dim)]"> {"}"}</span>
-                    </div>
-                  ))}
-                </div>
-              </IOBlock>
-            )}
-          </>
-        )}
+        {/* STORES — actual database records */}
+        {nodeId === "pages_db" && <DbTableView endpoint="pages" />}
+        {nodeId === "inv_index" && <DbTableView endpoint="index" />}
+        {nodeId === "pr_scores" && <DbTableView endpoint="pagerank" />}
+        {nodeId === "vector_store" && <DbTableView endpoint="chunks" />}
 
-        {nodeId === "pr_scores" && (
-          <>
-            <SectionLabel>Schema</SectionLabel>
-            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 text-[var(--text-muted)]">
-              <span className="text-[var(--accent)]">page_id</span> → <span className="text-[var(--text-dim)]">float</span> <span className="text-[var(--text-dim)] opacity-60">(authority score, 0–1)</span>
-            </div>
-            {trace && (
-              <IOBlock label="Sample entries">
-                <div className="space-y-1.5">
-                  {trace.pagerank.top_scores.slice(0, 6).map((s, i) => (
-                    <div key={i} className="font-mono text-[11px]">
-                      <span className="text-[var(--text-dim)]">page_{s.page_id}</span>
-                      <span className="text-[var(--text-dim)]"> → </span>
-                      <span className="text-[var(--text)]">{s.score.toFixed(8)}</span>
-                      {s.title && <span className="text-[var(--text-dim)] opacity-60 ml-2 font-sans text-[10px]">{s.title.slice(0, 25)}</span>}
-                    </div>
-                  ))}
-                </div>
-              </IOBlock>
-            )}
-            {stats && <StatRow label="Total entries" value={`${stats.pages_crawled.toLocaleString()} pages`} />}
-          </>
+        {/* FINAL OUTPUT — SERP preview */}
+        {nodeId === "final_output" && data && (
+          <FinalOutputDetail data={data} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
         )}
-
-        {nodeId === "vector_store" && (
-          <>
-            <SectionLabel>Schema</SectionLabel>
-            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
-              <div><span className="text-[var(--accent)]">chunk_id</span> → {"{"}</div>
-              <div className="pl-3">text: <span className="text-[var(--text-dim)]">string</span> <span className="opacity-60">(~300 tokens)</span>,</div>
-              <div className="pl-3">page_id: <span className="text-[var(--text-dim)]">int</span>,</div>
-              <div className="pl-3">vector: <span className="text-[var(--text-dim)]">float[512]</span></div>
-              <div>{"}"}</div>
-            </div>
-            {stats && (
-              <div className="space-y-1">
-                <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
-                <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
-                <StatRow label="Vector dim" value="512" />
-                <StatRow label="Model" value="Voyage AI" />
-              </div>
-            )}
-          </>
-        )}
-
-        {nodeId === "pages_db" && (
-          <>
-            <SectionLabel>Schema</SectionLabel>
-            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
-              <div><span className="text-[var(--accent)]">page_id</span> → {"{"}</div>
-              <div className="pl-3">url: <span className="text-[var(--text-dim)]">string</span>,</div>
-              <div className="pl-3">title: <span className="text-[var(--text-dim)]">string</span>,</div>
-              <div className="pl-3">content: <span className="text-[var(--text-dim)]">string</span>,</div>
-              <div className="pl-3">links: <span className="text-[var(--text-dim)]">[url, ...]</span></div>
-              <div>{"}"}</div>
-            </div>
-            {stats && (
-              <div className="space-y-1">
-                <StatRow label="Total pages" value={stats.pages_crawled.toLocaleString()} />
-                <StatRow label="Avg doc length" value={`${stats.avg_doc_length.toFixed(0)} tokens`} />
-              </div>
-            )}
-          </>
-        )}
+        {nodeId === "final_output" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see the final output.</p>}
 
         {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
@@ -789,86 +716,127 @@ export default function PipelinePage() {
   );
 }
 
-// ─── Final Results Panel ────────────────────────────────────────
+// ─── Database Table View ────────────────────────────────────────
 
-function FinalResults({ data, overviewText, overviewSources, overviewLoading }: {
+function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | "chunks" }) {
+  const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const fetcher = endpoint === "pages" ? explorePages(8)
+      : endpoint === "index" ? exploreIndex(12)
+      : endpoint === "pagerank" ? explorePageRank(10)
+      : exploreChunks(6);
+    fetcher.then((res) => {
+      const data = res.pages || res.terms || res.chunks || [];
+      setRows(Array.isArray(data) ? data : []);
+    }).catch(() => setRows([])).finally(() => setLoading(false));
+  }, [endpoint]);
+
+  if (loading) return <div className="text-xs text-[var(--text-dim)] animate-pulse py-2">Loading records...</div>;
+  if (!rows || rows.length === 0) return <p className="text-xs text-[var(--text-dim)]">No records found.</p>;
+
+  const columns = Object.keys(rows[0]).slice(0, 5);
+
+  return (
+    <div className="overflow-x-auto -mx-4 px-4">
+      <table className="w-full text-[11px] border-collapse min-w-[300px]">
+        <thead>
+          <tr className="border-b border-[var(--border)]">
+            {columns.map((col) => (
+              <th key={col} className="text-left py-1.5 px-2 text-[var(--text-dim)] font-semibold uppercase tracking-wider text-[10px]">{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-elevated)] transition-colors">
+              {columns.map((col) => {
+                const val = row[col];
+                let display: string;
+                if (val === null || val === undefined) display = "—";
+                else if (typeof val === "number") display = Number.isInteger(val) ? val.toLocaleString() : val.toFixed(6);
+                else if (Array.isArray(val)) display = `[${val.length} items]`;
+                else if (typeof val === "object") display = JSON.stringify(val).slice(0, 30);
+                else display = String(val).slice(0, 40);
+                return (
+                  <td key={col} className="py-1.5 px-2 text-[var(--text)] font-mono truncate max-w-[120px]" title={String(val)}>
+                    {display}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-[var(--text-dim)] mt-2">Showing {rows.length} rows</p>
+    </div>
+  );
+}
+
+// ─── Final Output Detail (SERP preview) ─────────────────────────
+
+function FinalOutputDetail({ data, overviewText, overviewSources, overviewLoading }: {
   data: ExplainResponse;
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
 }) {
   return (
-    <div className="border-t border-[var(--border)] pt-6 mt-6" style={{ animation: "fade-in 0.4s ease-out" }}>
-      <h2 className="text-base font-semibold text-[var(--text)] mb-4">Final Output</h2>
-      <div className="grid lg:grid-cols-2 gap-5">
-        {/* Search Results */}
-        <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
-            <div className="w-2 h-2 rounded-full bg-amber-400" />
-            <span className="text-sm font-semibold text-[var(--text)]">Ranked Results</span>
-            <span className="text-xs text-[var(--text-dim)] ml-auto">{data.total_results} results · {data.time_ms}ms</span>
+    <div className="space-y-4">
+      {/* AI Overview section */}
+      {(overviewLoading || overviewText) && (
+        <div className="bg-[var(--bg-elevated)] rounded-lg p-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#sg)"/><defs><linearGradient id="sg" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
+            <span className="text-xs font-semibold text-[var(--text)]">AI Overview</span>
           </div>
-          <div className="px-4 py-3 space-y-3 max-h-96 overflow-y-auto">
-            {data.results.map((r, i) => {
-              let domain = "";
-              try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
-              return (
-                <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-sm" />
-                    <span className="text-[11px] text-[var(--text-dim)]">{domain}</span>
-                  </div>
-                  <div className="text-sm text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
-                  <div className="flex gap-2 mt-1 text-[10px] font-mono text-[var(--text-dim)]">
-                    <span>BM25 {r.bm25_score.toFixed(1)}</span>
-                    <span>PR {r.pagerank_score.toFixed(4)}</span>
-                    <span className="text-[var(--accent)]">Score {r.final_score.toFixed(2)}</span>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
+          {overviewLoading ? (
+            <div className="space-y-1.5">
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-full" />
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[85%]" />
+              <div className="h-3 bg-[var(--border)] animate-pulse rounded w-[60%]" />
+            </div>
+          ) : (
+            <p className="text-xs leading-[1.7] text-[var(--text)]">{overviewText}</p>
+          )}
+          {overviewSources.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[var(--border)]">
+              {overviewSources.map((s) => {
+                let domain = "";
+                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                return (
+                  <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[9px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={10} height={10} className="rounded-sm" />
+                    {s.title.replace(" - Wikipedia", "").slice(0, 18)}
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
+      )}
 
-        {/* AI Overview */}
-        <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
-            <div className="w-2 h-2 rounded-full bg-purple-400" />
-            <span className="text-sm font-semibold text-[var(--text)]">AI Overview</span>
-          </div>
-          <div className="px-4 py-3 max-h-96 overflow-y-auto">
-            {overviewLoading && (
-              <div className="space-y-2">
-                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
-                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-[90%]" />
-                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-[70%]" />
-              </div>
-            )}
-            {!overviewLoading && !overviewText && (
-              <p className="text-xs text-[var(--text-dim)]">{data.total_results < 3 ? "Too few results to generate an AI overview." : "AI overview not available."}</p>
-            )}
-            {overviewText && (
-              <div className="space-y-3">
-                <p className="text-[13px] leading-[1.7] text-[var(--text)]">{overviewText}</p>
-                {overviewSources.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border)]">
-                    {overviewSources.map((s) => {
-                      let domain = "";
-                      try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-                      return (
-                        <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
-                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
-                          {s.title.replace(" - Wikipedia", "").slice(0, 20)}
-                        </a>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+      {/* Search Results */}
+      <div>
+        <div className="text-[10px] text-[var(--text-dim)] mb-2">About {data.total_results} results ({(data.time_ms / 1000).toFixed(2)}s)</div>
+        <div className="space-y-3">
+          {data.results.map((r, i) => {
+            let domain = "";
+            try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
+            return (
+              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
+                  <span className="text-[10px] text-[var(--text-dim)]">{domain}</span>
+                </div>
+                <div className="text-[13px] text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
+              </a>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -985,17 +953,19 @@ function PipelineContent() {
             )}
           </div>
 
-          {/* Side panel (desktop) / below (mobile) */}
+          {/* Side panel (desktop) / below (mobile) — wider for final_output */}
           {selectedNode && (
-            <div className="mt-4 lg:mt-0 lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
-              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} />
+            <div className={`mt-4 lg:mt-0 lg:shrink-0 lg:sticky lg:top-4 ${selectedNode === "final_output" ? "lg:w-[420px]" : "lg:w-80"}`}>
+              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
             </div>
           )}
         </div>
 
-        {/* Final Results — shows both ranked results and AI overview */}
-        {data && activeStep >= 6 && (
-          <FinalResults data={data} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+        {/* Total time */}
+        {data && activeStep >= 11 && (
+          <div className="text-center pt-4" style={{ animation: "fade-in 0.4s ease-out" }}>
+            <span className="text-sm text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
+          </div>
         )}
       </div>
     </div>

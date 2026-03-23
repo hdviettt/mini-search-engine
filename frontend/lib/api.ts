@@ -127,3 +127,28 @@ export async function toggleSchedule(scheduleId: string, enabled: boolean) {
   const res = await fetch(`${API_BASE}/api/crawl/schedule/${scheduleId}/toggle?enabled=${enabled}`, { method: "POST" });
   return res.json();
 }
+
+// Explore endpoints — browse actual database records
+export async function explorePages(limit = 10, offset = 0) {
+  const res = await fetch(`${API_BASE}/api/explore/pages?limit=${limit}&offset=${offset}`);
+  if (!res.ok) return { pages: [] };
+  return res.json();
+}
+
+export async function exploreIndex(limit = 15) {
+  const res = await fetch(`${API_BASE}/api/explore/index?limit=${limit}`);
+  if (!res.ok) return { terms: [] };
+  return res.json();
+}
+
+export async function explorePageRank(limit = 10) {
+  const res = await fetch(`${API_BASE}/api/explore/pagerank?limit=${limit}`);
+  if (!res.ok) return { pages: [] };
+  return res.json();
+}
+
+export async function exploreChunks(limit = 8) {
+  const res = await fetch(`${API_BASE}/api/explore/chunks?limit=${limit}`);
+  if (!res.ok) return { chunks: [] };
+  return res.json();
+}
