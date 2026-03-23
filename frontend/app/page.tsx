@@ -265,15 +265,17 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Content — both views always mounted, animated with CSS transitions */}
+      {/* Content — CSS Grid with smooth column transition on desktop */}
       {hasResults && (
-        <div className="lg:flex overflow-hidden">
-          {/* Pipeline Explorer — mobile: full width or hidden; desktop: 65% */}
-          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-            view === "explore"
-              ? "w-full lg:w-[65%] shrink-0 opacity-100"
-              : "w-0 h-0 lg:h-auto shrink-0 opacity-0"
-          }`}>
+        <div
+          className="lg:grid overflow-hidden"
+          style={{
+            gridTemplateColumns: view === "explore" ? "65% 1fr" : "0% 1fr",
+            transition: "grid-template-columns 500ms cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
+          {/* Pipeline Explorer */}
+          <div className={`overflow-hidden ${view === "explore" ? "block" : "hidden lg:block"}`}>
             <PipelineExplorer
               data={engine.searchData}
               stats={engine.stats}
@@ -283,11 +285,11 @@ export default function Home() {
             />
           </div>
 
-          {/* SERP — always renders the same content, container width transitions */}
-          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-            view === "search"
-              ? "flex-1"
-              : "hidden lg:block lg:flex-1 lg:border-l border-[var(--border)]"
+          {/* SERP */}
+          <div className={`overflow-hidden overflow-y-auto ${
+            view === "explore"
+              ? "hidden lg:block lg:border-l border-[var(--border)]"
+              : "block"
           }`}>
             <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} isFullWidth={view === "search"} />
           </div>
