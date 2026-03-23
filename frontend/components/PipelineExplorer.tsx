@@ -807,16 +807,27 @@ function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | 
 
 // ─── Exported Component ──────────────────────────────────────
 
-export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading }: {
+export { DetailPanel };
+export type { NodeId };
+
+export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading, selectedNode: externalSelectedNode, onNodeSelect }: {
   data: ExplainResponse | null;
   stats: Stats | null;
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
+  selectedNode?: string | null;
+  onNodeSelect?: (id: string | null) => void;
 }) {
-  const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
+  const [internalSelectedNode, setInternalSelectedNode] = useState<NodeId | null>(null);
   const [stats, setStats] = useState<Stats | null>(propStats);
   const activeStep = useAnimatedSteps(data?.pipeline ?? null);
+
+  const selectedNode = (externalSelectedNode !== undefined ? externalSelectedNode : internalSelectedNode) as NodeId | null;
+  const setSelectedNode = (id: NodeId | null) => {
+    if (onNodeSelect) onNodeSelect(id);
+    else setInternalSelectedNode(id);
+  };
 
   useEffect(() => { if (!stats) getStats().then(setStats).catch(() => {}); }, [stats]);
   useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
@@ -831,26 +842,15 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Detail panel — fixed to viewport, constrained to left side so it won't overlap SERP */}
+      {/* Mobile only: bottom sheet for detail panel */}
       {selectedNode && (
         <>
-          {/* Mobile: bottom sheet */}
-          {/* Mobile backdrop */}
           <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
-
-          {/* Mobile bottom sheet */}
           <div className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden"
             style={{ animation: "slide-up 0.2s ease-out" }}>
-            {/* Drag handle */}
             <div className="flex justify-center pt-2 pb-1" onClick={() => setSelectedNode(null)}>
               <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
             </div>
-            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
-          </div>
-
-          {/* Desktop fixed panel — right edge of canvas, just left of SERP */}
-          <div className="hidden lg:block fixed z-50 bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden top-16 right-[36%] rounded-xl max-h-[calc(100vh-80px)] w-72"
-            style={{ animation: "fade-in 0.15s ease-out" }}>
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
           </div>
         </>

@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
-import PipelineExplorer from "@/components/PipelineExplorer";
+import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
+import { getStats } from "@/lib/api";
 import type { FlowPhase } from "@/components/canvas/types";
 
 type View = "search" | "explore";
@@ -113,8 +114,29 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
   );
 }
 
-const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExploring }: { engine: SearchEngineState; onToggleView: () => void; isExploring: boolean }) {
+const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExploring, selectedNode, onCloseNode }: { engine: SearchEngineState; onToggleView: () => void; isExploring: boolean; selectedNode: string | null; onCloseNode: () => void }) {
   if (!engine.searchData) return null;
+
+  // Desktop: show node detail panel in the right column when exploring + node selected
+  if (isExploring && selectedNode) {
+    return (
+      <div className="@container bg-[var(--bg)]">
+        <div className={`hidden lg:block lg:sticky lg:top-14 px-4 pt-3 transition-[padding-left] duration-500 lg:pl-[67%] lg:pr-4`}>
+          <DetailPanel
+            nodeId={selectedNode as NodeId}
+            data={engine.searchData}
+            stats={engine.stats}
+            onClose={onCloseNode}
+            onRefreshStats={() => getStats().then(() => {}).catch(() => {})}
+            overviewText={engine.overviewText}
+            overviewSources={engine.overviewSources}
+            overviewLoading={engine.overviewLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
@@ -182,6 +204,7 @@ export default function Home() {
   const [view, setView] = useState<View>("search");
   const [theme, toggleTheme] = useTheme();
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const hasResults = engine.searchData !== null;
   const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
 
@@ -259,7 +282,7 @@ export default function Home() {
         <div className="relative">
           {/* SERP — always rendered, stays in place */}
           <div>
-            <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} />
+            <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
           </div>
 
           {/* Pipeline — slides in from left as an overlay on desktop */}
@@ -276,6 +299,8 @@ export default function Home() {
               overviewText={engine.overviewText}
               overviewSources={engine.overviewSources}
               overviewLoading={engine.overviewLoading || engine.overviewStreaming}
+              selectedNode={selectedNode}
+              onNodeSelect={setSelectedNode}
             />
           </div>
         </div>
