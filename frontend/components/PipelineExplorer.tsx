@@ -769,14 +769,16 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
 
   return (
     <div className="px-4 py-4">
-      {/* Canvas area with detail overlay inside */}
-      <div className="relative">
-        <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
+      {/* Desktop: flex with sticky overlay via negative margin */}
+      <div className="lg:flex lg:items-start">
+        <div className="lg:flex-1 lg:min-w-0">
+          <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
+        </div>
 
-        {/* Desktop: detail panel overlays inside the canvas area, top-right */}
+        {/* Sticky panel — negative margin keeps it overlaying the canvas without resizing */}
         {selectedNode && (
           <div
-            className="hidden lg:block absolute top-2 right-2 w-80 max-h-[calc(100%-16px)] overflow-hidden rounded-xl shadow-xl z-10"
+            className="hidden lg:block lg:sticky lg:top-20 lg:w-80 lg:-ml-80 lg:z-10 lg:max-h-[calc(100vh-96px)] lg:overflow-hidden lg:rounded-xl lg:shadow-xl"
             style={{ animation: "fade-in 0.15s ease-out" }}
           >
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
