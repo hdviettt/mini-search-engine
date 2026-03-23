@@ -230,12 +230,14 @@ function Flowchart({
             </g>
           ))}
 
-          {/* Sub-path labels — positioned as subtle column headers below the fan-out arrows */}
-          <text x="195" y="445" textAnchor="middle" fontSize="8" fill="#b45309" fontWeight="600" letterSpacing="0.06em" opacity="0.5">SEARCH</text>
-          <text x="600" y="445" textAnchor="middle" fontSize="8" fill="#7c3aed" fontWeight="600" letterSpacing="0.06em" opacity="0.5">AI OVERVIEW</text>
+          {/* Sub-path labels — on the left edge of each column, rotated vertically */}
+          <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+            transform="rotate(-90, 128, 590)">SEARCH PATH</text>
+          <text x="710" y="570" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+            transform="rotate(-90, 710, 570)">AI OVERVIEW PATH</text>
 
           {/* Subtle divider between the two query paths */}
-          <line x1="410" y1="445" x2="410" y2="700" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+          <line x1="415" y1="450" x2="415" y2="770" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
