@@ -78,15 +78,18 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
         <span className="text-[14px] sm:text-[15px] font-normal text-[#1f1f1f]">AI Overview</span>
       </div>
 
-      {/* Skeleton */}
-      {!text ? (
+      {/* Skeleton — show while loading or waiting for first text */}
+      {(loading || (!text && !streaming)) && (
         <div className="space-y-2.5 max-w-2xl">
           <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-full" />
           <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[96%]" />
           <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[88%]" />
           <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[72%]" />
         </div>
-      ) : (
+      )}
+
+      {/* Content — show as soon as text or streaming starts */}
+      {(text || streaming) && !loading && (
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
           {/* Text column */}
           <div className="flex-1 min-w-0">
