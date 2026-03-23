@@ -70,27 +70,15 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
   );
 }
 
-function SerpSidePanel({ engine, onToggleView, isFullWidth = false }: { engine: SearchEngineState; onToggleView: () => void; isFullWidth?: boolean }) {
+function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; onToggleView: () => void }) {
   if (!engine.searchData) return null;
   return (
-    <div className={`bg-[var(--bg-card)] overflow-hidden h-full ${isFullWidth ? "" : ""}`}>
-      {/* Header — only in compact mode */}
-      {!isFullWidth && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)]">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--accent)]">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-          </svg>
-          <span className="text-sm font-semibold text-[var(--text)] flex-1">Results</span>
-          <button onClick={onToggleView} className="text-[10px] text-[var(--accent)] hover:underline cursor-pointer">
-            Full view
-          </button>
-        </div>
-      )}
-      <div className={`overflow-y-auto ${isFullWidth ? "" : ""}`} style={isFullWidth ? undefined : { maxHeight: "calc(100vh - 120px)" }}>
+    <div className="@container bg-[var(--bg)] h-full">
+      <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)" }}>
         {/* AI Overview */}
         {(engine.overviewLoading || engine.overviewStreaming || engine.overviewText) && (
-          isFullWidth ? (
-            <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4">
+          <div className="px-3 @lg:px-4 py-3 @lg:py-4 @lg:max-w-3xl @lg:mx-auto">
+            <div className="hidden @lg:block">
               <AIOverview
                 text={engine.overviewText}
                 sources={engine.overviewSources}
@@ -98,8 +86,7 @@ function SerpSidePanel({ engine, onToggleView, isFullWidth = false }: { engine: 
                 streaming={engine.overviewStreaming}
               />
             </div>
-          ) : (
-            <div className="px-3 py-2.5 border-b border-[var(--border)]">
+            <div className="@lg:hidden border-b border-[var(--border)] pb-3">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#spk)"/><defs><linearGradient id="spk" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
                 <span className="text-[10px] font-semibold text-[var(--text)]">AI Overview</span>
@@ -114,53 +101,48 @@ function SerpSidePanel({ engine, onToggleView, isFullWidth = false }: { engine: 
                 <p className="text-[12px] leading-[1.6] text-[var(--text)] line-clamp-6">{engine.overviewText}</p>
               )}
             </div>
-          )
+          </div>
         )}
 
-        {/* Results list */}
-        <div className={isFullWidth ? "max-w-3xl mx-auto px-3 sm:px-4 pt-2 pb-12 sm:pb-16 space-y-5 sm:space-y-6" : "px-3 py-2.5 space-y-2.5"}>
-          <div className={`text-[var(--text-dim)] ${isFullWidth ? "text-[13px] mb-2" : "text-[10px]"}`}>
-            {isFullWidth
-              ? `About ${engine.searchData.total_results} results (${(engine.searchData.time_ms / 1000).toFixed(2)} seconds)`
-              : `${engine.searchData.total_results} results · ${engine.searchData.time_ms}ms`}
+        {/* Results list — adapts via container queries */}
+        <div className="px-3 @lg:px-4 py-2 @lg:py-3 @lg:max-w-3xl @lg:mx-auto space-y-3 @lg:space-y-5">
+          <div className="text-[10px] @lg:text-[13px] text-[var(--text-dim)]">
+            {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
           {engine.searchData.results.map((r, i) => {
             const { domain, breadcrumb } = urlBreadcrumb(r.url);
             return (
               <div key={i} className="group">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={isFullWidth ? 16 : 12} height={isFullWidth ? 16 : 12} className="rounded-sm" />
-                  <span className={`text-[var(--text-muted)] truncate ${isFullWidth ? "text-sm" : "text-[10px] text-[var(--text-dim)]"}`}>{domain}</span>
-                  {isFullWidth && breadcrumb && <span className="text-xs text-[var(--text-dim)] truncate hidden sm:inline">{breadcrumb}</span>}
+                  <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-sm" />
+                  <span className="text-[10px] @lg:text-sm text-[var(--text-muted)] truncate">{domain}</span>
+                  {breadcrumb && <span className="text-xs text-[var(--text-dim)] truncate hidden @lg:inline">{breadcrumb}</span>}
                 </div>
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                  <h3 className={`text-[var(--accent)] group-hover:underline leading-snug ${isFullWidth ? "text-[16px] sm:text-[18px] mb-1" : "text-[13px]"}`}>{r.title}</h3>
+                  <h3 className="text-[13px] @lg:text-[18px] text-[var(--accent)] group-hover:underline leading-snug">{r.title}</h3>
                 </a>
-                <p className={`text-[var(--text-muted)] leading-relaxed line-clamp-2 ${isFullWidth ? "text-[13px] line-clamp-3" : "text-[11px] mt-0.5"}`}>{r.snippet}</p>
-                {isFullWidth && (
-                  <div className="flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <span className="text-[10px] text-[var(--text-dim)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
-                    <span className="text-[10px] text-[var(--text-dim)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                    <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
-                  </div>
-                )}
+                <p className="text-[11px] @lg:text-[13px] text-[var(--text-muted)] leading-relaxed line-clamp-2 @lg:line-clamp-3 mt-0.5">{r.snippet}</p>
+                <div className="hidden @lg:flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-[10px] text-[var(--text-dim)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                  <span className="text-[10px] text-[var(--text-dim)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                  <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                </div>
               </div>
             );
           })}
 
-          {isFullWidth && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={() => onToggleView()}
-                className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-              >
-                See how these results were computed
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          )}
+          <div className="mt-6 @lg:mt-8 text-center">
+            <button
+              onClick={onToggleView}
+              className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+            >
+              <span className="@lg:hidden">Explore pipeline</span>
+              <span className="hidden @lg:inline">See how these results were computed</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -291,7 +273,7 @@ export default function Home() {
               ? "hidden lg:block lg:border-l border-[var(--border)]"
               : "block"
           }`}>
-            <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} isFullWidth={view === "search"} />
+            <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} />
           </div>
         </div>
       )}
