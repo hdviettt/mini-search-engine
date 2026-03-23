@@ -332,6 +332,54 @@ function Annotation({ x, y, text }: { x: number; y: number; text: string }) {
 
 // ─── Detail Panel ───────────────────────────────────────────────
 
+// Reusable skeleton components
+function SkeletonLine({ w = "w-full" }: { w?: string }) {
+  return <div className={`h-3 bg-[var(--score-bar-bg)] animate-pulse rounded ${w}`} />;
+}
+
+function SkeletonRows({ rows = 3 }: { rows?: number }) {
+  const widths = ["w-full", "w-[85%]", "w-[70%]", "w-[90%]", "w-[60%]"];
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }, (_, i) => (
+        <SkeletonLine key={i} w={widths[i % widths.length]} />
+      ))}
+    </div>
+  );
+}
+
+function SkeletonStats({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-1.5">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex justify-between">
+          <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-20" />
+          <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-14" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonTable({ rows = 4, cols = 3 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-3">
+        {Array.from({ length: cols }, (_, i) => (
+          <div key={i} className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-16" />
+        ))}
+      </div>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex gap-3">
+          {Array.from({ length: cols }, (_, j) => (
+            <div key={j} className={`h-3 bg-[var(--score-bar-bg)] animate-pulse rounded ${j === 0 ? "w-12" : "w-20"}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">{children}</div>;
 }
@@ -399,14 +447,14 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "crawler" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">Fetches web pages via breadth-first search from seed URLs.</p>
-            {stats && (
-              <div className="space-y-1">
+            {stats ? (
+              <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Pages crawled" value={stats.pages_crawled.toLocaleString()} />
                 <StatRow label="Pending" value={stats.pages_pending.toLocaleString()} />
                 <StatRow label="Failed" value={stats.pages_failed.toLocaleString()} />
                 {stats.last_crawl_at && <StatRow label="Last crawl" value={new Date(stats.last_crawl_at).toLocaleDateString()} />}
               </div>
-            )}
+            ) : <SkeletonStats rows={4} />}
             <ActionButton onClick={() => runAction(() => startCrawl(["https://en.wikipedia.org/wiki/Association_football"], 500, 2), "Starting crawl...")}>
               Start new crawl (Wikipedia football, 500 pages)
             </ActionButton>
@@ -417,11 +465,11 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           <>
             <p className="text-xs text-[var(--text-muted)]">Tokenizes each page and builds the inverted index (term → doc list).</p>
             {stats ? (
-              <div className="space-y-1">
+              <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Unique terms" value={stats.total_terms.toLocaleString()} />
                 <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
               </div>
-            ) : <p className="text-xs text-[var(--text-dim)]">No index built yet.</p>}
+            ) : <SkeletonStats rows={2} />}
             <ActionButton onClick={() => runAction(rebuildIndex, "Rebuilding index...")}>
               Rebuild inverted index
             </ActionButton>
@@ -431,7 +479,11 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "pr_compute" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">Computes authority scores from the link graph between pages.</p>
-            {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
+            {stats ? (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />
+              </div>
+            ) : <SkeletonStats rows={1} />}
           </>
         )}
 
@@ -439,11 +491,11 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           <>
             <p className="text-xs text-[var(--text-muted)]">Splits pages into ~300-token chunks at sentence boundaries.</p>
             {stats ? (
-              <div className="space-y-1">
+              <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
                 <StatRow label="Avg per page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
               </div>
-            ) : <p className="text-xs text-[var(--text-dim)]">No chunks created yet.</p>}
+            ) : <SkeletonStats rows={2} />}
           </>
         )}
 
@@ -451,11 +503,11 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           <>
             <p className="text-xs text-[var(--text-muted)]">Generates 512-dim vectors for each chunk using Voyage AI.</p>
             {stats ? (
-              <div className="space-y-1">
+              <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
                 <StatRow label="Dimensions" value="512" />
               </div>
-            ) : <p className="text-xs text-[var(--text-dim)]">No embeddings generated yet.</p>}
+            ) : <SkeletonStats rows={2} />}
             <ActionButton onClick={() => runAction(rebuildEmbeddings, "Rebuilding embeddings...")}>
               Rebuild embeddings
             </ActionButton>
@@ -470,14 +522,16 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
 
         {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
-          <IOBlock label="Query">
-            <span className="font-mono text-sm text-[var(--text)]">&quot;{data.query}&quot;</span>
-          </IOBlock>
+          <div style={{ animation: "fade-in 0.3s ease-out" }}>
+            <IOBlock label="Query">
+              <span className="font-mono text-sm text-[var(--text)]">&quot;{data.query}&quot;</span>
+            </IOBlock>
+          </div>
         )}
-        {nodeId === "query_input" && !data && <p className="text-xs text-[var(--text-dim)]">Search for something to see data flow through the pipeline.</p>}
+        {nodeId === "query_input" && !data && <SkeletonRows rows={1} />}
 
         {nodeId === "tokenize" && trace && (
-          <>
+          <div style={{ animation: "fade-in 0.3s ease-out" }}>
             <IOBlock label="Input">
               <span className="font-mono text-xs text-[var(--text)]">&quot;{trace.tokenization.input}&quot;</span>
             </IOBlock>
@@ -498,17 +552,17 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
               </IOBlock>
             )}
             <StatRow label="Time" value={`${trace.tokenization.time_ms.toFixed(1)}ms`} />
-          </>
+          </div>
         )}
-        {nodeId === "tokenize" && !trace && <p className="text-xs text-[var(--text-dim)]">Run a search to see tokenization output.</p>}
+        {nodeId === "tokenize" && !trace && <SkeletonRows rows={2} />}
 
-        {nodeId === "index_lookup" && trace && <IndexDetail trace={trace} />}
-        {nodeId === "bm25" && trace && <BM25Detail trace={trace} />}
-        {nodeId === "pr_lookup" && trace && <PageRankDetail trace={trace} />}
-        {nodeId === "combine" && trace && <CombineDetail trace={trace} />}
+        {nodeId === "index_lookup" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><IndexDetail trace={trace} /></div>}
+        {nodeId === "bm25" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><BM25Detail trace={trace} /></div>}
+        {nodeId === "pr_lookup" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><PageRankDetail trace={trace} /></div>}
+        {nodeId === "combine" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><CombineDetail trace={trace} /></div>}
 
-        {nodeId === "results" && data && <ResultsDetail data={data} />}
-        {nodeId === "results" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see ranked results.</p>}
+        {nodeId === "results" && data && <div style={{ animation: "fade-in 0.3s ease-out" }}><ResultsDetail data={data} /></div>}
+        {nodeId === "results" && !data && <SkeletonRows rows={4} />}
 
         {nodeId === "fanout" && (
           <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader coverage. Runs asynchronously after the search path completes.</p>
@@ -532,9 +586,9 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages. Streams to the user token by token.</p>
         )}
 
-        {/* Fallback for query nodes without data */}
+        {/* Skeleton for query nodes without data */}
         {["index_lookup", "bm25", "pr_lookup", "combine"].includes(nodeId) && !trace && (
-          <p className="text-xs text-[var(--text-dim)]">Run a search to see data for this step.</p>
+          <SkeletonStats rows={3} />
         )}
       </div>
     </div>
@@ -710,13 +764,13 @@ function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | 
     }).catch(() => setRows([])).finally(() => setLoading(false));
   }, [endpoint]);
 
-  if (loading) return <div className="text-xs text-[var(--text-dim)] animate-pulse py-2">Loading records...</div>;
+  if (loading) return <SkeletonTable rows={5} cols={4} />;
   if (!rows || rows.length === 0) return <p className="text-xs text-[var(--text-dim)]">No records found.</p>;
 
   const columns = Object.keys(rows[0]).slice(0, 5);
 
   return (
-    <div className="overflow-x-auto -mx-4 px-4">
+    <div className="overflow-x-auto -mx-4 px-4" style={{ animation: "fade-in 0.3s ease-out" }}>
       <table className="w-full text-[11px] border-collapse min-w-[300px]">
         <thead>
           <tr className="border-b border-[var(--border)]">
