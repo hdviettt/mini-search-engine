@@ -71,19 +71,19 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
             <div className="hidden @lg:block">
               <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
             </div>
-            <div className="@lg:hidden border-b border-[var(--border)] pb-2">
+            <div className="@lg:hidden rounded-lg bg-[#f8f9fa] border border-[#dadce0] p-3">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#spk)"/><defs><linearGradient id="spk" x1="3" y1="2" x2="21" y2="22"><stop stopColor="#4285f4"/><stop offset="0.5" stopColor="#9b72cb"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
-                <span className="text-[10px] font-semibold text-[var(--text)]">AI Overview</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L18 6L14.5 11L21 12L14.5 13L18 18L13.5 15.5L12 22L10.5 15.5L6 18L9.5 13L3 12L9.5 11L6 6L10.5 8.5L12 2Z" fill="url(#spk2)"/><defs><linearGradient id="spk2" x1="3" y1="2" x2="21" y2="22"><stop offset="0" stopColor="#4285f4"/><stop offset="0.33" stopColor="#9b72cb"/><stop offset="0.66" stopColor="#d96570"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
+                <span className="text-[11px] font-medium text-[#1f1f1f]">AI Overview</span>
               </div>
               {engine.overviewLoading && !engine.overviewText ? (
                 <div className="space-y-1.5">
-                  <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
-                  <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[85%]" />
-                  <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
+                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-full" />
+                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-[85%]" />
+                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-[60%]" />
                 </div>
               ) : (
-                <p className="text-[12px] leading-[1.5] text-[var(--text)] line-clamp-4">{engine.overviewText}</p>
+                <p className="text-[12px] leading-[1.55] text-[#1f1f1f] line-clamp-4">{engine.overviewText}</p>
               )}
             </div>
           </div>

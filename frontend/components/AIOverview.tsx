@@ -29,14 +29,15 @@ function parseOverviewWithCitations(text: string) {
   return parts;
 }
 
-function SparkleIcon({ className }: { className?: string }) {
+function GoogleSparkle() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
-      <path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#sparkle-gradient)" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <path d="M12 2L13.5 8.5L18 6L14.5 11L21 12L14.5 13L18 18L13.5 15.5L12 22L10.5 15.5L6 18L9.5 13L3 12L9.5 11L6 6L10.5 8.5L12 2Z" fill="url(#google-sparkle)" />
       <defs>
-        <linearGradient id="sparkle-gradient" x1="3" y1="2" x2="21" y2="22">
-          <stop stopColor="#4285f4" />
-          <stop offset="0.5" stopColor="#9b72cb" />
+        <linearGradient id="google-sparkle" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#4285f4" />
+          <stop offset="0.33" stopColor="#9b72cb" />
+          <stop offset="0.66" stopColor="#d96570" />
           <stop offset="1" stopColor="#d96570" />
         </linearGradient>
       </defs>
@@ -50,81 +51,105 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
   if (!loading && !streaming && !text && sources.length === 0) return null;
 
   const parts = text ? parseOverviewWithCitations(text) : [];
-  const isLong = text.length > 400;
+  const isLong = text.length > 300;
   const shouldTruncate = isLong && !expanded;
 
   return (
-    <div className="mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+    <div className="mb-4 sm:mb-6 rounded-xl bg-[#f8f9fa] border border-[#dadce0] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 sm:px-5 pt-3 sm:pt-4 pb-1.5 sm:pb-2">
-        <SparkleIcon />
-        <span className="text-xs sm:text-sm font-semibold text-[var(--text)]">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+        <GoogleSparkle />
+        <span className="text-[13px] sm:text-[14px] font-medium text-[#1f1f1f]">
           AI Overview
         </span>
-        {(loading || streaming) && !text && (
-          <span className="text-[10px] sm:text-xs text-[var(--text-dim)] ml-1 animate-pulse">generating...</span>
-        )}
       </div>
 
       {/* Skeleton */}
       {!text ? (
-        <div className="px-3 sm:px-5 pb-4 sm:pb-5 space-y-2 sm:space-y-3">
+        <div className="px-4 pb-4 pt-2 space-y-2.5">
           <div className="space-y-2">
-            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
-            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[95%]" />
-            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[80%]" />
-            <div className="h-3 sm:h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
+            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-full" />
+            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[94%]" />
+            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[82%]" />
+            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[65%]" />
           </div>
-          <div className="flex gap-1.5 sm:gap-2 pt-1 sm:pt-2 overflow-hidden">
+          <div className="flex gap-2 pt-1">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-7 sm:h-8 bg-[var(--score-bar-bg)] animate-pulse rounded-full w-24 sm:w-28 shrink-0" />
+              <div key={i} className="h-10 bg-[#e8eaed] animate-pulse rounded-lg w-32 shrink-0" />
             ))}
           </div>
         </div>
       ) : (
-        <>
-          <div className="px-3 sm:px-5 pb-2 sm:pb-3" style={{ animation: "fade-in 0.3s ease-out" }}>
-            <div className={`text-[13px] sm:text-[14px] leading-[1.6] sm:leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
+        <div style={{ animation: "fade-in 0.3s ease-out" }}>
+          {/* Body text */}
+          <div className="px-4 pb-2">
+            <div className={`text-[14px] sm:text-[15px] leading-[1.65] text-[#1f1f1f] ${shouldTruncate ? "line-clamp-4 sm:line-clamp-5" : ""}`}>
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
                 ) : (
-                  <sup key={i} className="inline-flex items-center justify-center min-w-[16px] h-4 text-[9px] font-bold mx-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] align-top cursor-default">
+                  <a
+                    key={i}
+                    href={sources.find(s => s.index === part.index)?.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#d2e3fc] transition-colors align-top cursor-pointer"
+                  >
                     {part.index}
-                  </sup>
+                  </a>
                 )
               )}
-              {streaming && <span className="inline-block w-1.5 h-4 bg-[var(--accent)] animate-pulse ml-0.5 align-middle rounded-sm" />}
+              {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
             </div>
+
+            {/* Show more/less */}
             {isLong && !streaming && (
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="mt-2 text-sm font-medium text-[var(--accent)] hover:underline cursor-pointer"
+                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer"
               >
                 {expanded ? "Show less" : "Show more"}
               </button>
             )}
           </div>
 
-          {/* Source pills */}
+          {/* Source cards */}
           {sources.length > 0 && (
-            <div className="px-3 sm:px-5 pb-3 sm:pb-4 pt-1 flex gap-1.5 sm:gap-2 overflow-x-auto">
-              {sources.map((s) => {
-                let domain = "";
-                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-                return (
-                  <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors shrink-0 group">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm sm:w-[14px] sm:h-[14px]" />
-                    <span className="text-[10px] sm:text-xs text-[var(--text-muted)] group-hover:text-[var(--text)] whitespace-nowrap max-w-[100px] sm:max-w-[140px] truncate">
-                      {s.title.replace(" - Wikipedia", "")}
-                    </span>
-                  </a>
-                );
-              })}
+            <div className="px-4 pb-3 pt-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
+                {sources.map((s) => {
+                  let domain = "";
+                  try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                  return (
+                    <a
+                      key={s.index}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#dadce0] hover:border-[#bdc1c6] hover:shadow-sm transition-all shrink-0 group min-w-0"
+                    >
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                        alt=""
+                        width={18}
+                        height={18}
+                        className="rounded-full shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[12px] text-[#1f1f1f] font-medium truncate max-w-[130px] sm:max-w-[160px] group-hover:text-[#1a73e8]">
+                          {s.title.replace(" - Wikipedia", "")}
+                        </div>
+                        <div className="text-[11px] text-[#70757a] truncate max-w-[130px] sm:max-w-[160px]">
+                          {domain}
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
