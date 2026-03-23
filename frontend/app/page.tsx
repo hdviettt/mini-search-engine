@@ -46,6 +46,7 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
       {(["search", "explore"] as const).map((v) => (
         <button
           key={v}
+          type="button"
           onClick={() => onChange(v)}
           className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer capitalize ${
             view === v
