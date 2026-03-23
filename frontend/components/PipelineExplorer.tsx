@@ -768,7 +768,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
   useEffect(() => { if (propStats) setStats(propStats); }, [propStats]);
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4 relative">
       {/* Flowchart — always full width, never resizes */}
       <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
@@ -778,11 +778,20 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Detail panel — below the canvas, no width change */}
+      {/* Detail panel — floating overlay: side on desktop, bottom sheet on mobile */}
       {selectedNode && (
-        <div className="mt-3" style={{ animation: "fade-in 0.15s ease-out" }}>
-          <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
-        </div>
+        <>
+          {/* Backdrop on mobile */}
+          <div className="lg:hidden fixed inset-0 bg-black/20 z-40" onClick={() => setSelectedNode(null)} />
+
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[55vh] rounded-t-2xl shadow-lg
+              lg:absolute lg:top-2 lg:right-2 lg:bottom-auto lg:left-auto lg:w-80 lg:max-h-[calc(100%-16px)] lg:rounded-xl lg:shadow-xl"
+            style={{ animation: "slide-up 0.2s ease-out" }}
+          >
+            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+          </div>
+        </>
       )}
     </div>
   );
