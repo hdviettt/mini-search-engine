@@ -158,7 +158,7 @@ export function useSearchEngine(): SearchEngineState {
             const msg = JSON.parse(line.slice(6));
             if (msg.type === "sources") {
               setOverviewSources(msg.sources);
-              setOverviewLoading(false);
+              // Don't clear loading here — wait for first token/text
             } else if (msg.type === "trace") {
               if (msg.step === "fanout") {
                 traceData.fanout = msg.data;
