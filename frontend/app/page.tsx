@@ -207,12 +207,12 @@ export default function Home() {
                 {/* Ball body */}
                 <circle cx="50" cy="50" r="46" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="2" />
                 {/* Pentagon pattern */}
-                <polygon points="50,12 62,28 56,44 44,44 38,28" fill="var(--text)" opacity="0.15" stroke="var(--text)" strokeWidth="0.8" opacity="0.25" />
+                <polygon points="50,12 62,28 56,44 44,44 38,28" fill="var(--text)" opacity="0.2" stroke="var(--text)" strokeWidth="0.8" />
                 <polygon points="62,28 80,32 82,50 70,58 56,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
                 <polygon points="38,28 20,32 18,50 30,58 44,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
-                <polygon points="70,58 78,76 62,86 50,74 56,44" fill="var(--text)" opacity="0.1" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="70,58 78,76 62,86 50,74 56,44" fill="var(--text)" opacity="0.15" stroke="var(--text)" strokeWidth="0.8" />
                 <polygon points="30,58 22,76 38,86 50,74 44,44" fill="none" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
-                <polygon points="62,86 50,96 38,86 50,74" fill="var(--text)" opacity="0.08" stroke="var(--text)" strokeWidth="0.8" opacity="0.2" />
+                <polygon points="62,86 50,96 38,86 50,74" fill="var(--text)" opacity="0.12" stroke="var(--text)" strokeWidth="0.8" />
               </svg>
               {/* Motion lines that appear during kick */}
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
