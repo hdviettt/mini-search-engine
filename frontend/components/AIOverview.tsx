@@ -47,7 +47,7 @@ function SparkleIcon({ className }: { className?: string }) {
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!loading && !streaming && !text) return null;
+  if (!loading && !streaming && !text && sources.length === 0) return null;
 
   const parts = text ? parseOverviewWithCitations(text) : [];
   const isLong = text.length > 400;
@@ -66,8 +66,8 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
         )}
       </div>
 
-      {/* Loading skeleton */}
-      {loading && !text ? (
+      {/* Loading skeleton — also shown in the gap between sources arriving and first token */}
+      {(loading || (!text && sources.length > 0)) && !streaming ? (
         <div className="px-5 pb-5 space-y-3">
           <div className="space-y-2.5">
             <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
