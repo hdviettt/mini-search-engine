@@ -45,12 +45,27 @@ function GoogleSparkle() {
   );
 }
 
+function SourceCard({ source }: { source: OverviewSource }) {
+  let domain = "";
+  try { domain = new URL(source.url).hostname.replace("www.", ""); } catch { domain = source.url; }
+  return (
+    <a href={source.url} target="_blank" rel="noopener noreferrer" className="block group py-2.5 border-b border-[#ebebeb] last:border-0">
+      <div className="text-[14px] text-[#1a0dab] group-hover:underline leading-snug">
+        {source.title}
+      </div>
+      <div className="flex items-center gap-1.5 mt-1">
+        <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={14} height={14} className="rounded-full" />
+        <span className="text-[12px] text-[#4d5156]">{domain}</span>
+      </div>
+    </a>
+  );
+}
+
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
   const [expanded, setExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
 
-  // Detect if text is actually overflowing the line-clamp
   useEffect(() => {
     const el = textRef.current;
     if (el && text && !streaming) {
@@ -63,100 +78,72 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
   const parts = text ? parseOverviewWithCitations(text) : [];
 
   return (
-    <div className="mb-4 sm:mb-6 rounded-xl bg-[#f8f9fa] border border-[#dadce0] overflow-hidden">
+    <div className="mb-5 sm:mb-8">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+      <div className="flex items-center gap-2 mb-3">
         <GoogleSparkle />
-        <span className="text-[13px] sm:text-[14px] font-medium text-[#1f1f1f]">
-          AI Overview
-        </span>
+        <span className="text-[14px] sm:text-[15px] font-normal text-[#1f1f1f]">AI Overview</span>
       </div>
 
       {/* Skeleton */}
       {!text ? (
-        <div className="px-4 pb-4 pt-2 space-y-2.5">
-          <div className="space-y-2">
-            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-full" />
-            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[94%]" />
-            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[82%]" />
-            <div className="h-3 bg-[#e8eaed] animate-pulse rounded w-[65%]" />
-          </div>
+        <div className="space-y-2.5 max-w-2xl">
+          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-full" />
+          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[96%]" />
+          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[88%]" />
+          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[72%]" />
         </div>
       ) : (
-        <div style={{ animation: "fade-in 0.3s ease-out" }}>
-          {/* Body text */}
-          <div className="px-4 pb-2">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+          {/* Text column */}
+          <div className="flex-1 min-w-0">
             <div
               ref={textRef}
-              className={`text-[14px] sm:text-[15px] leading-[1.65] text-[#1f1f1f] ${!expanded ? "line-clamp-5" : ""}`}
+              className={`text-[14px] sm:text-[15px] leading-[1.6] sm:leading-[1.65] text-[#1f1f1f] ${!expanded ? "line-clamp-6 sm:line-clamp-none" : ""}`}
             >
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
-                ) : (
-                  <a
-                    key={i}
-                    href={sources.find(s => s.index === part.index)?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#d2e3fc] transition-colors align-top cursor-pointer"
-                  >
-                    {part.index}
-                  </a>
-                )
+                ) : (() => {
+                  const src = sources.find(s => s.index === part.index);
+                  if (!src) return <span key={i} className="text-[12px] text-[#70757a] align-super">{part.value}</span>;
+                  let d = "";
+                  try { d = new URL(src.url).hostname.replace("www.", "").split(".")[0]; } catch { d = "source"; }
+                  return (
+                    <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 mx-0.5 px-1.5 py-0 rounded bg-[#f0f4f9] hover:bg-[#e3e8ef] text-[11px] text-[#1a73e8] font-medium align-baseline transition-colors cursor-pointer whitespace-nowrap">
+                      <img src={`https://www.google.com/s2/favicons?domain=${src.url}&sz=16`} alt="" width={10} height={10} className="rounded-full" />
+                      {d.charAt(0).toUpperCase() + d.slice(1)}
+                    </a>
+                  );
+                })()
               )}
               {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
             </div>
 
-            {/* Show more — only when text is actually truncated */}
+            {/* Show more — mobile only, only when clamped */}
             {isClamped && !streaming && !expanded && (
               <button onClick={() => setExpanded(true)}
-                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer">
+                className="sm:hidden mt-2 text-[13px] font-medium text-[#1a73e8] cursor-pointer">
                 Show more
               </button>
             )}
             {expanded && !streaming && (
               <button onClick={() => setExpanded(false)}
-                className="mt-1.5 text-[13px] font-medium text-[#1a73e8] hover:text-[#174ea6] cursor-pointer">
+                className="sm:hidden mt-2 text-[13px] font-medium text-[#1a73e8] cursor-pointer">
                 Show less
               </button>
             )}
           </div>
 
-          {/* Sources — vertical list like Google */}
+          {/* Sources panel — right side on desktop, below on mobile */}
           {sources.length > 0 && (
-            <div className="px-4 pb-3 pt-1 space-y-1">
-              {sources.map((s) => {
-                let domain = "";
-                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-                return (
-                  <a
-                    key={s.index}
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 py-1.5 group"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-white border border-[#dadce0] flex items-center justify-center shrink-0">
-                      <img
-                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="rounded-full"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[13px] text-[#1a73e8] group-hover:underline truncate block">
-                        {s.title.replace(" - Wikipedia", "")}
-                      </span>
-                      <span className="text-[11px] text-[#70757a] truncate block">
-                        {domain}
-                      </span>
-                    </div>
-                  </a>
-                );
-              })}
+            <div className="sm:w-64 lg:w-72 shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden">
+              <div className="px-3 pt-2 pb-0.5">
+                {sources.map((s) => (
+                  <SourceCard key={s.index} source={s} />
+                ))}
+              </div>
             </div>
           )}
         </div>
