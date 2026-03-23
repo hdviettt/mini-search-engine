@@ -46,7 +46,7 @@ interface ArrowDef {
 const LANES = [
   { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
   { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
-  { label: "Query", sub: "(per search)", y: 338, h: 380, bg: "#eff6ff" },
+  { label: "Query", sub: "(per search)", y: 338, h: 450, bg: "#eff6ff" },
 ];
 
 const NODES: NodeDef[] = [
@@ -182,7 +182,7 @@ function Flowchart({
   return (
     <div className="overflow-x-auto -mx-4 px-4">
       <div style={{ minWidth: 700 }}>
-        <svg viewBox="0 0 770 730" className="w-full h-auto">
+        <svg viewBox="0 0 770 800" className="w-full h-auto">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="0.7" fill="#d4d4d4" />
@@ -195,7 +195,7 @@ function Flowchart({
             </marker>
           </defs>
 
-          <rect width="770" height="730" fill="url(#dots)" rx="12" />
+          <rect width="770" height="800" fill="url(#dots)" rx="12" />
 
           {/* Swimlane bands */}
           {LANES.map((lane) => (
@@ -769,22 +769,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
 
   return (
     <div className="px-4 py-4">
-      {/* Desktop: flex with sticky overlay via negative margin */}
-      <div className="lg:flex lg:items-start">
-        <div className="lg:flex-1 lg:min-w-0">
-          <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
-        </div>
-
-        {/* Sticky panel — negative margin keeps it overlaying the canvas without resizing */}
-        {selectedNode && (
-          <div
-            className="hidden lg:block lg:sticky lg:top-20 lg:w-80 lg:-ml-80 lg:z-10 lg:max-h-[calc(100vh-96px)] lg:overflow-hidden lg:rounded-xl lg:shadow-xl"
-            style={{ animation: "fade-in 0.15s ease-out" }}
-          >
-            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
-          </div>
-        )}
-      </div>
+      <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
       {data && activeStep >= 10 && !selectedNode && (
         <div className="text-center pt-2" style={{ animation: "fade-in 0.4s ease-out" }}>
@@ -792,12 +777,15 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Mobile: bottom sheet */}
+      {/* Detail panel — fixed to viewport, constrained to left side so it won't overlap SERP */}
       {selectedNode && (
         <>
+          {/* Mobile: bottom sheet */}
           <div className="lg:hidden fixed inset-0 bg-black/20 z-40" onClick={() => setSelectedNode(null)} />
           <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 max-h-[55vh] rounded-t-2xl shadow-lg"
+            className="fixed z-50 bg-[var(--bg-card)] shadow-xl overflow-hidden
+              bottom-0 left-0 right-0 max-h-[55vh] rounded-t-2xl
+              lg:top-20 lg:bottom-auto lg:left-auto lg:right-[36%] lg:rounded-xl lg:max-h-[calc(100vh-96px)] lg:w-80"
             style={{ animation: "slide-up 0.2s ease-out" }}
           >
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />

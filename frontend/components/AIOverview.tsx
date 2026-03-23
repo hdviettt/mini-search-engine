@@ -66,10 +66,9 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
         )}
       </div>
 
-      {/* Content area — skeleton crossfades into streaming text */}
-      <div className="relative min-h-[80px]">
-        {/* Skeleton layer — fades out when text arrives */}
-        <div className={`px-5 pb-5 space-y-3 transition-opacity duration-300 ${text ? "opacity-0 absolute inset-0 pointer-events-none" : "opacity-100"}`}>
+      {/* Skeleton — shown until first text token arrives */}
+      {!text ? (
+        <div className="px-5 pb-5 space-y-3">
           <div className="space-y-2.5">
             <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
             <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[95%]" />
@@ -82,9 +81,8 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
             ))}
           </div>
         </div>
-
-        {/* Text layer — fades in as tokens stream */}
-        <div className={`transition-opacity duration-300 ${text ? "opacity-100" : "opacity-0 absolute inset-0 pointer-events-none"}`}>
+      ) : (
+        <>
           <div className="px-5 pb-3">
             <div className={`text-[14px] leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
               {parts.map((part, i) =>
@@ -137,8 +135,8 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
               })}
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
