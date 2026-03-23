@@ -63,31 +63,12 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
 function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; onToggleView: () => void }) {
   if (!engine.searchData) return null;
   return (
-    <div className="@container bg-[var(--bg)] h-full">
-      <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)" }}>
-        {/* AI Overview */}
-        {(engine.overviewLoading || engine.overviewStreaming || engine.overviewText) && (
-          <div className="px-3 @lg:px-4 py-2 @lg:py-4 @lg:max-w-3xl @lg:mx-auto">
-            <div className="hidden @lg:block">
-              <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
-            </div>
-            <div className="@lg:hidden rounded-lg bg-[#f8f9fa] border border-[#dadce0] p-3">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L18 6L14.5 11L21 12L14.5 13L18 18L13.5 15.5L12 22L10.5 15.5L6 18L9.5 13L3 12L9.5 11L6 6L10.5 8.5L12 2Z" fill="url(#spk2)"/><defs><linearGradient id="spk2" x1="3" y1="2" x2="21" y2="22"><stop offset="0" stopColor="#4285f4"/><stop offset="0.33" stopColor="#9b72cb"/><stop offset="0.66" stopColor="#d96570"/><stop offset="1" stopColor="#d96570"/></linearGradient></defs></svg>
-                <span className="text-[11px] font-medium text-[#1f1f1f]">AI Overview</span>
-              </div>
-              {engine.overviewLoading && !engine.overviewText ? (
-                <div className="space-y-1.5">
-                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-full" />
-                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-[85%]" />
-                  <div className="h-2.5 bg-[#e8eaed] animate-pulse rounded w-[60%]" />
-                </div>
-              ) : (
-                <p className="text-[12px] leading-[1.55] text-[#1f1f1f] line-clamp-4">{engine.overviewText}</p>
-              )}
-            </div>
-          </div>
-        )}
+    <div className="@container bg-[var(--bg)]">
+      <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
+        {/* AI Overview — always use full component */}
+        <div className="px-3 @lg:px-4 @lg:max-w-3xl @lg:mx-auto">
+          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
+        </div>
 
         {/* Results */}
         <div className="px-3 @lg:px-4 py-2 @lg:py-3 @lg:max-w-3xl @lg:mx-auto space-y-2.5 @lg:space-y-5">
@@ -211,7 +192,7 @@ export default function Home() {
       {/* Content */}
       {hasResults && (
         <div
-          className="lg:grid overflow-hidden"
+          className="lg:grid lg:overflow-hidden"
           style={{
             gridTemplateColumns: view === "explore" ? "65% 1fr" : "0% 1fr",
             transition: "grid-template-columns 500ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -229,7 +210,7 @@ export default function Home() {
           </div>
 
           {/* SERP */}
-          <div className={`overflow-hidden overflow-y-auto ${
+          <div className={`lg:overflow-hidden lg:overflow-y-auto ${
             view === "explore" ? "hidden lg:block lg:border-l border-[var(--border)]" : "block"
           }`}>
             <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} />
