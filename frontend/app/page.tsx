@@ -70,7 +70,7 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${
           isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-4xl"
         }`}>
-          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
+          <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} compact={isExploring} />
         </div>
 
         {/* Results — shifts right when pipeline overlays */}

@@ -8,6 +8,7 @@ interface AIOverviewProps {
   sources: OverviewSource[];
   loading: boolean;
   streaming: boolean;
+  compact?: boolean;
 }
 
 function parseOverviewWithCitations(text: string) {
@@ -115,7 +116,7 @@ function CitationChip({ source, index, onHighlight }: {
   );
 }
 
-export default memo(function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
+export default memo(function AIOverview({ text, sources, loading, streaming, compact = false }: AIOverviewProps) {
   const [highlightedSource, setHighlightedSource] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -148,7 +149,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming }: A
 
       {/* Content */}
       {(text || streaming) && !loading && (
-        <div className="flex flex-col @2xl:flex-row gap-4 @2xl:gap-6">
+        <div className={`flex flex-col gap-4 ${compact ? "" : "@2xl:flex-row @2xl:gap-6"}`}>
           {/* Text column */}
           <div className="flex-1 min-w-0">
             <div
@@ -174,7 +175,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming }: A
 
           {/* Sources panel — right side on desktop, below on mobile */}
           {sources.length > 0 && (
-            <div className="@2xl:w-64 @3xl:w-72 shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden">
+            <div className={`shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden ${compact ? "" : "@2xl:w-64 @3xl:w-72"}`}>
               <div className="px-3 pt-2 pb-0.5">
                 {sources.map((s) => (
                   <SourceCard key={s.index} source={s} highlighted={highlightedSource === s.index} />
