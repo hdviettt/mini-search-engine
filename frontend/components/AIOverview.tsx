@@ -12,7 +12,8 @@ interface AIOverviewProps {
 
 function parseOverviewWithCitations(text: string) {
   const parts: { type: "text" | "citation"; value: string; index?: number }[] = [];
-  const regex = /\[(\d+)\]/g;
+  // Match [1], [2, 3], [1, 2, 3] etc.
+  const regex = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
   let lastIndex = 0;
   let match;
 
@@ -20,7 +21,11 @@ function parseOverviewWithCitations(text: string) {
     if (match.index > lastIndex) {
       parts.push({ type: "text", value: text.slice(lastIndex, match.index) });
     }
-    parts.push({ type: "citation", value: match[0], index: parseInt(match[1]) });
+    // Split "1, 2, 3" into individual citations
+    const indices = match[1].split(",").map(s => parseInt(s.trim()));
+    for (const idx of indices) {
+      parts.push({ type: "citation", value: `[${idx}]`, index: idx });
+    }
     lastIndex = regex.lastIndex;
   }
   if (lastIndex < text.length) {
