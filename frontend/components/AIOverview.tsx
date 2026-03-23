@@ -56,13 +56,13 @@ function SourceCard({ source, highlighted }: { source: OverviewSource; highlight
   try { domain = new URL(source.url).hostname.replace("www.", ""); } catch { domain = source.url; }
   return (
     <a id={`aio-source-${source.index}`} href={source.url} target="_blank" rel="noopener noreferrer"
-      className={`block group py-2.5 border-b border-[#ebebeb] last:border-0 rounded px-1.5 -mx-1.5 transition-colors duration-300 ${highlighted ? "bg-[#e8f0fe]" : ""}`}>
-      <div className="text-[14px] text-[#1a0dab] group-hover:underline leading-snug">
+      className={`block group py-2.5 border-b border-[var(--separator)] last:border-0 rounded px-1.5 -mx-1.5 transition-colors duration-300 ${highlighted ? "bg-[var(--badge-bg)]" : ""}`}>
+      <div className="text-[14px] text-[var(--link-blue)] group-hover:underline leading-snug">
         {source.title}
       </div>
       <div className="flex items-center gap-1.5 mt-1">
         <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={14} height={14} className="rounded-full" />
-        <span className="text-[12px] text-[#4d5156]">{domain}</span>
+        <span className="text-[12px] text-[var(--snippet)]">{domain}</span>
       </div>
     </a>
   );
@@ -89,7 +89,7 @@ function CitationChip({ source, index, onHighlight }: {
           onHighlight(index);
           document.getElementById(`aio-source-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }}
-        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[#f0f4f9] hover:bg-[#e3e8ef] text-[11px] text-[#1a73e8] font-medium transition-colors cursor-pointer whitespace-nowrap"
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[11px] text-[var(--accent)] font-medium transition-colors cursor-pointer whitespace-nowrap"
       >
         <img src={`https://www.google.com/s2/favicons?domain=${source.url}&sz=16`} alt="" width={10} height={10} className="rounded-full" />
         {shortDomain.charAt(0).toUpperCase() + shortDomain.slice(1)}
@@ -98,17 +98,17 @@ function CitationChip({ source, index, onHighlight }: {
       {/* Hover popover — source preview card */}
       {showPopover && (
         <div
-          className="absolute z-50 bottom-full left-0 mb-1.5 w-64 bg-white rounded-xl border border-[#dadce0] shadow-lg p-3 pointer-events-none"
+          className="absolute z-50 bottom-full left-0 mb-1.5 w-64 bg-[var(--bg-card)] rounded-xl border border-[var(--source-border)] shadow-lg p-3 pointer-events-none"
           style={{ animation: "fade-in 0.15s ease-out" }}
         >
           <a href={source.url} target="_blank" rel="noopener noreferrer" className="pointer-events-auto">
-            <div className="text-[13px] text-[#1a0dab] leading-snug hover:underline">
+            <div className="text-[13px] text-[var(--link-blue)] leading-snug hover:underline">
               {source.title}
             </div>
           </a>
           <div className="flex items-center gap-1.5 mt-1.5">
             <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={14} height={14} className="rounded-full" />
-            <span className="text-[12px] text-[#4d5156]">{domain}</span>
+            <span className="text-[12px] text-[var(--snippet)]">{domain}</span>
           </div>
         </div>
       )}
@@ -134,16 +134,16 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <GoogleSparkle />
-        <span className="text-[14px] sm:text-[15px] font-normal text-[#1f1f1f]">AI Overview</span>
+        <span className="text-[14px] sm:text-[15px] font-normal text-[var(--text)]">AI Overview</span>
       </div>
 
       {/* Skeleton */}
       {(loading || (!text && !streaming)) && (
         <div className="space-y-2.5 max-w-2xl">
-          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-full" />
-          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[96%]" />
-          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[88%]" />
-          <div className="h-[14px] bg-[#e8eaed] animate-pulse rounded w-[72%]" />
+          <div className="h-[14px] bg-[var(--skeleton)] animate-pulse rounded w-full" />
+          <div className="h-[14px] bg-[var(--skeleton)] animate-pulse rounded w-[96%]" />
+          <div className="h-[14px] bg-[var(--skeleton)] animate-pulse rounded w-[88%]" />
+          <div className="h-[14px] bg-[var(--skeleton)] animate-pulse rounded w-[72%]" />
         </div>
       )}
 
@@ -154,7 +154,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
           <div className="flex-1 min-w-0">
             <div
               ref={textRef}
-              className="text-[14px] sm:text-[15px] leading-[1.6] sm:leading-[1.65] text-[#1f1f1f]"
+              className="text-[14px] sm:text-[15px] leading-[1.6] sm:leading-[1.65] text-[var(--text)]"
             >
               {parts.map((part, i) =>
                 part.type === "text" ? (
@@ -162,20 +162,20 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
                 ) : (() => {
                   const src = sources.find(s => s.index === part.index);
                   if (!src) return (
-                    <span key={i} className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[#e8f0fe] text-[#1a73e8] align-top">
+                    <span key={i} className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-semibold mx-0.5 rounded-full bg-[var(--badge-bg)] text-[var(--accent)] align-top">
                       {part.index}
                     </span>
                   );
                   return <CitationChip key={i} source={src} index={part.index!} onHighlight={highlight} />;
                 })()
               )}
-              {streaming && <span className="inline-block w-[3px] h-4 bg-[#1a73e8] animate-pulse ml-0.5 align-middle rounded-sm" />}
+              {streaming && <span className="inline-block w-[3px] h-4 bg-[var(--accent)] animate-pulse ml-0.5 align-middle rounded-sm" />}
             </div>
           </div>
 
           {/* Sources panel — right side on desktop, below on mobile */}
           {sources.length > 0 && (
-            <div className={`shrink-0 rounded-xl border border-[#dadce0] bg-white overflow-hidden ${compact ? "" : "@2xl:w-64 @3xl:w-72"}`}>
+            <div className={`shrink-0 rounded-xl border border-[var(--source-border)] bg-[var(--bg-card)] overflow-hidden ${compact ? "" : "@2xl:w-64 @3xl:w-72"}`}>
               <div className="px-3 pt-2 pb-0.5">
                 {sources.map((s) => (
                   <SourceCard key={s.index} source={s} highlighted={highlightedSource === s.index} />
@@ -187,7 +187,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
       )}
 
       {/* Separator between AI Overview and search results */}
-      <div className="mt-5 sm:mt-6 border-b border-[#ebebeb]" />
+      <div className="mt-5 sm:mt-6 border-b border-[var(--separator)]" />
     </div>
   );
 });

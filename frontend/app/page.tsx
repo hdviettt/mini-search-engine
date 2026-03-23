@@ -1,12 +1,57 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import PipelineExplorer from "@/components/PipelineExplorer";
 import type { FlowPhase } from "@/components/canvas/types";
 
 type View = "search" | "explore";
+type Theme = "light" | "dark";
+
+function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as Theme | null;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initial = saved || (prefersDark ? "dark" : "light");
+    setTheme(initial);
+    document.documentElement.setAttribute("data-theme", initial);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
+      return next;
+    });
+  }, []);
+
+  return [theme, toggle];
+}
+
+function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="p-1.5 rounded-full text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+      title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+    >
+      {theme === "light" ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const PHASE_STEPS: { key: FlowPhase; label: string }[] = [
   { key: "tokenizing", label: "Tokenize" },
@@ -77,7 +122,7 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
         <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${
           isExploring ? "lg:pl-[67%] lg:pr-4 max-w-none" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-3xl"
         }`}>
-          <div className="text-[12px] @lg:text-[13px] text-[#70757a]">
+          <div className="text-[12px] @lg:text-[13px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
           {engine.searchData.results.map((r, i) => {
@@ -91,27 +136,27 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
                   </div>
                   <div className="min-w-0">
                     <div className="text-[13px] text-[var(--text)] truncate">{domain}</div>
-                    {breadcrumb && <div className="text-[12px] text-[#70757a] truncate">{breadcrumb}</div>}
+                    {breadcrumb && <div className="text-[12px] text-[var(--meta)] truncate">{breadcrumb}</div>}
                   </div>
                 </div>
                 {/* Title */}
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                  <h3 className="text-[16px] sm:text-[18px] text-[#1a0dab] group-hover:underline leading-snug">{r.title}</h3>
+                  <h3 className="text-[16px] sm:text-[18px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
                 </a>
                 {/* Snippet */}
-                <p className="text-[13px] text-[#4d5156] leading-[1.5] line-clamp-2 sm:line-clamp-3 mt-0.5">{r.snippet}</p>
+                <p className="text-[13px] text-[var(--snippet)] leading-[1.5] line-clamp-2 sm:line-clamp-3 mt-0.5">{r.snippet}</p>
                 {/* Score hints on hover */}
                 <div className="hidden @lg:flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <span className="text-[10px] text-[#70757a] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
-                  <span className="text-[10px] text-[#70757a] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                  <span className="text-[10px] text-[#1a73e8] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                  <span className="text-[10px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                  <span className="text-[10px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                  <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
                 </div>
               </div>
             );
           })}
 
           <div className="pt-4 @lg:pt-6">
-            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-[11px] @lg:text-xs text-[#70757a] hover:text-[#1a73e8] transition-colors cursor-pointer">
+            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-[11px] @lg:text-xs text-[var(--meta)] hover:text-[var(--accent)] transition-colors cursor-pointer">
               <span className="@lg:hidden">Explore pipeline</span>
               <span className="hidden @lg:inline">See how these results were computed</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -128,6 +173,7 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
 export default function Home() {
   const engine = useSearchEngine();
   const [view, setView] = useState<View>("search");
+  const [theme, toggleTheme] = useTheme();
   const hasResults = engine.searchData !== null;
   const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
 
@@ -136,7 +182,11 @@ export default function Home() {
       {/* Header */}
       {!hasResults ? (
         /* Hero state — centered */
-        <div className="pt-[18vh] sm:pt-[25vh] pb-5 sm:pb-8">
+        <div className="pt-[18vh] sm:pt-[25vh] pb-5 sm:pb-8 relative">
+          {/* Theme toggle — top right on hero */}
+          <div className="absolute top-4 right-4">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
           <div className="max-w-2xl mx-auto px-3 sm:px-4 text-center">
             <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-[var(--text)] mb-5 sm:mb-8">Search Engine</h1>
             <p className="text-[var(--text-dim)] text-xs sm:text-sm -mt-4 sm:-mt-6 mb-5 sm:mb-8">
@@ -169,8 +219,9 @@ export default function Home() {
               </svg>
               <input name="q" type="text" defaultValue={engine.query} key={engine.query}
                 className="flex-1 py-2 sm:py-2.5 bg-transparent text-[var(--text)] text-sm placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
-              <div className="shrink-0 border-l border-[var(--border)] pl-2 sm:pl-3 ml-1">
+              <div className="shrink-0 border-l border-[var(--border)] pl-2 sm:pl-3 ml-1 flex items-center gap-1">
                 <ViewToggle view={view} onChange={setView} />
+                <ThemeToggle theme={theme} onToggle={toggleTheme} />
               </div>
             </form>
           </div>
