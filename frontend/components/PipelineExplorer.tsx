@@ -785,7 +785,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
           <div
             className="fixed z-50 bg-[var(--bg-card)] shadow-xl overflow-hidden
               bottom-0 left-0 right-0 max-h-[55vh] rounded-t-2xl
-              lg:top-20 lg:bottom-auto lg:left-auto lg:right-[36%] lg:rounded-xl lg:max-h-[calc(100vh-96px)] lg:w-80"
+              lg:top-28 lg:bottom-auto lg:left-auto lg:right-[36%] lg:rounded-xl lg:max-h-[calc(100vh-128px)] lg:w-80"
             style={{ animation: "slide-up 0.2s ease-out" }}
           >
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />

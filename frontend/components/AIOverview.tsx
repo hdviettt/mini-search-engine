@@ -83,7 +83,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
         </div>
       ) : (
         <>
-          <div className="px-5 pb-3">
+          <div className="px-5 pb-3" style={{ animation: "fade-in 0.3s ease-out" }}>
             <div className={`text-[14px] leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
               {parts.map((part, i) =>
                 part.type === "text" ? (

@@ -178,8 +178,19 @@ export function useSearchEngine(): SearchEngineState {
               setOverviewStreaming(true);
               setOverviewText((prev) => prev + msg.content);
             } else if (msg.type === "text") {
+              // Non-streaming full response (cached) — simulate streaming
               setOverviewLoading(false);
-              setOverviewText(msg.content);
+              setOverviewStreaming(true);
+              const fullText = msg.content as string;
+              let pos = 0;
+              const reveal = setInterval(() => {
+                pos = Math.min(pos + 4, fullText.length);
+                setOverviewText(fullText.slice(0, pos));
+                if (pos >= fullText.length) {
+                  setOverviewStreaming(false);
+                  clearInterval(reveal);
+                }
+              }, 8);
             } else if (msg.type === "done") {
               setOverviewStreaming(false);
               setPhase("aiComplete");
