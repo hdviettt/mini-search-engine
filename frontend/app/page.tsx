@@ -202,7 +202,7 @@ export default function Home() {
 
           <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
             <div className="mb-6 sm:mb-8">
-              <img src="/ronaldo.svg" alt="Ronaldo SIU celebration" className="h-36 sm:h-48 mx-auto siu-entrance" draggable={false} />
+              <img src="/ronaldo.svg" alt="Ronaldo SIU celebration" className="h-36 sm:h-48 mx-auto siu-entrance dark-svg-fix" draggable={false} />
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-4">

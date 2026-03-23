@@ -124,6 +124,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Dark mode SVG fix — add subtle glow so white-outlined SVGs stay visible */
+[data-theme="dark"] .dark-svg-fix {
+  filter: drop-shadow(0 0 12px rgba(231, 76, 60, 0.15));
+}
+
 /* SIU pose entrance animation */
 .siu-entrance {
   animation: siu-fade-up 0.7s ease-out both;
