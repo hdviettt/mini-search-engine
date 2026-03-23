@@ -181,7 +181,7 @@ export default function Home() {
           }}
         >
           {/* Pipeline */}
-          <div className={`overflow-hidden ${view === "explore" ? "block" : "hidden lg:block"}`}>
+          <div className={`overflow-hidden ${view === "explore" ? "block" : "max-h-0 lg:max-h-none lg:block opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto"}`}>
             <PipelineExplorer
               data={engine.searchData}
               stats={engine.stats}
@@ -193,7 +193,9 @@ export default function Home() {
 
           {/* SERP */}
           <div className={`lg:overflow-hidden lg:overflow-y-auto ${
-            view === "explore" ? "hidden lg:block lg:border-l border-[var(--border)]" : "block"
+            view === "explore"
+              ? "max-h-0 lg:max-h-none opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto overflow-hidden lg:block lg:border-l border-[var(--border)]"
+              : "block"
           }`}>
             <SerpSidePanel engine={engine} onToggleView={() => setView(view === "search" ? "explore" : "search")} />
           </div>
