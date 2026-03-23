@@ -331,6 +331,28 @@ function Annotation({ x, y, text }: { x: number; y: number; text: string }) {
 
 // ─── Detail Panel ───────────────────────────────────────────────
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">{children}</div>;
+}
+
+function IOBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="bg-[var(--bg-elevated)] rounded-lg px-3 py-2">{children}</div>
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between text-xs">
+      <span className="text-[var(--text-dim)]">{label}</span>
+      <span className="font-mono text-[var(--text)]">{value}</span>
+    </div>
+  );
+}
+
 function DetailPanel({ nodeId, data, stats, onClose }: {
   nodeId: NodeId;
   data: ExplainResponse | null;
@@ -341,7 +363,7 @@ function DetailPanel({ nodeId, data, stats, onClose }: {
   const trace = data?.pipeline;
 
   return (
-    <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden" style={{ animation: "fade-in 0.2s ease-out" }}>
+    <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden h-fit" style={{ animation: "fade-in 0.15s ease-out" }}>
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
         <div className="w-3 h-3 rounded" style={{ background: node.fill, border: `1.5px solid ${node.stroke}` }} />
         <span className="text-sm font-semibold text-[var(--text)] flex-1">{node.label}</span>
@@ -349,35 +371,171 @@ function DetailPanel({ nodeId, data, stats, onClose }: {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       </div>
-      <div className="px-4 py-3 text-sm">
-        {/* BUILD nodes */}
-        {nodeId === "crawler" && <p className="text-[var(--text-muted)]">Fetches web pages via breadth-first search starting from seed URLs. {stats && `${stats.pages_crawled} pages crawled.`}</p>}
-        {nodeId === "pages_db" && <p className="text-[var(--text-muted)]">Stores raw crawled pages — HTML content, titles, outgoing links. {stats && `${stats.pages_crawled} pages stored.`}</p>}
-        {nodeId === "indexer" && <p className="text-[var(--text-muted)]">Tokenizes each page and builds the inverted index (term → document list). {stats && `${stats.total_terms.toLocaleString()} unique terms, ${stats.total_postings.toLocaleString()} postings.`}</p>}
-        {nodeId === "pr_compute" && <p className="text-[var(--text-muted)]">Computes PageRank authority scores using the link graph between crawled pages.</p>}
-        {nodeId === "chunker" && <p className="text-[var(--text-muted)]">Splits pages into ~300-token chunks at sentence boundaries for vector embedding. {stats && `${stats.total_chunks.toLocaleString()} chunks.`}</p>}
-        {nodeId === "embedder" && <p className="text-[var(--text-muted)]">Generates 512-dimensional vectors for each chunk using Voyage AI. {stats && `${stats.chunks_embedded.toLocaleString()} embedded.`}</p>}
+      <div className="px-4 py-3 space-y-3 text-sm max-h-[70vh] overflow-y-auto">
+        {nodeId === "crawler" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Fetches web pages via breadth-first search from seed URLs, extracting text and outgoing links.</p>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Pages crawled" value={stats.pages_crawled.toLocaleString()} />
+                <StatRow label="Pages pending" value={stats.pages_pending.toLocaleString()} />
+                <StatRow label="Pages failed" value={stats.pages_failed.toLocaleString()} />
+                {stats.last_crawl_at && <StatRow label="Last crawl" value={new Date(stats.last_crawl_at).toLocaleDateString()} />}
+              </div>
+            )}
+          </>
+        )}
 
-        {/* STORES */}
-        {nodeId === "inv_index" && <p className="text-[var(--text-muted)]">Maps each term to the list of documents containing it. {stats && `${stats.total_terms.toLocaleString()} terms → ${stats.total_postings.toLocaleString()} postings.`}</p>}
-        {nodeId === "pr_scores" && <p className="text-[var(--text-muted)]">Stores authority score per page computed by PageRank. {stats && `${stats.pages_crawled} pages scored.`}</p>}
-        {nodeId === "vector_store" && <p className="text-[var(--text-muted)]">Stores chunk embeddings for cosine similarity search. {stats && `${stats.chunks_embedded.toLocaleString()} vectors.`}</p>}
+        {nodeId === "pages_db" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Raw storage for crawled pages — HTML content, extracted titles, outgoing links, and metadata.</p>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Total pages" value={stats.pages_crawled.toLocaleString()} />
+                <StatRow label="Avg doc length" value={`${stats.avg_doc_length.toFixed(0)} tokens`} />
+              </div>
+            )}
+          </>
+        )}
 
-        {/* QUERY nodes with trace data */}
-        {nodeId === "query_input" && data && <div className="font-mono bg-[var(--bg-elevated)] px-3 py-2 rounded">&quot;{data.query}&quot;</div>}
+        {nodeId === "indexer" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Tokenizes every crawled page and builds an inverted index mapping each term to its document list.</p>
+            {stats && (
+              <IOBlock label="Output">
+                <div className="space-y-1">
+                  <StatRow label="Unique terms" value={stats.total_terms.toLocaleString()} />
+                  <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
+                  <StatRow label="Avg postings/term" value={(stats.total_postings / Math.max(stats.total_terms, 1)).toFixed(1)} />
+                </div>
+              </IOBlock>
+            )}
+          </>
+        )}
 
-        {nodeId === "tokenize" && trace && <TokenizeDetail trace={trace} />}
+        {nodeId === "pr_compute" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Iteratively computes authority scores from the link graph. Pages linked by many high-authority pages get higher scores.</p>
+            {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
+          </>
+        )}
+
+        {nodeId === "chunker" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Splits page content into ~300-token chunks at sentence boundaries for vector embedding.</p>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
+                <StatRow label="Avg chunks/page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
+              </div>
+            )}
+          </>
+        )}
+
+        {nodeId === "embedder" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Generates 512-dimensional vector embeddings for each chunk using Voyage AI, enabling semantic similarity search.</p>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Chunks embedded" value={stats.chunks_embedded.toLocaleString()} />
+                <StatRow label="Dimensions" value="512" />
+                <StatRow label="Model" value="Voyage AI" />
+              </div>
+            )}
+          </>
+        )}
+
+        {nodeId === "inv_index" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Maps each term to the list of documents containing it, with term frequency and position data.</p>
+            {stats && (
+              <IOBlock label="Contents">
+                <div className="space-y-1">
+                  <StatRow label="Terms" value={stats.total_terms.toLocaleString()} />
+                  <StatRow label="Postings" value={stats.total_postings.toLocaleString()} />
+                </div>
+              </IOBlock>
+            )}
+          </>
+        )}
+
+        {nodeId === "pr_scores" && stats && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Authority score per page, used as a query-independent quality signal.</p>
+            <IOBlock label="Contents">
+              <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />
+            </IOBlock>
+          </>
+        )}
+
+        {nodeId === "vector_store" && stats && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Chunk embeddings for cosine similarity search, enabling semantic retrieval.</p>
+            <IOBlock label="Contents">
+              <StatRow label="Vectors" value={stats.chunks_embedded.toLocaleString()} />
+              <StatRow label="Dimensions" value="512" />
+            </IOBlock>
+          </>
+        )}
+
+        {nodeId === "query_input" && data && (
+          <IOBlock label="Query">
+            <span className="font-mono text-sm text-[var(--text)]">&quot;{data.query}&quot;</span>
+          </IOBlock>
+        )}
+
+        {nodeId === "tokenize" && trace && (
+          <>
+            <IOBlock label="Input">
+              <span className="font-mono text-xs text-[var(--text)]">&quot;{trace.tokenization.input}&quot;</span>
+            </IOBlock>
+            <IOBlock label="Output tokens">
+              <div className="flex flex-wrap gap-1">
+                {trace.tokenization.tokens.map((t, i) => (
+                  <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">{t}</span>
+                ))}
+              </div>
+            </IOBlock>
+            {trace.tokenization.stopwords_removed.length > 0 && (
+              <IOBlock label="Stopwords removed">
+                <div className="flex flex-wrap gap-1">
+                  {trace.tokenization.stopwords_removed.map((w, i) => (
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-red-50 text-red-400 rounded line-through">{w}</span>
+                  ))}
+                </div>
+              </IOBlock>
+            )}
+            <StatRow label="Time" value={`${trace.tokenization.time_ms.toFixed(1)}ms`} />
+          </>
+        )}
+
         {nodeId === "index_lookup" && trace && <IndexDetail trace={trace} />}
         {nodeId === "bm25" && trace && <BM25Detail trace={trace} />}
         {nodeId === "pr_lookup" && trace && <PageRankDetail trace={trace} />}
         {nodeId === "combine" && trace && <CombineDetail trace={trace} />}
         {nodeId === "results" && data && <ResultsDetail data={data} />}
 
-        {nodeId === "fanout" && <p className="text-[var(--text-muted)]">Expands the query via LLM into multiple search angles for broader retrieval.</p>}
-        {nodeId === "embed_query" && <p className="text-[var(--text-muted)]">Converts the search query into a 512-dim vector for similarity matching.</p>}
-        {nodeId === "vector_search" && <p className="text-[var(--text-muted)]">Finds the most relevant chunks by cosine similarity between query and chunk vectors.</p>}
-        {nodeId === "llm" && <p className="text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks using Groq (Llama 3.3 70B).</p>}
-        {nodeId === "ai_overview" && <p className="text-[var(--text-muted)]">The final AI-generated summary with inline citations to source pages.</p>}
+        {nodeId === "fanout" && (
+          <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader semantic retrieval coverage.</p>
+        )}
+        {nodeId === "embed_query" && (
+          <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dimensional vector using Voyage AI, enabling cosine similarity matching against stored chunk embeddings.</p>
+        )}
+        {nodeId === "vector_search" && (
+          <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by computing cosine similarity between the query vector and all stored chunk vectors. Returns top-K chunks ranked by similarity score.</p>
+        )}
+        {nodeId === "llm" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks using a large language model. The model is grounded by the retrieved context to reduce hallucination.</p>
+            <div className="space-y-1 mt-2">
+              <StatRow label="Provider" value="Groq" />
+              <StatRow label="Model" value="Llama 3.3 70B" />
+            </div>
+          </>
+        )}
+        {nodeId === "ai_overview" && (
+          <p className="text-xs text-[var(--text-muted)]">The final AI-generated summary with inline citations [1][2] linking back to source pages. Streams to the user token by token.</p>
+        )}
       </div>
     </div>
   );
@@ -409,16 +567,30 @@ function TokenizeDetail({ trace }: { trace: PipelineTrace }) {
 function IndexDetail({ trace }: { trace: PipelineTrace }) {
   const t = trace.index_lookup;
   return (
-    <div className="space-y-2">
-      {Object.entries(t.terms_found).map(([term, info]) => (
-        <div key={term} className="flex items-center gap-2 bg-[var(--bg-elevated)] px-3 py-1.5 rounded text-xs">
-          <span className="font-mono text-[var(--accent)] font-medium">&quot;{term}&quot;</span>
-          <span className="text-[var(--text-dim)]">&rarr;</span>
-          <span className="text-[var(--text-muted)]">{info.doc_freq} docs</span>
-          <span className="text-[var(--text-dim)] font-mono ml-auto">IDF {info.idf.toFixed(2)}</span>
+    <div className="space-y-3">
+      <IOBlock label="Terms found">
+        <div className="space-y-1.5">
+          {Object.entries(t.terms_found).map(([term, info]) => (
+            <div key={term} className="flex items-center gap-2 text-xs">
+              <span className="font-mono text-[var(--accent)] font-medium">&quot;{term}&quot;</span>
+              <span className="text-[var(--text-dim)]">&rarr;</span>
+              <span className="text-[var(--text-muted)]">{info.doc_freq} docs</span>
+              <span className="text-[var(--text-dim)] font-mono ml-auto">IDF {info.idf.toFixed(2)}</span>
+            </div>
+          ))}
+          {t.terms_missing.length > 0 && t.terms_missing.map((term) => (
+            <div key={term} className="flex items-center gap-2 text-xs">
+              <span className="font-mono text-red-400">&quot;{term}&quot;</span>
+              <span className="text-red-300">not found</span>
+            </div>
+          ))}
         </div>
-      ))}
-      <div className="text-[11px] text-[var(--text-dim)]">{t.corpus_stats.total_docs.toLocaleString()} docs, avg {t.corpus_stats.avg_doc_length.toFixed(0)} tokens — {t.time_ms.toFixed(1)}ms</div>
+      </IOBlock>
+      <div className="space-y-1">
+        <StatRow label="Corpus size" value={`${t.corpus_stats.total_docs.toLocaleString()} docs`} />
+        <StatRow label="Avg doc length" value={`${t.corpus_stats.avg_doc_length.toFixed(0)} tokens`} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
     </div>
   );
 }
@@ -427,20 +599,29 @@ function BM25Detail({ trace }: { trace: PipelineTrace }) {
   const t = trace.bm25_scoring;
   const max = t.top_scores[0]?.score ?? 1;
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] text-[var(--text-dim)]">k1={t.params.k1}, b={t.params.b} — {t.total_matched} matched — {t.time_ms.toFixed(1)}ms</div>
-      {t.top_scores.slice(0, 5).map((s, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-[11px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
-            <div className="h-1 bg-[var(--bg-elevated)] rounded-full mt-0.5 overflow-hidden">
-              <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="k1" value={t.params.k1} />
+        <StatRow label="b" value={t.params.b} />
+        <StatRow label="Docs matched" value={t.total_matched} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      <IOBlock label="Top scores">
+        <div className="space-y-1.5">
+          {t.top_scores.slice(0, 5).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
+                <div className="h-1 bg-[var(--bg)] rounded-full mt-0.5 overflow-hidden">
+                  <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-[var(--text-dim)] w-9 text-right shrink-0">{s.score.toFixed(2)}</span>
             </div>
-          </div>
-          <span className="text-[10px] font-mono text-[var(--text-dim)] w-9 text-right shrink-0">{s.score.toFixed(2)}</span>
+          ))}
         </div>
-      ))}
+      </IOBlock>
     </div>
   );
 }
@@ -449,20 +630,27 @@ function PageRankDetail({ trace }: { trace: PipelineTrace }) {
   const t = trace.pagerank;
   const max = t.top_scores[0]?.score ?? 1;
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] text-[var(--text-dim)]">Damping: {t.damping} — {t.time_ms.toFixed(1)}ms</div>
-      {t.top_scores.slice(0, 5).map((s, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-[11px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
-            <div className="h-1 bg-[var(--bg-elevated)] rounded-full mt-0.5 overflow-hidden">
-              <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Damping factor" value={t.damping} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      <IOBlock label="Top scores">
+        <div className="space-y-1.5">
+          {t.top_scores.slice(0, 5).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[var(--text)] truncate">{s.title || `Page ${s.page_id}`}</div>
+                <div className="h-1 bg-[var(--bg)] rounded-full mt-0.5 overflow-hidden">
+                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(s.score / max) * 100}%` }} />
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-[var(--text-dim)] w-14 text-right shrink-0">{s.score.toFixed(6)}</span>
             </div>
-          </div>
-          <span className="text-[10px] font-mono text-[var(--text-dim)] w-14 text-right shrink-0">{s.score.toFixed(6)}</span>
+          ))}
         </div>
-      ))}
+      </IOBlock>
     </div>
   );
 }
@@ -470,40 +658,57 @@ function PageRankDetail({ trace }: { trace: PipelineTrace }) {
 function CombineDetail({ trace }: { trace: PipelineTrace }) {
   const t = trace.combination;
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] text-[var(--text-dim)]">&alpha;={t.alpha} — {t.formula} — {t.time_ms.toFixed(1)}ms</div>
-      {t.rank_changes.slice(0, 5).map((rc, i) => {
-        const bm25r = typeof rc.bm25_rank === "number" ? rc.bm25_rank : 99;
-        const delta = bm25r - rc.final_rank;
-        return (
-          <div key={i} className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text)] truncate flex-1 min-w-0">{rc.title}</span>
-            <span className="font-mono text-[var(--text-dim)]">#{typeof rc.bm25_rank === "number" ? rc.bm25_rank : "—"}</span>
-            <span className="text-[var(--text-dim)]">&rarr;</span>
-            <span className="font-mono text-[var(--text)]">#{rc.final_rank}</span>
-            {delta !== 0 && <span className={`font-mono ${delta > 0 ? "text-green-500" : "text-red-400"}`}>{delta > 0 ? `+${delta}` : delta}</span>}
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Alpha (α)" value={t.alpha} />
+        <StatRow label="Formula" value={t.formula} />
+        <StatRow label="Time" value={`${t.time_ms.toFixed(1)}ms`} />
+      </div>
+      {t.rank_changes.length > 0 && (
+        <IOBlock label="Rank changes (BM25 → Final)">
+          <div className="space-y-1">
+            {t.rank_changes.slice(0, 5).map((rc, i) => {
+              const bm25r = typeof rc.bm25_rank === "number" ? rc.bm25_rank : 99;
+              const delta = bm25r - rc.final_rank;
+              return (
+                <div key={i} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-[var(--text)] truncate flex-1 min-w-0">{rc.title}</span>
+                  <span className="font-mono text-[var(--text-dim)]">#{typeof rc.bm25_rank === "number" ? rc.bm25_rank : "—"}</span>
+                  <span className="text-[var(--text-dim)]">&rarr;</span>
+                  <span className="font-mono text-[var(--text)]">#{rc.final_rank}</span>
+                  {delta !== 0 && <span className={`font-mono ${delta > 0 ? "text-green-500" : "text-red-400"}`}>{delta > 0 ? `+${delta}` : delta}</span>}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </IOBlock>
+      )}
     </div>
   );
 }
 
 function ResultsDetail({ data }: { data: ExplainResponse }) {
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] text-[var(--text-dim)]">{data.total_results} results in {data.time_ms}ms</div>
-      {data.results.slice(0, 4).map((r, i) => (
-        <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
-          className="block bg-[var(--bg-elevated)] rounded px-3 py-1.5 hover:bg-[var(--border)]/30 transition-colors group">
-          <div className="text-xs text-[var(--accent)] group-hover:underline truncate">{r.title}</div>
-          <div className="flex gap-3 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
-            <span>BM25 {r.bm25_score.toFixed(2)}</span>
-            <span>PR {r.pagerank_score.toFixed(6)}</span>
-            <span className="text-[var(--accent)]">Final {r.final_score.toFixed(2)}</span>
-          </div>
-        </a>
-      ))}
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <StatRow label="Total results" value={data.total_results} />
+        <StatRow label="Time" value={`${data.time_ms}ms`} />
+      </div>
+      <IOBlock label="Top results">
+        <div className="space-y-2">
+          {data.results.slice(0, 4).map((r, i) => (
+            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+              className="block group">
+              <div className="text-[11px] text-[var(--accent)] group-hover:underline truncate">{r.title}</div>
+              <div className="flex gap-2 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
+                <span>BM25 {r.bm25_score.toFixed(1)}</span>
+                <span>PR {r.pagerank_score.toFixed(4)}</span>
+                <span className="text-[var(--accent)]">{r.final_score.toFixed(2)}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </IOBlock>
     </div>
   );
 }
@@ -552,7 +757,7 @@ function PipelineContent() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <div className="border-b border-[var(--border)] bg-[var(--bg-card)]">
-        <div className="max-w-3xl mx-auto px-4 py-4">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
             <Link href="/" className="text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -571,7 +776,7 @@ function PipelineContent() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         {loading && (
           <div className="text-center py-12">
             <div className="inline-block w-5 h-5 border-2 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
@@ -593,17 +798,25 @@ function PipelineContent() {
           </div>
         )}
 
-        <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
+        <div className="lg:flex lg:gap-5 lg:items-start">
+          {/* Flowchart */}
+          <div className="lg:flex-1 min-w-0">
+            <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
-        {data && activeStep >= 6 && !selectedNode && (
-          <p className="text-center text-xs text-[var(--text-dim)]" style={{ animation: "fade-in 0.4s ease-out" }}>
-            Click any node to inspect its data
-          </p>
-        )}
+            {data && activeStep >= 6 && !selectedNode && (
+              <p className="text-center text-xs text-[var(--text-dim)] mt-3" style={{ animation: "fade-in 0.4s ease-out" }}>
+                Click any node to inspect its data
+              </p>
+            )}
+          </div>
 
-        {selectedNode && (
-          <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} />
-        )}
+          {/* Side panel (desktop) / below (mobile) */}
+          {selectedNode && (
+            <div className="mt-4 lg:mt-0 lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
+              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
