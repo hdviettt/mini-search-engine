@@ -148,7 +148,7 @@ export default function AIOverview({ text, sources, loading, streaming }: AIOver
 
       {/* Content */}
       {(text || streaming) && !loading && (
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           {/* Text column */}
           <div className="flex-1 min-w-0">
             <div

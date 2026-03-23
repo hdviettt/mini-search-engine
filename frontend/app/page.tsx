@@ -66,12 +66,12 @@ function SerpSidePanel({ engine, onToggleView }: { engine: SearchEngineState; on
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
         {/* AI Overview */}
-        <div className="px-4 sm:px-6 lg:px-10 max-w-3xl pt-2">
+        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-4xl pt-2">
           <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} />
         </div>
 
-        {/* Results — left-aligned like Google */}
-        <div className="px-4 sm:px-6 lg:px-10 max-w-3xl py-2 space-y-4 @lg:space-y-5">
+        {/* Results */}
+        <div className="px-4 sm:px-8 lg:pl-[10%] lg:pr-4 max-w-3xl py-2 space-y-4 @lg:space-y-5">
           <div className="text-[12px] @lg:text-[13px] text-[#70757a]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
