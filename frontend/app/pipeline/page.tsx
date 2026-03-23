@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { searchExplain, getStats } from "@/lib/api";
+import { searchExplain, getStats, startCrawl, rebuildIndex, rebuildEmbeddings } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
 import Link from "next/link";
 
@@ -93,20 +93,20 @@ const ARROWS: ArrowDef[] = [
   { path: "M 150 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
   { path: "M 390 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
   { path: "M 630 320 V 500 H 600 V 510", dashed: true, dim: true },   // vector_store → vector_search
-  // QUERY — from query_input
-  { path: "M 390 405 V 425 H 195 V 440" },                       // query → tokenize
-  { path: "M 390 405 V 425 H 530 V 440" },                       // query → fanout
-  { path: "M 390 405 V 430 H 670 V 440" },                       // query → embed_query
+  // QUERY — from query_input (all share same V-turn for clean fan-out)
+  { path: "M 390 405 V 430 H 195 V 440" },                       // query → tokenize
+  { path: "M 458 385 H 530 V 440" },                              // query → fanout (from right edge)
+  { path: "M 458 385 H 670 V 440" },                              // query → embed_query (from right edge)
   // QUERY — search path
   { path: "M 195 480 V 510" },                                    // tokenize → index_lookup
-  { path: "M 253 460 H 290 V 583" },                              // tokenize → pr_lookup (right, then down)
+  { path: "M 230 480 V 495 H 345 V 583" },                       // tokenize → pr_lookup (down, right, down)
   { path: "M 195 550 V 583" },                                    // index_lookup → bm25
   { path: "M 195 623 V 648 H 265 V 658" },                       // bm25 → combine
   { path: "M 345 623 V 648 H 265 V 658" },                       // pr_lookup → combine
   { path: "M 265 698 V 728" },                                    // combine → results
   // QUERY — AI path
-  { path: "M 530 480 V 500 H 600 V 510" },                       // fanout → vector_search
-  { path: "M 670 480 V 500 H 600 V 510" },                       // embed_query → vector_search
+  { path: "M 530 480 V 502 H 600 V 510" },                       // fanout → vector_search
+  { path: "M 670 480 V 502 H 600 V 510" },                       // embed_query → vector_search
   { path: "M 600 550 V 583" },                                    // vector_search → llm
   { path: "M 600 623 V 658" },                                    // llm → ai_overview
 ];
@@ -221,12 +221,12 @@ function Flowchart({
             </g>
           ))}
 
-          {/* Sub-path labels in query section */}
-          <text x="120" y="437" fontSize="9" fill="#b45309" fontWeight="600" letterSpacing="0.06em" opacity="0.7">SEARCH PATH</text>
-          <text x="510" y="437" fontSize="9" fill="#7c3aed" fontWeight="600" letterSpacing="0.06em" opacity="0.7">AI OVERVIEW PATH</text>
+          {/* Sub-path labels — positioned as subtle column headers below the fan-out arrows */}
+          <text x="195" y="445" textAnchor="middle" fontSize="8" fill="#b45309" fontWeight="600" letterSpacing="0.06em" opacity="0.5">SEARCH</text>
+          <text x="600" y="445" textAnchor="middle" fontSize="8" fill="#7c3aed" fontWeight="600" letterSpacing="0.06em" opacity="0.5">AI OVERVIEW</text>
 
-          {/* Label: DATA STORES in build section */}
-          <text x="68" y="293" fontSize="8" fill="#a3a3a3" fontWeight="600" letterSpacing="0.06em">STORES</text>
+          {/* Subtle divider between the two query paths */}
+          <line x1="410" y1="445" x2="410" y2="700" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
@@ -299,15 +299,15 @@ function Flowchart({
             );
           })}
 
-          {/* Annotations */}
+          {/* Annotations — positioned to the right of nodes, avoiding arrows */}
           {data && activeStep >= 1 && (
-            <Annotation x={270} y={448} text={`[${data.pipeline.tokenization.tokens.join(", ")}]`} />
+            <Annotation x={265} y={450} text={`${data.pipeline.tokenization.tokens.join(", ")}`} />
           )}
           {data && activeStep >= 3 && (
-            <Annotation x={268} y={591} text={`${data.pipeline.bm25_scoring.total_matched} matched`} />
+            <Annotation x={270} y={593} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
           )}
           {data && activeStep >= 6 && (
-            <Annotation x={345} y={738} text={`${data.total_results} results · ${data.time_ms}ms`} />
+            <Annotation x={345} y={740} text={`${data.total_results} results`} />
           )}
         </svg>
       </div>
@@ -353,14 +353,32 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function DetailPanel({ nodeId, data, stats, onClose }: {
+function ActionButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className="w-full text-xs px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors text-left">
+      {children}
+    </button>
+  );
+}
+
+function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
   nodeId: NodeId;
   data: ExplainResponse | null;
   stats: Stats | null;
   onClose: () => void;
+  onRefreshStats: () => void;
 }) {
   const node = NODES.find((n) => n.id === nodeId)!;
   const trace = data?.pipeline;
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+
+  async function runAction(fn: () => Promise<unknown>, msg: string) {
+    setActionMsg(msg);
+    try { await fn(); onRefreshStats(); }
+    catch { setActionMsg("Failed"); }
+    finally { setTimeout(() => setActionMsg(null), 3000); }
+  }
 
   return (
     <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden h-fit" style={{ animation: "fade-in 0.15s ease-out" }}>
@@ -372,117 +390,155 @@ function DetailPanel({ nodeId, data, stats, onClose }: {
         </button>
       </div>
       <div className="px-4 py-3 space-y-3 text-sm max-h-[70vh] overflow-y-auto">
+        {actionMsg && <div className="text-xs text-[var(--accent)] font-medium animate-pulse">{actionMsg}</div>}
+
         {nodeId === "crawler" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Fetches web pages via breadth-first search from seed URLs, extracting text and outgoing links.</p>
+            <p className="text-xs text-[var(--text-muted)]">Fetches web pages via breadth-first search from seed URLs.</p>
             {stats && (
               <div className="space-y-1">
                 <StatRow label="Pages crawled" value={stats.pages_crawled.toLocaleString()} />
-                <StatRow label="Pages pending" value={stats.pages_pending.toLocaleString()} />
-                <StatRow label="Pages failed" value={stats.pages_failed.toLocaleString()} />
+                <StatRow label="Pending" value={stats.pages_pending.toLocaleString()} />
+                <StatRow label="Failed" value={stats.pages_failed.toLocaleString()} />
                 {stats.last_crawl_at && <StatRow label="Last crawl" value={new Date(stats.last_crawl_at).toLocaleDateString()} />}
               </div>
             )}
+            <ActionButton onClick={() => runAction(() => startCrawl(["https://en.wikipedia.org/wiki/Association_football"], 500, 2), "Starting crawl...")}>
+              Start new crawl (Wikipedia football, 500 pages)
+            </ActionButton>
           </>
         )}
 
         {nodeId === "pages_db" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Raw storage for crawled pages — HTML content, extracted titles, outgoing links, and metadata.</p>
-            {stats && (
+            <p className="text-xs text-[var(--text-muted)]">Raw storage for crawled pages — HTML, titles, outgoing links.</p>
+            {stats ? (
               <div className="space-y-1">
                 <StatRow label="Total pages" value={stats.pages_crawled.toLocaleString()} />
                 <StatRow label="Avg doc length" value={`${stats.avg_doc_length.toFixed(0)} tokens`} />
               </div>
-            )}
+            ) : <p className="text-xs text-[var(--text-dim)]">No data — run a crawl first.</p>}
           </>
         )}
 
         {nodeId === "indexer" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Tokenizes every crawled page and builds an inverted index mapping each term to its document list.</p>
-            {stats && (
-              <IOBlock label="Output">
-                <div className="space-y-1">
-                  <StatRow label="Unique terms" value={stats.total_terms.toLocaleString()} />
-                  <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
-                  <StatRow label="Avg postings/term" value={(stats.total_postings / Math.max(stats.total_terms, 1)).toFixed(1)} />
-                </div>
-              </IOBlock>
-            )}
+            <p className="text-xs text-[var(--text-muted)]">Tokenizes each page and builds the inverted index (term → doc list).</p>
+            {stats ? (
+              <div className="space-y-1">
+                <StatRow label="Unique terms" value={stats.total_terms.toLocaleString()} />
+                <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
+              </div>
+            ) : <p className="text-xs text-[var(--text-dim)]">No index built yet.</p>}
+            <ActionButton onClick={() => runAction(rebuildIndex, "Rebuilding index...")}>
+              Rebuild inverted index
+            </ActionButton>
           </>
         )}
 
         {nodeId === "pr_compute" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Iteratively computes authority scores from the link graph. Pages linked by many high-authority pages get higher scores.</p>
+            <p className="text-xs text-[var(--text-muted)]">Computes authority scores from the link graph between pages.</p>
             {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
           </>
         )}
 
         {nodeId === "chunker" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Splits page content into ~300-token chunks at sentence boundaries for vector embedding.</p>
-            {stats && (
+            <p className="text-xs text-[var(--text-muted)]">Splits pages into ~300-token chunks at sentence boundaries.</p>
+            {stats ? (
               <div className="space-y-1">
                 <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
-                <StatRow label="Avg chunks/page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
+                <StatRow label="Avg per page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
               </div>
-            )}
+            ) : <p className="text-xs text-[var(--text-dim)]">No chunks created yet.</p>}
           </>
         )}
 
         {nodeId === "embedder" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Generates 512-dimensional vector embeddings for each chunk using Voyage AI, enabling semantic similarity search.</p>
-            {stats && (
+            <p className="text-xs text-[var(--text-muted)]">Generates 512-dim vectors for each chunk using Voyage AI.</p>
+            {stats ? (
               <div className="space-y-1">
-                <StatRow label="Chunks embedded" value={stats.chunks_embedded.toLocaleString()} />
+                <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
                 <StatRow label="Dimensions" value="512" />
-                <StatRow label="Model" value="Voyage AI" />
               </div>
-            )}
+            ) : <p className="text-xs text-[var(--text-dim)]">No embeddings generated yet.</p>}
+            <ActionButton onClick={() => runAction(rebuildEmbeddings, "Rebuilding embeddings...")}>
+              Rebuild embeddings
+            </ActionButton>
           </>
         )}
 
+        {/* STORES — show stats + cross-reference with trace data */}
         {nodeId === "inv_index" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Maps each term to the list of documents containing it, with term frequency and position data.</p>
+            <p className="text-xs text-[var(--text-muted)]">Maps each term to its document list with frequency data.</p>
             {stats && (
-              <IOBlock label="Contents">
-                <div className="space-y-1">
-                  <StatRow label="Terms" value={stats.total_terms.toLocaleString()} />
-                  <StatRow label="Postings" value={stats.total_postings.toLocaleString()} />
+              <div className="space-y-1">
+                <StatRow label="Terms" value={stats.total_terms.toLocaleString()} />
+                <StatRow label="Postings" value={stats.total_postings.toLocaleString()} />
+              </div>
+            )}
+            {trace && (
+              <IOBlock label="Last query lookup">
+                <div className="space-y-1.5">
+                  {Object.entries(trace.index_lookup.terms_found).map(([term, info]) => (
+                    <div key={term} className="flex items-center gap-2 text-xs">
+                      <span className="font-mono text-[var(--accent)]">{term}</span>
+                      <span className="text-[var(--text-dim)]">&rarr;</span>
+                      <span className="text-[var(--text-muted)]">{info.doc_freq} docs</span>
+                      <span className="text-[var(--text-dim)] font-mono ml-auto">IDF {info.idf.toFixed(2)}</span>
+                    </div>
+                  ))}
                 </div>
               </IOBlock>
             )}
+            {!stats && !trace && <p className="text-xs text-[var(--text-dim)]">No data — build the index first.</p>}
           </>
         )}
 
-        {nodeId === "pr_scores" && stats && (
+        {nodeId === "pr_scores" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">Authority score per page, used as a query-independent quality signal.</p>
-            <IOBlock label="Contents">
-              <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />
-            </IOBlock>
+            {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
+            {trace && (
+              <IOBlock label="Top PageRank scores">
+                <div className="space-y-1">
+                  {trace.pagerank.top_scores.slice(0, 5).map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[11px]">
+                      <span className="text-[var(--text-dim)] w-3 text-right">{i + 1}</span>
+                      <span className="text-[var(--text)] truncate flex-1">{s.title || `Page ${s.page_id}`}</span>
+                      <span className="font-mono text-[var(--text-dim)]">{s.score.toFixed(6)}</span>
+                    </div>
+                  ))}
+                </div>
+              </IOBlock>
+            )}
+            {!stats && !trace && <p className="text-xs text-[var(--text-dim)]">No data — compute PageRank first.</p>}
           </>
         )}
 
-        {nodeId === "vector_store" && stats && (
+        {nodeId === "vector_store" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Chunk embeddings for cosine similarity search, enabling semantic retrieval.</p>
-            <IOBlock label="Contents">
-              <StatRow label="Vectors" value={stats.chunks_embedded.toLocaleString()} />
-              <StatRow label="Dimensions" value="512" />
-            </IOBlock>
+            <p className="text-xs text-[var(--text-muted)]">Chunk embeddings for cosine similarity search.</p>
+            {stats ? (
+              <div className="space-y-1">
+                <StatRow label="Vectors" value={stats.chunks_embedded.toLocaleString()} />
+                <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
+                <StatRow label="Dimensions" value="512" />
+              </div>
+            ) : <p className="text-xs text-[var(--text-dim)]">No vectors stored — run the embedder first.</p>}
           </>
         )}
 
+        {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
           <IOBlock label="Query">
             <span className="font-mono text-sm text-[var(--text)]">&quot;{data.query}&quot;</span>
           </IOBlock>
         )}
+        {nodeId === "query_input" && !data && <p className="text-xs text-[var(--text-dim)]">Search for something to see data flow through the pipeline.</p>}
 
         {nodeId === "tokenize" && trace && (
           <>
@@ -508,25 +564,28 @@ function DetailPanel({ nodeId, data, stats, onClose }: {
             <StatRow label="Time" value={`${trace.tokenization.time_ms.toFixed(1)}ms`} />
           </>
         )}
+        {nodeId === "tokenize" && !trace && <p className="text-xs text-[var(--text-dim)]">Run a search to see tokenization output.</p>}
 
         {nodeId === "index_lookup" && trace && <IndexDetail trace={trace} />}
         {nodeId === "bm25" && trace && <BM25Detail trace={trace} />}
         {nodeId === "pr_lookup" && trace && <PageRankDetail trace={trace} />}
         {nodeId === "combine" && trace && <CombineDetail trace={trace} />}
+
         {nodeId === "results" && data && <ResultsDetail data={data} />}
+        {nodeId === "results" && !data && <p className="text-xs text-[var(--text-dim)]">Run a search to see ranked results.</p>}
 
         {nodeId === "fanout" && (
-          <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader semantic retrieval coverage.</p>
+          <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader coverage. Runs asynchronously after the search path completes.</p>
         )}
         {nodeId === "embed_query" && (
-          <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dimensional vector using Voyage AI, enabling cosine similarity matching against stored chunk embeddings.</p>
+          <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
         )}
         {nodeId === "vector_search" && (
-          <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by computing cosine similarity between the query vector and all stored chunk vectors. Returns top-K chunks ranked by similarity score.</p>
+          <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors. Returns top-K chunks ranked by score.</p>
         )}
         {nodeId === "llm" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks using a large language model. The model is grounded by the retrieved context to reduce hallucination.</p>
+            <p className="text-xs text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks. Grounded in retrieved context to reduce hallucination.</p>
             <div className="space-y-1 mt-2">
               <StatRow label="Provider" value="Groq" />
               <StatRow label="Model" value="Llama 3.3 70B" />
@@ -534,7 +593,12 @@ function DetailPanel({ nodeId, data, stats, onClose }: {
           </>
         )}
         {nodeId === "ai_overview" && (
-          <p className="text-xs text-[var(--text-muted)]">The final AI-generated summary with inline citations [1][2] linking back to source pages. Streams to the user token by token.</p>
+          <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages. Streams to the user token by token.</p>
+        )}
+
+        {/* Fallback for query nodes without data */}
+        {["index_lookup", "bm25", "pr_lookup", "combine"].includes(nodeId) && !trace && (
+          <p className="text-xs text-[var(--text-dim)]">Run a search to see data for this step.</p>
         )}
       </div>
     </div>
@@ -813,7 +877,7 @@ function PipelineContent() {
           {/* Side panel (desktop) / below (mobile) */}
           {selectedNode && (
             <div className="mt-4 lg:mt-0 lg:w-80 lg:shrink-0 lg:sticky lg:top-4">
-              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} />
+              <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} />
             </div>
           )}
         </div>
