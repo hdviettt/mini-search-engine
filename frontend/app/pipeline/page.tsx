@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { searchExplain, getStats, startCrawl, rebuildIndex, rebuildEmbeddings } from "@/lib/api";
+import { searchExplain, getStats, getOverview, startCrawl, rebuildIndex, rebuildEmbeddings } from "@/lib/api";
+import type { OverviewSource } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
 import Link from "next/link";
 
@@ -409,18 +410,6 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
           </>
         )}
 
-        {nodeId === "pages_db" && (
-          <>
-            <p className="text-xs text-[var(--text-muted)]">Raw storage for crawled pages — HTML, titles, outgoing links.</p>
-            {stats ? (
-              <div className="space-y-1">
-                <StatRow label="Total pages" value={stats.pages_crawled.toLocaleString()} />
-                <StatRow label="Avg doc length" value={`${stats.avg_doc_length.toFixed(0)} tokens`} />
-              </div>
-            ) : <p className="text-xs text-[var(--text-dim)]">No data — run a crawl first.</p>}
-          </>
-        )}
-
         {nodeId === "indexer" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">Tokenizes each page and builds the inverted index (term → doc list).</p>
@@ -470,65 +459,99 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
           </>
         )}
 
-        {/* STORES — show stats + cross-reference with trace data */}
+        {/* STORES — show schema + actual data structure */}
         {nodeId === "inv_index" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Maps each term to its document list with frequency data.</p>
-            {stats && (
-              <div className="space-y-1">
-                <StatRow label="Terms" value={stats.total_terms.toLocaleString()} />
-                <StatRow label="Postings" value={stats.total_postings.toLocaleString()} />
-              </div>
-            )}
+            <SectionLabel>Schema</SectionLabel>
+            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
+              <div><span className="text-[var(--accent)]">term</span> → {"{"}</div>
+              <div className="pl-3">doc_freq: <span className="text-[var(--text-dim)]">int</span>,</div>
+              <div className="pl-3">idf: <span className="text-[var(--text-dim)]">float</span>,</div>
+              <div className="pl-3">postings: <span className="text-[var(--text-dim)]">[page_id, ...]</span></div>
+              <div>{"}"}</div>
+            </div>
+            {stats && <StatRow label="Entries" value={`${stats.total_terms.toLocaleString()} terms → ${stats.total_postings.toLocaleString()} postings`} />}
             {trace && (
-              <IOBlock label="Last query lookup">
-                <div className="space-y-1.5">
+              <IOBlock label="Sample entries (from last query)">
+                <div className="space-y-2">
                   {Object.entries(trace.index_lookup.terms_found).map(([term, info]) => (
-                    <div key={term} className="flex items-center gap-2 text-xs">
-                      <span className="font-mono text-[var(--accent)]">{term}</span>
-                      <span className="text-[var(--text-dim)]">&rarr;</span>
-                      <span className="text-[var(--text-muted)]">{info.doc_freq} docs</span>
-                      <span className="text-[var(--text-dim)] font-mono ml-auto">IDF {info.idf.toFixed(2)}</span>
+                    <div key={term} className="font-mono text-[11px]">
+                      <span className="text-[var(--accent)]">&quot;{term}&quot;</span>
+                      <span className="text-[var(--text-dim)]"> → {"{"} doc_freq: </span>
+                      <span className="text-[var(--text)]">{info.doc_freq}</span>
+                      <span className="text-[var(--text-dim)]">, idf: </span>
+                      <span className="text-[var(--text)]">{info.idf.toFixed(2)}</span>
+                      <span className="text-[var(--text-dim)]"> {"}"}</span>
                     </div>
                   ))}
                 </div>
               </IOBlock>
             )}
-            {!stats && !trace && <p className="text-xs text-[var(--text-dim)]">No data — build the index first.</p>}
           </>
         )}
 
         {nodeId === "pr_scores" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Authority score per page, used as a query-independent quality signal.</p>
-            {stats && <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />}
+            <SectionLabel>Schema</SectionLabel>
+            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 text-[var(--text-muted)]">
+              <span className="text-[var(--accent)]">page_id</span> → <span className="text-[var(--text-dim)]">float</span> <span className="text-[var(--text-dim)] opacity-60">(authority score, 0–1)</span>
+            </div>
             {trace && (
-              <IOBlock label="Top PageRank scores">
-                <div className="space-y-1">
-                  {trace.pagerank.top_scores.slice(0, 5).map((s, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[11px]">
-                      <span className="text-[var(--text-dim)] w-3 text-right">{i + 1}</span>
-                      <span className="text-[var(--text)] truncate flex-1">{s.title || `Page ${s.page_id}`}</span>
-                      <span className="font-mono text-[var(--text-dim)]">{s.score.toFixed(6)}</span>
+              <IOBlock label="Sample entries">
+                <div className="space-y-1.5">
+                  {trace.pagerank.top_scores.slice(0, 6).map((s, i) => (
+                    <div key={i} className="font-mono text-[11px]">
+                      <span className="text-[var(--text-dim)]">page_{s.page_id}</span>
+                      <span className="text-[var(--text-dim)]"> → </span>
+                      <span className="text-[var(--text)]">{s.score.toFixed(8)}</span>
+                      {s.title && <span className="text-[var(--text-dim)] opacity-60 ml-2 font-sans text-[10px]">{s.title.slice(0, 25)}</span>}
                     </div>
                   ))}
                 </div>
               </IOBlock>
             )}
-            {!stats && !trace && <p className="text-xs text-[var(--text-dim)]">No data — compute PageRank first.</p>}
+            {stats && <StatRow label="Total entries" value={`${stats.pages_crawled.toLocaleString()} pages`} />}
           </>
         )}
 
         {nodeId === "vector_store" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Chunk embeddings for cosine similarity search.</p>
-            {stats ? (
+            <SectionLabel>Schema</SectionLabel>
+            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
+              <div><span className="text-[var(--accent)]">chunk_id</span> → {"{"}</div>
+              <div className="pl-3">text: <span className="text-[var(--text-dim)]">string</span> <span className="opacity-60">(~300 tokens)</span>,</div>
+              <div className="pl-3">page_id: <span className="text-[var(--text-dim)]">int</span>,</div>
+              <div className="pl-3">vector: <span className="text-[var(--text-dim)]">float[512]</span></div>
+              <div>{"}"}</div>
+            </div>
+            {stats && (
               <div className="space-y-1">
-                <StatRow label="Vectors" value={stats.chunks_embedded.toLocaleString()} />
                 <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
-                <StatRow label="Dimensions" value="512" />
+                <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
+                <StatRow label="Vector dim" value="512" />
+                <StatRow label="Model" value="Voyage AI" />
               </div>
-            ) : <p className="text-xs text-[var(--text-dim)]">No vectors stored — run the embedder first.</p>}
+            )}
+          </>
+        )}
+
+        {nodeId === "pages_db" && (
+          <>
+            <SectionLabel>Schema</SectionLabel>
+            <div className="font-mono text-[11px] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 space-y-0.5 text-[var(--text-muted)]">
+              <div><span className="text-[var(--accent)]">page_id</span> → {"{"}</div>
+              <div className="pl-3">url: <span className="text-[var(--text-dim)]">string</span>,</div>
+              <div className="pl-3">title: <span className="text-[var(--text-dim)]">string</span>,</div>
+              <div className="pl-3">content: <span className="text-[var(--text-dim)]">string</span>,</div>
+              <div className="pl-3">links: <span className="text-[var(--text-dim)]">[url, ...]</span></div>
+              <div>{"}"}</div>
+            </div>
+            {stats && (
+              <div className="space-y-1">
+                <StatRow label="Total pages" value={stats.pages_crawled.toLocaleString()} />
+                <StatRow label="Avg doc length" value={`${stats.avg_doc_length.toFixed(0)} tokens`} />
+              </div>
+            )}
           </>
         )}
 
@@ -606,27 +629,6 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats }: {
 }
 
 // ─── Step detail renderers ──────────────────────────────────────
-
-function TokenizeDetail({ trace }: { trace: PipelineTrace }) {
-  const t = trace.tokenization;
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {t.tokens.map((tok, i) => (
-          <span key={i} className="font-mono px-2 py-0.5 bg-[var(--accent)]/8 text-[var(--accent)] rounded border border-[var(--accent)]/15 text-xs">{tok}</span>
-        ))}
-      </div>
-      {t.stopwords_removed.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {t.stopwords_removed.map((w, i) => (
-            <span key={i} className="font-mono px-2 py-0.5 bg-red-50 text-red-400 rounded line-through text-xs">{w}</span>
-          ))}
-        </div>
-      )}
-      <div className="text-[11px] text-[var(--text-dim)] font-mono">{t.time_ms.toFixed(1)}ms</div>
-    </div>
-  );
-}
 
 function IndexDetail({ trace }: { trace: PipelineTrace }) {
   const t = trace.index_lookup;
@@ -787,6 +789,94 @@ export default function PipelinePage() {
   );
 }
 
+// ─── Final Results Panel ────────────────────────────────────────
+
+function FinalResults({ data, overviewText, overviewSources, overviewLoading }: {
+  data: ExplainResponse;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
+}) {
+  return (
+    <div className="border-t border-[var(--border)] pt-6 mt-6" style={{ animation: "fade-in 0.4s ease-out" }}>
+      <h2 className="text-base font-semibold text-[var(--text)] mb-4">Final Output</h2>
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* Search Results */}
+        <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
+            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="text-sm font-semibold text-[var(--text)]">Ranked Results</span>
+            <span className="text-xs text-[var(--text-dim)] ml-auto">{data.total_results} results · {data.time_ms}ms</span>
+          </div>
+          <div className="px-4 py-3 space-y-3 max-h-96 overflow-y-auto">
+            {data.results.map((r, i) => {
+              let domain = "";
+              try { domain = new URL(r.url).hostname.replace("www.", ""); } catch { domain = r.url; }
+              return (
+                <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" className="block group">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-sm" />
+                    <span className="text-[11px] text-[var(--text-dim)]">{domain}</span>
+                  </div>
+                  <div className="text-sm text-[var(--accent)] group-hover:underline leading-snug">{r.title}</div>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-2 mt-0.5">{r.snippet}</p>
+                  <div className="flex gap-2 mt-1 text-[10px] font-mono text-[var(--text-dim)]">
+                    <span>BM25 {r.bm25_score.toFixed(1)}</span>
+                    <span>PR {r.pagerank_score.toFixed(4)}</span>
+                    <span className="text-[var(--accent)]">Score {r.final_score.toFixed(2)}</span>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* AI Overview */}
+        <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-card)] overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
+            <div className="w-2 h-2 rounded-full bg-purple-400" />
+            <span className="text-sm font-semibold text-[var(--text)]">AI Overview</span>
+          </div>
+          <div className="px-4 py-3 max-h-96 overflow-y-auto">
+            {overviewLoading && (
+              <div className="space-y-2">
+                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
+                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-[90%]" />
+                <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse rounded w-[70%]" />
+              </div>
+            )}
+            {!overviewLoading && !overviewText && (
+              <p className="text-xs text-[var(--text-dim)]">{data.total_results < 3 ? "Too few results to generate an AI overview." : "AI overview not available."}</p>
+            )}
+            {overviewText && (
+              <div className="space-y-3">
+                <p className="text-[13px] leading-[1.7] text-[var(--text)]">{overviewText}</p>
+                {overviewSources.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border)]">
+                    {overviewSources.map((s) => {
+                      let domain = "";
+                      try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                      return (
+                        <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors">
+                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-sm" />
+                          {s.title.replace(" - Wikipedia", "").slice(0, 20)}
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ──────────────────────────────────────────────────
+
 function PipelineContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
@@ -796,6 +886,11 @@ function PipelineContent() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
+
+  // AI Overview
+  const [overviewText, setOverviewText] = useState("");
+  const [overviewSources, setOverviewSources] = useState<OverviewSource[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
 
   const activeStep = useAnimatedSteps(data?.pipeline ?? null);
 
@@ -807,7 +902,23 @@ function PipelineContent() {
     setLoading(true);
     setData(null);
     setSelectedNode(null);
-    try { setData(await searchExplain(q.trim())); }
+    setOverviewText("");
+    setOverviewSources([]);
+    try {
+      const result = await searchExplain(q.trim());
+      setData(result);
+      // Fetch AI overview if enough results
+      if (result.total_results >= 3) {
+        setOverviewLoading(true);
+        getOverview(q.trim())
+          .then((ov) => {
+            setOverviewText(ov.overview || "");
+            setOverviewSources(ov.sources || []);
+          })
+          .catch(() => {})
+          .finally(() => setOverviewLoading(false));
+      }
+    }
     catch { /* */ }
     finally { setLoading(false); }
   }
@@ -881,6 +992,11 @@ function PipelineContent() {
             </div>
           )}
         </div>
+
+        {/* Final Results — shows both ranked results and AI overview */}
+        {data && activeStep >= 6 && (
+          <FinalResults data={data} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+        )}
       </div>
     </div>
   );
