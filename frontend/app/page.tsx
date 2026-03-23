@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
+import PipelineExplorer from "@/components/PipelineExplorer";
 import type { FlowPhase } from "@/components/canvas/types";
-
-const PipelineExplorer = lazy(() => import("@/components/PipelineExplorer"));
 
 type View = "search" | "explore";
 
@@ -227,80 +226,81 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Content */}
-      {hasResults && view === "search" && (
-        <div className="max-w-3xl mx-auto px-4 pt-4 pb-16" style={{ animation: "fade-in 0.3s ease-out" }}>
-          <div className="text-[13px] text-[var(--text-dim)] mb-4">
-            About {engine.searchData!.total_results} results ({(engine.searchData!.time_ms / 1000).toFixed(2)} seconds)
+      {/* Content — both views always mounted, animated with CSS transitions */}
+      {hasResults && (
+        <div className="flex overflow-hidden">
+          {/* Pipeline Explorer — slides in from left */}
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            view === "explore" ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
+          }`}>
+            <PipelineExplorer
+              data={engine.searchData}
+              stats={engine.stats}
+              overviewText={engine.overviewText}
+              overviewSources={engine.overviewSources}
+              overviewLoading={engine.overviewLoading}
+              sideContent={
+                <SerpSidePanel engine={engine} onSwitchToSearch={() => setView("search")} />
+              }
+            />
           </div>
 
-          <AIOverview
-            text={engine.overviewText}
-            sources={engine.overviewSources}
-            loading={engine.overviewLoading}
-            streaming={engine.overviewStreaming}
-          />
+          {/* Full SERP — shrinks to nothing when exploring */}
+          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            view === "search" ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
+          }`}>
+            <div className="max-w-3xl mx-auto px-4 pt-4 pb-16">
+              <div className="text-[13px] text-[var(--text-dim)] mb-4">
+                About {engine.searchData!.total_results} results ({(engine.searchData!.time_ms / 1000).toFixed(2)} seconds)
+              </div>
 
-          <div className="space-y-6">
-            {engine.searchData!.results.map((r, i) => {
-              const { domain, breadcrumb } = urlBreadcrumb(r.url);
-              return (
-                <div key={i} className="group" style={{ animation: `fade-in 0.3s ease-out ${i * 0.05}s both` }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={16} height={16} className="rounded-full" />
-                    <div className="min-w-0">
-                      <div className="text-sm text-[var(--text-muted)] truncate">{domain}</div>
-                      {breadcrumb && <div className="text-xs text-[var(--text-dim)] truncate">{breadcrumb}</div>}
+              <AIOverview
+                text={engine.overviewText}
+                sources={engine.overviewSources}
+                loading={engine.overviewLoading}
+                streaming={engine.overviewStreaming}
+              />
+
+              <div className="space-y-6">
+                {engine.searchData!.results.map((r, i) => {
+                  const { domain, breadcrumb } = urlBreadcrumb(r.url);
+                  return (
+                    <div key={i} className="group" style={{ animation: `fade-in 0.3s ease-out ${i * 0.05}s both` }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={16} height={16} className="rounded-full" />
+                        <div className="min-w-0">
+                          <div className="text-sm text-[var(--text-muted)] truncate">{domain}</div>
+                          {breadcrumb && <div className="text-xs text-[var(--text-dim)] truncate">{breadcrumb}</div>}
+                        </div>
+                      </div>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
+                        <h3 className="text-[18px] text-[var(--accent)] group-hover:underline leading-snug mb-1">{r.title}</h3>
+                      </a>
+                      <p className="text-[13px] text-[var(--text-muted)] leading-[1.6] line-clamp-3">{r.snippet}</p>
+                      <div className="flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <span className="text-[10px] text-[var(--text-dim)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                        <span className="text-[10px] text-[var(--text-dim)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                        <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                      </div>
                     </div>
-                  </div>
-                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                    <h3 className="text-[18px] text-[var(--accent)] group-hover:underline leading-snug mb-1">{r.title}</h3>
-                  </a>
-                  <p className="text-[13px] text-[var(--text-muted)] leading-[1.6] line-clamp-3">{r.snippet}</p>
-                  <div className="flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <span className="text-[10px] text-[var(--text-dim)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
-                    <span className="text-[10px] text-[var(--text-dim)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                    <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
 
-          <div className="mt-8 text-center">
-            <button
-              onClick={() => setView("explore")}
-              className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-            >
-              See how these results were computed
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-              </svg>
-            </button>
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => setView("explore")}
+                  className="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                >
+                  See how these results were computed
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      )}
-
-      {hasResults && view === "explore" && (
-        <Suspense fallback={
-          <div className="text-center py-12">
-            <div className="inline-block w-5 h-5 border-2 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
-          </div>
-        }>
-          <PipelineExplorer
-            data={engine.searchData}
-            stats={engine.stats}
-            overviewText={engine.overviewText}
-            overviewSources={engine.overviewSources}
-            overviewLoading={engine.overviewLoading}
-            sideContent={
-              <SerpSidePanel
-                engine={engine}
-                onSwitchToSearch={() => setView("search")}
-              />
-            }
-          />
-        </Suspense>
       )}
 
       {/* Hero explore link */}
