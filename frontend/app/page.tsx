@@ -72,6 +72,13 @@ function phaseIndex(phase: FlowPhase) {
 }
 
 const SUGGESTIONS = ["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"];
+const PLACEHOLDERS = [
+  "Search for players, teams, and tournaments...",
+  "Who won the 2022 World Cup?",
+  "Champions League top scorers",
+  "Messi vs Ronaldo stats",
+  "Premier League standings",
+];
 
 function urlBreadcrumb(url: string) {
   try {
@@ -174,35 +181,80 @@ export default function Home() {
   const engine = useSearchEngine();
   const [view, setView] = useState<View>("search");
   const [theme, toggleTheme] = useTheme();
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const hasResults = engine.searchData !== null;
   const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults ? (
-        /* Hero state — centered */
-        <div className="pt-[18vh] sm:pt-[25vh] pb-5 sm:pb-8 relative">
-          {/* Theme toggle — top right on hero */}
-          <div className="absolute top-4 right-4">
+        /* Hero state */
+        <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-3 sm:px-4">
+          {/* Theme toggle */}
+          <div className="absolute top-4 right-4 z-10">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
-          <div className="max-w-2xl mx-auto px-3 sm:px-4 text-center">
-            <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-[var(--text)] mb-5 sm:mb-8">Search Engine</h1>
-            <p className="text-[var(--text-dim)] text-xs sm:text-sm -mt-4 sm:-mt-6 mb-5 sm:mb-8">
-              Built from scratch — BM25, PageRank, and AI Overviews
+
+          {/* Floating football emojis */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+            {["⚽", "🏆", "⚽", "🥅", "⚽", "🏆"].map((emoji, i) => (
+              <span
+                key={i}
+                className="absolute text-2xl sm:text-3xl opacity-[0.07]"
+                style={{
+                  left: `${15 + i * 14}%`,
+                  top: `${20 + (i % 3) * 25}%`,
+                  animation: `float ${6 + i * 1.5}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.8}s`,
+                }}
+              >
+                {emoji}
+              </span>
+            ))}
+          </div>
+
+          <div className="max-w-2xl w-full text-center relative z-1" style={{ animation: "fade-in 0.6s ease-out" }}>
+            {/* Logo with football accent */}
+            <div className="mb-3 sm:mb-4">
+              <span className="text-3xl sm:text-4xl">⚽</span>
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-2 sm:mb-3">
+              Football Search
+            </h1>
+            <p className="text-[var(--text-dim)] text-sm sm:text-base mb-6 sm:mb-8 max-w-md mx-auto">
+              A search engine built from scratch with BM25 ranking, PageRank, and AI Overviews
             </p>
+
+            {/* Search bar */}
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="relative">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
-              <input name="q" type="text" placeholder="Search anything..." className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-[var(--text)] text-sm sm:text-base placeholder:text-[var(--text-dim)] focus:outline-none shadow-md hover:shadow-lg focus:shadow-lg transition-all" />
+              <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
+                className="w-full pl-12 pr-4 py-3.5 sm:py-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl text-[var(--text)] text-sm sm:text-base placeholder:text-[var(--text-dim)] focus:outline-none shadow-lg hover:shadow-xl focus:shadow-xl focus:border-[var(--accent)]/30 transition-all" />
             </form>
-            <div className="mt-3 sm:mt-5 flex flex-wrap justify-center gap-1.5 sm:gap-2">
-              {SUGGESTIONS.map((q) => (
-                <button key={q} onClick={() => engine.handleSearch(q)} className="text-xs sm:text-sm px-2.5 sm:px-4 py-1 sm:py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-all">
+
+            {/* Suggestion chips */}
+            <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-2.5">
+              {SUGGESTIONS.map((q, i) => (
+                <button key={q} onClick={() => engine.handleSearch(q)}
+                  className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 hover:shadow-sm cursor-pointer transition-all"
+                  style={{ animation: `fade-in 0.4s ease-out ${0.3 + i * 0.08}s both` }}>
                   {q}
                 </button>
+              ))}
+            </div>
+
+            {/* Tech badges */}
+            <div className="mt-8 sm:mt-10 flex justify-center gap-3 sm:gap-4 text-[var(--text-dim)]">
+              {["BM25", "PageRank", "AI Overviews", "Vector Search"].map((tech) => (
+                <span key={tech} className="text-[10px] sm:text-xs font-mono opacity-40">{tech}</span>
               ))}
             </div>
           </div>
@@ -270,17 +322,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero explore link */}
-      {!hasResults && (
-        <div className="text-center mt-5 sm:mt-8">
-          <button onClick={() => setView("explore")} className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer">
-            Explore the search pipeline
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
