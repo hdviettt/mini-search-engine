@@ -25,6 +25,21 @@ function phaseIndex(phase: FlowPhase) {
 
 const SUGGESTIONS = ["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"];
 
+function urlBreadcrumb(url: string) {
+  try {
+    const u = new URL(url);
+    const domain = u.hostname.replace("www.", "");
+    const segments = u.pathname.split("/").filter(Boolean);
+    if (segments.length === 0) return { domain, breadcrumb: "" };
+    return {
+      domain,
+      breadcrumb: segments.map((s) => decodeURIComponent(s).replace(/_/g, " ")).join(" › "),
+    };
+  } catch {
+    return { domain: url, breadcrumb: "" };
+  }
+}
+
 export default function Home() {
   const engine = useSearchEngine();
   const hasResults = engine.searchData !== null;
@@ -32,10 +47,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Hero / Search Section */}
-      <div className={`transition-all duration-500 ${hasResults ? "pt-8 pb-4" : "pt-[25vh] pb-8"}`}>
-        <div className="max-w-2xl mx-auto px-4">
+      <div className={`transition-all duration-500 ${hasResults ? "pt-5 pb-3 border-b border-[var(--border)] bg-[var(--bg-card)] shadow-sm" : "pt-[25vh] pb-8"}`}>
+        <div className={`mx-auto px-4 ${hasResults ? "max-w-3xl" : "max-w-2xl"}`}>
           {/* Logo */}
-          <div className={`transition-all duration-500 ${hasResults ? "mb-4 flex items-center gap-3" : "mb-8 text-center"}`}>
+          <div className={`transition-all duration-500 ${hasResults ? "mb-3 flex items-center gap-3" : "mb-8 text-center"}`}>
             <h1 className={`font-semibold tracking-tight text-[var(--text)] transition-all duration-500 ${hasResults ? "text-xl" : "text-4xl sm:text-5xl"}`}>
               Search Engine
             </h1>
@@ -55,6 +70,12 @@ export default function Home() {
             }}
             className="relative"
           >
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]"
+            >
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
             <input
               name="q"
               type="text"
@@ -62,27 +83,20 @@ export default function Home() {
               defaultValue={engine.query}
               key={engine.query}
               autoFocus
-              className="w-full px-4 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20 shadow-sm transition-all"
+              className={`w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none focus:shadow-md transition-all ${
+                hasResults ? "rounded-full shadow-sm hover:shadow-md" : "rounded-full shadow-md hover:shadow-lg py-3"
+              }`}
             />
-            <button
-              type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </button>
           </form>
 
           {/* Suggestions (hero state only) */}
           {!hasResults && (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => engine.handleSearch(q)}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 cursor-pointer transition-colors"
+                  className="text-sm px-4 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30 hover:shadow-sm cursor-pointer transition-all"
                 >
                   {q}
                 </button>
@@ -91,8 +105,8 @@ export default function Home() {
           )}
 
           {/* Pipeline Progress — the subtle hint */}
-          {engine.phase !== "idle" && (
-            <div className="mt-3 flex items-center gap-1 text-[11px] text-[var(--text-dim)]">
+          {engine.phase !== "idle" && hasResults && (
+            <div className="mt-2 flex items-center gap-1 text-[11px] text-[var(--text-dim)]">
               {PHASE_STEPS.map((step, i) => {
                 const stepIdx = PHASE_ORDER.indexOf(step.key);
                 const currentIdx = phaseIndex(engine.phase);
@@ -118,11 +132,6 @@ export default function Home() {
                   </span>
                 );
               })}
-              {engine.searchData && phaseIndex(engine.phase) >= phaseIndex("results") && (
-                <span className="ml-auto text-[var(--text-dim)] tabular-nums">
-                  {engine.searchData.time_ms}ms
-                </span>
-              )}
             </div>
           )}
         </div>
@@ -130,7 +139,12 @@ export default function Home() {
 
       {/* Results Section */}
       {hasResults && (
-        <div className="max-w-2xl mx-auto px-4 pb-16" style={{ animation: "fade-in 0.3s ease-out" }}>
+        <div className="max-w-3xl mx-auto px-4 pt-4 pb-16" style={{ animation: "fade-in 0.3s ease-out" }}>
+          {/* Results count */}
+          <div className="text-[13px] text-[var(--text-dim)] mb-4">
+            About {engine.searchData!.total_results} results ({(engine.searchData!.time_ms / 1000).toFixed(2)} seconds)
+          </div>
+
           {/* AI Overview */}
           <AIOverview
             text={engine.overviewText}
@@ -140,44 +154,62 @@ export default function Home() {
           />
 
           {/* Results List */}
-          <div className="space-y-5 mt-2">
+          <div className="space-y-6">
             {engine.searchData!.results.map((r, i) => {
-              let domain = "";
-              try { domain = new URL(r.url).hostname; } catch { domain = r.url; }
-              const path = r.url.replace(/https?:\/\/[^/]+/, "").slice(0, 60);
-
+              const { domain, breadcrumb } = urlBreadcrumb(r.url);
               return (
-                <a
+                <div
                   key={i}
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block group"
+                  className="group"
                   style={{ animation: `fade-in 0.3s ease-out ${i * 0.05}s both` }}
                 >
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-xs text-[var(--text-muted)]">{domain}</span>
-                    <span className="text-[11px] text-[var(--text-dim)]">{path}</span>
+                  {/* URL line with favicon */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="rounded-full"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm text-[var(--text-muted)] truncate">{domain}</div>
+                      {breadcrumb && (
+                        <div className="text-xs text-[var(--text-dim)] truncate">{breadcrumb}</div>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-base text-[var(--accent)] group-hover:underline leading-snug mb-0.5">
-                    {r.title}
-                  </h3>
-                  <p className="text-sm text-[var(--text-muted)] leading-relaxed line-clamp-2">
+
+                  {/* Title */}
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <h3 className="text-[18px] text-[var(--accent)] group-hover:underline leading-snug mb-1">
+                      {r.title}
+                    </h3>
+                  </a>
+
+                  {/* Snippet */}
+                  <p className="text-[13px] text-[var(--text-muted)] leading-[1.6] line-clamp-3">
                     {r.snippet}
                   </p>
+
                   {/* Subtle score hints */}
-                  <div className="flex items-center gap-2 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <span className="text-[10px] text-[var(--text-dim)] font-mono">
                       BM25 {(r.bm25_score ?? 0).toFixed(1)}
                     </span>
                     <span className="text-[10px] text-[var(--text-dim)] font-mono">
-                      PR {(r.pagerank_score ?? 0).toFixed(4)}
+                      PageRank {(r.pagerank_score ?? 0).toFixed(4)}
                     </span>
                     <span className="text-[10px] text-[var(--accent)] font-mono">
                       Score {(r.final_score ?? 0).toFixed(2)}
                     </span>
                   </div>
-                </a>
+                </div>
               );
             })}
           </div>

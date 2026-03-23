@@ -29,103 +29,114 @@ function parseOverviewWithCitations(text: string) {
   return parts;
 }
 
+function SparkleIcon({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M12 2L13.09 8.26L18 6L14.74 10.91L21 12L14.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L9.26 13.09L3 12L9.26 10.91L6 6L10.91 8.26L12 2Z" fill="url(#sparkle-gradient)" />
+      <defs>
+        <linearGradient id="sparkle-gradient" x1="3" y1="2" x2="21" y2="22">
+          <stop stopColor="#4285f4" />
+          <stop offset="0.5" stopColor="#9b72cb" />
+          <stop offset="1" stopColor="#d96570" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 export default function AIOverview({ text, sources, loading, streaming }: AIOverviewProps) {
-  const [activeSource, setActiveSource] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   if (!loading && !streaming && !text) return null;
 
   const parts = text ? parseOverviewWithCitations(text) : [];
-  const activeSrc = sources.find((s) => s.index === activeSource);
+  const isLong = text.length > 400;
+  const shouldTruncate = isLong && !expanded;
 
   return (
-    <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
-        <div className="w-1.5 h-1.5 bg-[var(--accent)]" />
-        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
+    <div className="mb-6 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-5 pt-4 pb-2">
+        <SparkleIcon />
+        <span className="text-sm font-semibold text-[var(--text)]">
           AI Overview
         </span>
         {(loading || streaming) && !text && (
-          <span className="text-[10px] text-[var(--text-dim)] ml-1 animate-pulse">generating...</span>
+          <span className="text-xs text-[var(--text-dim)] ml-1 animate-pulse">generating...</span>
         )}
       </div>
 
+      {/* Loading skeleton */}
       {loading && !text ? (
-        <div className="px-4 pb-4 space-y-2.5">
-          <div className="flex gap-3">
-            <div className="flex-1 space-y-2">
-              <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse w-full" />
-              <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse w-[92%]" />
-              <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse w-[78%]" />
-              <div className="h-3 bg-[var(--score-bar-bg)] animate-pulse w-[45%]" />
-            </div>
-            <div className="w-36 shrink-0 space-y-2 border-l border-[var(--border)] pl-3">
-              <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse w-12" />
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 bg-[var(--score-bar-bg)] animate-pulse" />
-                  <div className="h-2.5 bg-[var(--score-bar-bg)] animate-pulse flex-1" />
-                </div>
-              ))}
-            </div>
+        <div className="px-5 pb-5 space-y-3">
+          <div className="space-y-2.5">
+            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-full" />
+            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[95%]" />
+            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[80%]" />
+            <div className="h-3.5 bg-[var(--score-bar-bg)] animate-pulse rounded w-[60%]" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-8 bg-[var(--score-bar-bg)] animate-pulse rounded-full w-28" />
+            ))}
           </div>
         </div>
       ) : (
-        <div className="flex">
-          <div className="flex-1 px-4 pb-4">
-            <p className="text-[var(--text)] leading-relaxed text-[13px]">
+        <>
+          {/* Body text */}
+          <div className="px-5 pb-3">
+            <div className={`text-[14px] leading-[1.7] text-[var(--text)] ${shouldTruncate ? "line-clamp-5" : ""}`}>
               {parts.map((part, i) =>
                 part.type === "text" ? (
                   <span key={i}>{part.value}</span>
                 ) : (
-                  <button
-                    key={i}
-                    onClick={() => setActiveSource(activeSource === part.index ? null : part.index!)}
-                    className={`inline-flex items-center justify-center w-5 h-5 text-[9px] font-bold mx-0.5 rounded transition-colors cursor-pointer border ${
-                      activeSource === part.index
-                        ? "bg-[var(--accent)] text-white border-[var(--accent)]"
-                        : "bg-transparent text-[var(--accent)] border-[var(--accent)]/40 hover:border-[var(--accent)]"
-                    }`}
-                  >
+                  <sup key={i} className="inline-flex items-center justify-center min-w-[16px] h-4 text-[9px] font-bold mx-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] align-top cursor-default">
                     {part.index}
-                  </button>
+                  </sup>
                 )
               )}
-              {streaming && <span className="inline-block w-1.5 h-3.5 bg-[var(--accent)] animate-pulse ml-0.5 align-middle" />}
-            </p>
+              {streaming && <span className="inline-block w-1.5 h-4 bg-[var(--accent)] animate-pulse ml-0.5 align-middle rounded-sm" />}
+            </div>
+            {isLong && !streaming && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="mt-2 text-sm font-medium text-[var(--accent)] hover:underline cursor-pointer"
+              >
+                {expanded ? "Show less" : "Show more"}
+              </button>
+            )}
           </div>
 
+          {/* Source pills */}
           {sources.length > 0 && (
-            <div className="w-40 shrink-0 border-l border-[var(--border)] px-3 py-1">
-              {activeSrc ? (
-                <a href={activeSrc.url} target="_blank" rel="noopener noreferrer" className="block group">
-                  <div className="text-[10px] text-[var(--text-dim)] mb-1">Source {activeSrc.index}</div>
-                  <div className="text-sm text-[var(--accent)] group-hover:underline leading-tight mb-1">
-                    {activeSrc.title.replace(" - Wikipedia", "")}
-                  </div>
-                  <div className="text-[10px] text-[var(--text-dim)] truncate">{activeSrc.url}</div>
-                </a>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="text-[10px] text-[var(--text-dim)] mb-1">Sources</div>
-                  {sources.map((s) => (
-                    <button
-                      key={s.index}
-                      onClick={() => setActiveSource(s.index)}
-                      className="flex items-center gap-1.5 w-full text-left group cursor-pointer"
-                    >
-                      <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-[var(--score-bar-bg)] text-[var(--accent)] border border-[var(--border)] shrink-0">
-                        {s.index}
-                      </span>
-                      <span className="text-[11px] text-[var(--text-dim)] group-hover:text-[var(--accent)] truncate transition-colors">
-                        {s.title.replace(" - Wikipedia", "").slice(0, 22)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="px-5 pb-4 pt-1 flex gap-2 overflow-x-auto">
+              {sources.map((s) => {
+                let domain = "";
+                try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
+                return (
+                  <a
+                    key={s.index}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors shrink-0 group"
+                  >
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
+                      alt=""
+                      width={14}
+                      height={14}
+                      className="rounded-sm"
+                    />
+                    <span className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text)] whitespace-nowrap max-w-[140px] truncate">
+                      {s.title.replace(" - Wikipedia", "")}
+                    </span>
+                  </a>
+                );
+              })}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
