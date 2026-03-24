@@ -260,7 +260,7 @@ function Flowchart({
             let sw = 1.5;
             if (status === "active") { fill = node.activeFill; strokeColor = node.stroke; }
             else if (status === "done" || status === "ready") { fill = node.fill; strokeColor = node.stroke; }
-            if (selected) { fill = node.activeFill; strokeColor = "#2563eb"; sw = 2.5; }
+            if (selected) { fill = node.activeFill; strokeColor = "#2563eb"; sw = isStore ? 1.5 : 2.5; }
 
             return (
               <g
