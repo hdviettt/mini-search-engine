@@ -200,7 +200,7 @@ function Flowchart({
           {/* Swimlane bands */}
           {LANES.map((lane) => (
             <g key={lane.label}>
-              <rect x="42" y={lane.y + 4} width="720" height={lane.h - 8} rx="8" fill={lane.bg} opacity="0.5" />
+              <rect x="42" y={lane.y + 4} width="720" height={lane.h - 8} rx="8" fill={lane.bg} opacity="0.2" />
               <text
                 x="16" y={lane.y + lane.h / 2 - (lane.sub ? 4 : 0)}
                 textAnchor="middle" fontSize="10" fill="#94a3b8" fontWeight="700" letterSpacing="0.05em"
@@ -221,9 +221,9 @@ function Flowchart({
           ))}
 
           {/* Sub-path labels — on the left edge of each column, rotated vertically */}
-          <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+          <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
             transform="rotate(-90, 128, 590)">SEARCH PATH</text>
-          <text x="710" y="570" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.4"
+          <text x="710" y="570" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
             transform="rotate(-90, 710, 570)">AI OVERVIEW PATH</text>
 
           {/* Subtle divider between the two query paths */}
@@ -269,16 +269,26 @@ function Flowchart({
                 style={{ cursor: clickable ? "pointer" : "default" }}
               >
                 {/* Active pulse */}
-                {status === "active" && (
+                {status === "active" && !isStore && (
                   <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
                     stroke={node.stroke} strokeWidth="2" opacity="0.5">
                     <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
                   </rect>
                 )}
+                {status === "active" && isStore && (
+                  <ellipse cx={node.cx} cy={node.cy} rx={node.w / 2 + 4} ry={node.h / 2 + 4} fill="none"
+                    stroke={node.stroke} strokeWidth="2" opacity="0.5">
+                    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
+                  </ellipse>
+                )}
 
                 {/* Selection ring */}
-                {selected && (
+                {selected && !isStore && (
                   <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
+                    stroke="#2563eb" strokeWidth="2" />
+                )}
+                {selected && isStore && (
+                  <ellipse cx={node.cx} cy={node.cy} rx={node.w / 2 + 4} ry={node.h / 2 + 4} fill="none"
                     stroke="#2563eb" strokeWidth="2" />
                 )}
 
@@ -330,7 +340,7 @@ function Flowchart({
             <Annotation x={265} y={450} text={`${data.pipeline.tokenization.tokens.join(", ")}`} />
           )}
           {data && activeStep >= 3 && (
-            <Annotation x={270} y={593} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
+            <Annotation x={280} y={583} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
           )}
           {data && activeStep >= 6 && (
             <Annotation x={345} y={740} text={`${data.total_results} results`} />
