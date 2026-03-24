@@ -1,3 +1,19 @@
+// Canvas animation phases
+export type FlowPhase =
+  | "idle"
+  | "queryInput"
+  | "tokenizing"
+  | "indexLookup"
+  | "bm25"
+  | "pagerank"
+  | "combining"
+  | "results"
+  | "aiFanout"
+  | "aiEmbedding"
+  | "aiRetrieval"
+  | "aiSynthesis"
+  | "aiComplete";
+
 // Pipeline trace types from the explain endpoint
 
 export interface TokenizationTrace {

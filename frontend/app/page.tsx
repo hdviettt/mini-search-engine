@@ -5,7 +5,6 @@ import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine
 import AIOverview from "@/components/AIOverview";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats } from "@/lib/api";
-import type { FlowPhase } from "@/components/canvas/types";
 
 type View = "search" | "explore";
 type Theme = "light" | "dark";
@@ -52,24 +51,6 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
       )}
     </button>
   );
-}
-
-const PHASE_STEPS: { key: FlowPhase; label: string }[] = [
-  { key: "tokenizing", label: "Tokenize" },
-  { key: "indexLookup", label: "Lookup" },
-  { key: "bm25", label: "Score" },
-  { key: "combining", label: "Rank" },
-  { key: "results", label: "Results" },
-];
-
-const PHASE_ORDER: FlowPhase[] = [
-  "idle", "queryInput", "tokenizing", "indexLookup", "bm25",
-  "pagerank", "combining", "results", "aiFanout", "aiRetrieval",
-  "aiSynthesis", "aiComplete",
-];
-
-function phaseIndex(phase: FlowPhase) {
-  return PHASE_ORDER.indexOf(phase);
 }
 
 const SUGGESTIONS = ["Messi", "Champions League", "World Cup", "Premier League", "Ronaldo"];
@@ -131,6 +112,7 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
             overviewText={engine.overviewText}
             overviewSources={engine.overviewSources}
             overviewLoading={engine.overviewLoading}
+            overviewTrace={engine.overviewTrace}
           />
         </div>
       </div>
@@ -299,6 +281,7 @@ export default function Home() {
               overviewText={engine.overviewText}
               overviewSources={engine.overviewSources}
               overviewLoading={engine.overviewLoading || engine.overviewStreaming}
+              overviewTrace={engine.overviewTrace}
               selectedNode={selectedNode}
               onNodeSelect={setSelectedNode}
             />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getStats, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks } from "@/lib/api";
-import type { OverviewSource } from "@/lib/api";
+import type { OverviewSource, OverviewTrace } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -252,11 +252,15 @@ function Flowchart({
             const x = node.cx - node.w / 2;
             const y = node.cy - node.h / 2;
             const isStore = node.kind === "store";
+            const isIO = node.kind === "io";
+            const ry = 7; // ellipse ry for cylinder caps
 
             let fill = "#f5f5f5";
             let strokeColor = "#d4d4d4";
             if (status === "active") { fill = node.activeFill; strokeColor = node.stroke; }
             else if (status === "done" || status === "ready") { fill = node.fill; strokeColor = node.stroke; }
+
+            const pulseRx = isIO ? (node.h + 6) / 2 : 10;
 
             return (
               <g
@@ -266,7 +270,7 @@ function Flowchart({
               >
                 {/* Active pulse */}
                 {status === "active" && (
-                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={10} fill="none"
+                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
                     stroke={node.stroke} strokeWidth="2" opacity="0.5">
                     <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
                   </rect>
@@ -274,16 +278,37 @@ function Flowchart({
 
                 {/* Selection ring */}
                 {selected && (
-                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={10} fill="none"
+                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
                     stroke="#2563eb" strokeWidth="2" />
                 )}
 
-                {/* Node rect */}
-                <rect
-                  x={x} y={y} width={node.w} height={node.h} rx={8}
-                  fill={fill} stroke={strokeColor} strokeWidth="1.5"
-                  strokeDasharray={isStore ? "5,3" : undefined}
-                />
+                {/* Node shape */}
+                {isStore ? (
+                  /* Cylinder for database/store nodes */
+                  <g>
+                    {/* Body */}
+                    <rect x={x} y={y + ry} width={node.w} height={node.h - 2 * ry}
+                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                    {/* Side lines connecting top and bottom ellipses */}
+                    <line x1={x} y1={y + ry} x2={x} y2={y + node.h - ry}
+                      stroke={strokeColor} strokeWidth="1.5" />
+                    <line x1={x + node.w} y1={y + ry} x2={x + node.w} y2={y + node.h - ry}
+                      stroke={strokeColor} strokeWidth="1.5" />
+                    {/* Bottom ellipse */}
+                    <ellipse cx={node.cx} cy={y + node.h - ry} rx={node.w / 2} ry={ry}
+                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                    {/* Top ellipse (drawn last to be on top) */}
+                    <ellipse cx={node.cx} cy={y + ry} rx={node.w / 2} ry={ry}
+                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                  </g>
+                ) : (
+                  /* Rectangle for process nodes, pill for I/O nodes */
+                  <rect
+                    x={x} y={y} width={node.w} height={node.h}
+                    rx={isIO ? node.h / 2 : 8}
+                    fill={fill} stroke={strokeColor} strokeWidth="1.5"
+                  />
+                )}
 
                 {/* Label */}
                 <text x={node.cx} y={node.cy + 1} textAnchor="middle" dominantBaseline="central"
@@ -411,7 +436,7 @@ function ActionButton({ onClick, children }: { onClick: () => void; children: Re
   );
 }
 
-function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewText, overviewSources, overviewLoading }: {
+function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewText, overviewSources, overviewLoading, overviewTrace }: {
   nodeId: NodeId;
   data: ExplainResponse | null;
   stats: Stats | null;
@@ -420,6 +445,7 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
+  overviewTrace?: OverviewTrace | null;
 }) {
   const node = NODES.find((n) => n.id === nodeId)!;
   const trace = data?.pipeline;
@@ -565,25 +591,79 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "results" && !data && <SkeletonRows rows={4} />}
 
         {nodeId === "fanout" && (
-          <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader coverage. Runs asynchronously after the search path completes.</p>
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Expands the query via LLM into multiple search angles — generates related questions and keywords for broader coverage.</p>
+            {overviewTrace?.fanout && (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <IOBlock label="Original query">
+                  <span className="font-mono text-xs text-[var(--text)]">&quot;{overviewTrace.fanout.original}&quot;</span>
+                </IOBlock>
+                <IOBlock label="Expanded queries">
+                  <div className="flex flex-wrap gap-1">
+                    {overviewTrace.fanout.expanded.map((q, i) => (
+                      <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">{q}</span>
+                    ))}
+                  </div>
+                </IOBlock>
+                <StatRow label="Time" value={`${overviewTrace.fanout.time_ms.toFixed(1)}ms`} />
+              </div>
+            )}
+          </>
         )}
         {nodeId === "embed_query" && (
           <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
         )}
         {nodeId === "vector_search" && (
-          <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors. Returns top-K chunks ranked by score.</p>
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors.</p>
+            {overviewTrace?.retrieval && (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved} />
+                <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />
+                <IOBlock label="Top chunks">
+                  <div className="space-y-2">
+                    {overviewTrace.retrieval.chunks.slice(0, 4).map((c, i) => (
+                      <div key={i}>
+                        <div className="text-[11px] text-[var(--accent)] font-medium truncate">{c.title}</div>
+                        <div className="text-[10px] text-[var(--text-dim)] line-clamp-2 mt-0.5">{c.content_preview}</div>
+                        <div className="flex gap-2 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
+                          <span>vec {c.vector_score.toFixed(3)}</span>
+                          <span>kw {c.keyword_score.toFixed(3)}</span>
+                          <span className="text-[var(--accent)]">{c.combined_score.toFixed(3)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </IOBlock>
+              </div>
+            )}
+          </>
         )}
         {nodeId === "llm" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">Synthesizes a coherent answer from retrieved chunks. Grounded in retrieved context to reduce hallucination.</p>
             <div className="space-y-1 mt-2">
               <StatRow label="Provider" value="Groq" />
-              <StatRow label="Model" value="Llama 3.3 70B" />
+              <StatRow label="Model" value={overviewTrace?.synthesis?.model ?? "Llama 3.3 70B"} />
+              {overviewTrace?.synthesis && <StatRow label="Time" value={`${overviewTrace.synthesis.time_ms.toFixed(1)}ms`} />}
             </div>
           </>
         )}
         {nodeId === "ai_overview" && (
-          <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages. Streams to the user token by token.</p>
+          <>
+            <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages.</p>
+            {overviewTrace?.total_ms && (
+              <div className="space-y-1 mt-2" style={{ animation: "fade-in 0.3s ease-out" }}>
+                <StatRow label="Total AI pipeline" value={`${overviewTrace.total_ms.toFixed(0)}ms`} />
+                <StatRow label="Sources" value={overviewSources.length} />
+                {overviewText && (
+                  <IOBlock label="Preview">
+                    <p className="text-[11px] text-[var(--text-muted)] line-clamp-3">{overviewText.slice(0, 200)}{overviewText.length > 200 ? "..." : ""}</p>
+                  </IOBlock>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Skeleton for query nodes without data */}
@@ -810,12 +890,13 @@ function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | 
 export { DetailPanel };
 export type { NodeId };
 
-export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading, selectedNode: externalSelectedNode, onNodeSelect }: {
+export default function PipelineExplorer({ data, stats: propStats, overviewText, overviewSources, overviewLoading, overviewTrace, selectedNode: externalSelectedNode, onNodeSelect }: {
   data: ExplainResponse | null;
   stats: Stats | null;
   overviewText: string;
   overviewSources: OverviewSource[];
   overviewLoading: boolean;
+  overviewTrace?: OverviewTrace | null;
   selectedNode?: string | null;
   onNodeSelect?: (id: string | null) => void;
 }) {
@@ -851,7 +932,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
             <div className="flex justify-center pt-2 pb-1" onClick={() => setSelectedNode(null)}>
               <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
             </div>
-            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} />
+            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} overviewTrace={overviewTrace} />
           </div>
         </>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { FlowPhase } from "@/components/canvas/types";
+import type { FlowPhase } from "@/lib/types";
 import { searchExplain, getStats, getOverviewStreamUrl } from "@/lib/api";
 import type { OverviewSource, OverviewTrace } from "@/lib/api";
 import { useWebSocket } from "@/lib/useWebSocket";
