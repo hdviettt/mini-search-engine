@@ -147,8 +147,10 @@ export async function explorePageRank(limit = 10) {
   return res.json();
 }
 
-export async function exploreChunks(limit = 8) {
-  const res = await fetch(`${API_BASE}/api/explore/chunks?limit=${limit}`);
+export async function exploreChunks(limit = 8, includeEmbeddings = false) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (includeEmbeddings) params.set("include_embeddings", "true");
+  const res = await fetch(`${API_BASE}/api/explore/chunks?${params}`);
   if (!res.ok) return { chunks: [] };
   return res.json();
 }

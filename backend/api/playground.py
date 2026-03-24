@@ -330,36 +330,49 @@ def explore_page_journey(page_id: int):
 
 
 @router.get("/explore/chunks")
-def explore_chunks(page_id: int | None = None, limit: int = 10):
-    """Browse chunks — optionally filtered by page."""
+def explore_chunks(page_id: int | None = None, limit: int = 10, include_embeddings: bool = False):
+    """Browse chunks — optionally filtered by page, optionally with embedding previews."""
     conn = get_connection()
+    embed_col = ", c.embedding" if include_embeddings else ""
     if page_id:
         rows = conn.execute(
-            """SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
-                      c.embedding IS NOT NULL as has_embedding
+            f"""SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
+                      c.embedding IS NOT NULL as has_embedding{embed_col}
                FROM chunks c JOIN pages p ON c.page_id = p.id
                WHERE c.page_id = %s ORDER BY c.chunk_idx LIMIT %s""",
             (page_id, limit),
         ).fetchall()
     else:
         rows = conn.execute(
-            """SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
-                      c.embedding IS NOT NULL as has_embedding
+            f"""SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
+                      c.embedding IS NOT NULL as has_embedding{embed_col}
+               FROM chunks c JOIN pages p ON c.page_id = p.id
+               WHERE c.embedding IS NOT NULL
+               ORDER BY c.id DESC LIMIT %s""" if include_embeddings else
+            f"""SELECT c.id, c.page_id, c.chunk_idx, c.content, p.title,
+                      c.embedding IS NOT NULL as has_embedding{embed_col}
                FROM chunks c JOIN pages p ON c.page_id = p.id
                ORDER BY c.id DESC LIMIT %s""",
             (limit,),
         ).fetchall()
     conn.close()
 
-    return {
-        "chunks": [
-            {
-                "id": r[0], "page_id": r[1], "chunk_idx": r[2],
-                "content": r[3][:300], "title": r[4], "has_embedding": r[5],
-            }
-            for r in rows
-        ],
-    }
+    chunks = []
+    for r in rows:
+        chunk = {
+            "id": r[0], "page_id": r[1], "chunk_idx": r[2],
+            "content": r[3][:300], "title": r[4], "has_embedding": r[5],
+            "word_count": len(r[3].split()),
+        }
+        if include_embeddings and len(r) > 6 and r[6] is not None:
+            vec = r[6]
+            if isinstance(vec, str):
+                vec = [float(x) for x in vec.strip("[]").split(",")]
+            chunk["embedding_preview"] = [round(v, 4) for v in vec[:64]]
+            chunk["dimensions"] = len(vec)
+        chunks.append(chunk)
+
+    return {"chunks": chunks}
 
 
 @router.get("/explore/embed")

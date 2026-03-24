@@ -520,20 +520,26 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
               <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
                 <StatRow label="Avg per page" value={(stats.total_chunks / Math.max(stats.pages_crawled, 1)).toFixed(1)} />
+                <StatRow label="Max tokens" value="~300" />
               </div>
-            ) : <SkeletonStats rows={2} />}
+            ) : <SkeletonStats rows={3} />}
+            <SectionLabel>Sample chunks</SectionLabel>
+            <ChunkList limit={3} />
           </>
         )}
 
         {nodeId === "embedder" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Generates 512-dim vectors for each chunk using Voyage AI.</p>
+            <p className="text-xs text-[var(--text-muted)]">Generates dense vectors for each chunk using Voyage AI.</p>
             {stats ? (
               <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
                 <StatRow label="Dimensions" value="512" />
+                <StatRow label="Model" value="Voyage AI" />
               </div>
-            ) : <SkeletonStats rows={2} />}
+            ) : <SkeletonStats rows={3} />}
+            <SectionLabel>Sample embeddings</SectionLabel>
+            <ChunkList limit={3} includeEmbeddings />
             <ActionButton onClick={() => runAction(rebuildEmbeddings, "Rebuilding embeddings...")}>
               Rebuild embeddings
             </ActionButton>
@@ -544,7 +550,18 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "pages_db" && <DbTableView endpoint="pages" />}
         {nodeId === "inv_index" && <DbTableView endpoint="index" />}
         {nodeId === "pr_scores" && <DbTableView endpoint="pagerank" />}
-        {nodeId === "vector_store" && <DbTableView endpoint="chunks" />}
+        {nodeId === "vector_store" && (
+          <>
+            {stats && (
+              <div className="space-y-1 mb-2">
+                <StatRow label="Total chunks" value={stats.total_chunks.toLocaleString()} />
+                <StatRow label="Embedded" value={stats.chunks_embedded.toLocaleString()} />
+              </div>
+            )}
+            <SectionLabel>Stored vectors</SectionLabel>
+            <ChunkList limit={4} includeEmbeddings />
+          </>
+        )}
 
         {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
@@ -618,30 +635,37 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         )}
         {nodeId === "vector_search" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors.</p>
+            <p className="text-xs text-[var(--text-muted)]">Hybrid retrieval: combines cosine similarity (vector) with BM25 keyword search.</p>
             {overviewTrace?.retrieval && (
               <div style={{ animation: "fade-in 0.3s ease-out" }}>
-                <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />
-                {overviewTrace.retrieval.time_ms != null && <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />}
+                <div className="space-y-1">
+                  <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />
+                  {overviewTrace.retrieval.time_ms != null && <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />}
+                </div>
+                <div className="mt-2 mb-1 text-[9px] text-[var(--text-dim)] font-mono bg-[var(--bg-elevated)] rounded px-2 py-1">
+                  combined = 0.6 &times; <span className="text-blue-400">vector</span> + 0.4 &times; <span className="text-amber-400">keyword</span>
+                </div>
                 {overviewTrace.retrieval.chunks?.length > 0 && (
-                <IOBlock label="Top chunks">
-                  <div className="space-y-2">
-                    {overviewTrace.retrieval.chunks.slice(0, 4).map((c, i) => (
-                      <div key={i}>
-                        <div className="text-[11px] text-[var(--accent)] font-medium truncate">{c.title ?? "Untitled"}</div>
-                        <div className="text-[10px] text-[var(--text-dim)] line-clamp-2 mt-0.5">{c.content_preview ?? ""}</div>
-                        <div className="flex gap-2 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
-                          <span>vec {(c.vector_score ?? 0).toFixed(3)}</span>
-                          <span>kw {(c.keyword_score ?? 0).toFixed(3)}</span>
-                          <span className="text-[var(--accent)]">{(c.combined_score ?? 0).toFixed(3)}</span>
+                  <div className="space-y-2.5 mt-2">
+                    {overviewTrace.retrieval.chunks.slice(0, 5).map((c, i) => (
+                      <div key={i} className="bg-[var(--bg-elevated)] rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[10px] text-[var(--text-dim)] font-mono w-4 shrink-0">#{i + 1}</span>
+                          <span className="text-[11px] text-[var(--accent)] font-medium truncate">{c.title ?? "Untitled"}</span>
                         </div>
+                        <DualScoreBar
+                          vectorScore={c.vector_score ?? 0}
+                          keywordScore={c.keyword_score ?? 0}
+                          combinedScore={c.combined_score ?? 0}
+                        />
+                        <p className="text-[10px] text-[var(--text-dim)] line-clamp-2 mt-1.5">{c.content_preview ?? ""}</p>
                       </div>
                     ))}
                   </div>
-                </IOBlock>
                 )}
               </div>
             )}
+            {!overviewTrace?.retrieval && <SkeletonRows rows={3} />}
           </>
         )}
         {nodeId === "llm" && (
@@ -651,7 +675,21 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
               <StatRow label="Provider" value="Groq" />
               <StatRow label="Model" value={overviewTrace?.synthesis?.model ?? "Llama 3.3 70B"} />
               {overviewTrace?.synthesis?.time_ms != null && <StatRow label="Time" value={`${overviewTrace.synthesis.time_ms.toFixed(1)}ms`} />}
+              {overviewTrace?.retrieval && <StatRow label="Context chunks" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />}
+              <StatRow label="Sources" value={overviewSources?.length ?? 0} />
             </div>
+            {overviewTrace?.synthesis ? (
+              overviewText ? (
+                <IOBlock label="Output">
+                  <p className="text-[11px] text-[var(--text-muted)] line-clamp-4">{overviewText.slice(0, 250)}{overviewText.length > 250 ? "..." : ""}</p>
+                </IOBlock>
+              ) : null
+            ) : (
+              <div className="flex items-center gap-2 mt-2 text-xs text-[var(--text-dim)]">
+                <div className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
+                Generating...
+              </div>
+            )}
           </>
         )}
         {nodeId === "ai_overview" && (
@@ -831,6 +869,100 @@ function ResultsDetail({ data }: { data: ExplainResponse }) {
   );
 }
 
+// ─── Reusable embedding heatmap ─────────────────────────────────
+
+function MiniHeatmap({ values, showLegend = false }: { values: number[]; showLegend?: boolean }) {
+  return (
+    <>
+      <div className="flex flex-wrap gap-px">
+        {values.map((v, i) => {
+          const abs = Math.min(Math.abs(v) * 8, 1);
+          const color = v >= 0
+            ? `rgba(59, 130, 246, ${abs})`
+            : `rgba(239, 68, 68, ${abs})`;
+          return <div key={i} className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} title={`[${i}] ${v.toFixed(4)}`} />;
+        })}
+      </div>
+      {showLegend && (
+        <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[var(--text-dim)]">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(59, 130, 246, 0.7)" }} /> positive</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(239, 68, 68, 0.7)" }} /> negative</span>
+          <span>{values.length} dims</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Chunk preview with optional embeddings ─────────────────────
+
+function ChunkList({ includeEmbeddings = false, limit = 4 }: { includeEmbeddings?: boolean; limit?: number }) {
+  const [chunks, setChunks] = useState<Record<string, unknown>[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    exploreChunks(limit, includeEmbeddings)
+      .then((res) => setChunks(res.chunks ?? []))
+      .catch(() => setChunks([]))
+      .finally(() => setLoading(false));
+  }, [limit, includeEmbeddings]);
+
+  if (loading) return <SkeletonRows rows={3} />;
+  if (!chunks || chunks.length === 0) return <p className="text-xs text-[var(--text-dim)]">No chunks found.</p>;
+
+  return (
+    <div className="space-y-3" style={{ animation: "fade-in 0.3s ease-out" }}>
+      {chunks.map((c, i) => (
+        <div key={i} className="bg-[var(--bg-elevated)] rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] text-[var(--accent)] font-medium truncate flex-1">{(c.title as string) ?? "Untitled"}</span>
+            <span className="text-[9px] text-[var(--text-dim)] font-mono shrink-0">chunk #{c.chunk_idx as number}</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] line-clamp-2">{((c.content as string) ?? "").slice(0, 150)}</p>
+          <div className="flex items-center gap-3 mt-1 text-[9px] font-mono text-[var(--text-dim)]">
+            <span>{(c.word_count as number) ?? 0} words</span>
+            {c.has_embedding ? <span className="text-green-500">embedded</span> : <span className="text-red-400">not embedded</span>}
+          </div>
+          {includeEmbeddings && (c.embedding_preview as number[])?.length > 0 && (
+            <div className="mt-2">
+              <MiniHeatmap values={c.embedding_preview as number[]} />
+              <span className="text-[9px] text-[var(--text-dim)] mt-0.5 block">{c.dimensions as number}d vector · first 64 shown</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dual score bar for vector search ───────────────────────────
+
+function DualScoreBar({ vectorScore, keywordScore, combinedScore }: { vectorScore: number; keywordScore: number; combinedScore: number }) {
+  const maxScore = Math.max(vectorScore, keywordScore, 0.01);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] text-blue-400 w-6 shrink-0">vec</span>
+        <div className="flex-1 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
+          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(vectorScore / maxScore) * 100}%` }} />
+        </div>
+        <span className="text-[9px] font-mono text-[var(--text-dim)] w-8 text-right">{vectorScore.toFixed(2)}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] text-amber-400 w-6 shrink-0">kw</span>
+        <div className="flex-1 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
+          <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(keywordScore / maxScore) * 100}%` }} />
+        </div>
+        <span className="text-[9px] font-mono text-[var(--text-dim)] w-8 text-right">{keywordScore.toFixed(2)}</span>
+      </div>
+      <div className="text-right">
+        <span className="text-[9px] font-mono text-[var(--accent)]">= {combinedScore.toFixed(3)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Embedding Preview ──────────────────────────────────────────
 
 function EmbeddingPreview({ query }: { query: string }) {
@@ -864,20 +996,8 @@ function EmbeddingPreview({ query }: { query: string }) {
         <div className="font-mono text-[10px] text-[var(--text-muted)] break-all leading-relaxed">
           [{preview}, <span className="text-[var(--text-dim)]">...{dims - 8} more</span>]
         </div>
-        {/* Mini heatmap — first 64 dimensions */}
-        <div className="flex flex-wrap gap-px mt-2">
-          {embedding.slice(0, 64).map((v, i) => {
-            const abs = Math.min(Math.abs(v) * 8, 1);
-            const color = v >= 0
-              ? `rgba(59, 130, 246, ${abs})`
-              : `rgba(239, 68, 68, ${abs})`;
-            return <div key={i} className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} title={`[${i}] ${v.toFixed(4)}`} />;
-          })}
-        </div>
-        <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[var(--text-dim)]">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(59, 130, 246, 0.7)" }} /> positive</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(239, 68, 68, 0.7)" }} /> negative</span>
-          <span>first 64 dims</span>
+        <div className="mt-2">
+          <MiniHeatmap values={embedding.slice(0, 64)} showLegend />
         </div>
       </IOBlock>
     </div>
