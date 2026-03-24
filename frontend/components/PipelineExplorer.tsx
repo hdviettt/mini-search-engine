@@ -229,8 +229,7 @@ function Flowchart({
           <text x="710" y="620" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
             transform="rotate(-90, 710, 620)">AI OVERVIEW PATH</text>
 
-          {/* Subtle divider between the two query paths */}
-          <line x1="415" y1="480" x2="415" y2="850" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+          {/* Two paths are visually distinct by color — no divider needed */}
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
