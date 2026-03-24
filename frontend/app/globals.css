@@ -129,12 +129,12 @@ body {
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* Dark mode pipeline canvas — mute the bright pastels */
+/* Dark mode pipeline canvas — soften bright pastels */
 [data-theme="dark"] .pipeline-canvas {
-  filter: brightness(0.55) saturate(0.7);
+  filter: brightness(0.75) saturate(0.8);
 }
 [data-theme="dark"] .pipeline-canvas text {
-  filter: brightness(2.2);
+  filter: brightness(1.6);
 }
 
 /* SIU pose entrance animation */

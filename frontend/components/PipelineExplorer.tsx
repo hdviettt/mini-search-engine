@@ -496,6 +496,8 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
                 <StatRow label="Total postings" value={stats.total_postings.toLocaleString()} />
               </div>
             ) : <SkeletonStats rows={2} />}
+            <SectionLabel>Top terms by document frequency</SectionLabel>
+            <IndexPreview />
             <ActionButton onClick={() => runAction(rebuildIndex, "Rebuilding index...")}>
               Rebuild inverted index
             </ActionButton>
@@ -504,12 +506,15 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
 
         {nodeId === "pr_compute" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Computes authority scores from the link graph between pages.</p>
+            <p className="text-xs text-[var(--text-muted)]">Iteratively distributes authority through the link graph. Pages linked by many high-authority pages score highest.</p>
             {stats ? (
-              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+              <div className="space-y-1" style={{ animation: "fade-in 0.3s ease-out" }}>
                 <StatRow label="Pages scored" value={stats.pages_crawled.toLocaleString()} />
+                <StatRow label="Damping factor" value="0.85" />
               </div>
-            ) : <SkeletonStats rows={1} />}
+            ) : <SkeletonStats rows={2} />}
+            <SectionLabel>Top pages by PageRank</SectionLabel>
+            <PageRankPreview />
           </>
         )}
 
@@ -865,6 +870,80 @@ function ResultsDetail({ data }: { data: ExplainResponse }) {
           ))}
         </div>
       </IOBlock>
+    </div>
+  );
+}
+
+// ─── Index Preview ──────────────────────────────────────────────
+
+function IndexPreview() {
+  const [terms, setTerms] = useState<{ term: string; doc_freq: number; total_freq: number; sample_docs: { title: string }[] }[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    exploreIndex(8)
+      .then((res) => setTerms(res.terms ?? []))
+      .catch(() => setTerms([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <SkeletonRows rows={4} />;
+  if (!terms || terms.length === 0) return <p className="text-xs text-[var(--text-dim)]">No terms found.</p>;
+
+  const maxFreq = terms[0]?.doc_freq ?? 1;
+
+  return (
+    <div className="space-y-1.5" style={{ animation: "fade-in 0.3s ease-out" }}>
+      {terms.map((t, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="font-mono text-[11px] text-[var(--accent)] w-20 truncate shrink-0">{t.term}</span>
+          <div className="flex-1 h-1.5 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+            <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(t.doc_freq / maxFreq) * 100}%` }} />
+          </div>
+          <span className="text-[9px] font-mono text-[var(--text-dim)] w-12 text-right shrink-0">{t.doc_freq} docs</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── PageRank Preview ───────────────────────────────────────────
+
+function PageRankPreview() {
+  const [pages, setPages] = useState<{ title: string; url: string; score: number; inlinks: number }[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    explorePageRank(6)
+      .then((res) => setPages(res.pages ?? []))
+      .catch(() => setPages([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <SkeletonRows rows={4} />;
+  if (!pages || pages.length === 0) return <p className="text-xs text-[var(--text-dim)]">No scores found.</p>;
+
+  const maxScore = pages[0]?.score ?? 1;
+
+  return (
+    <div className="space-y-2" style={{ animation: "fade-in 0.3s ease-out" }}>
+      {pages.map((p, i) => (
+        <div key={i}>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--text-dim)] w-3 text-right shrink-0">{i + 1}</span>
+            <span className="text-[11px] text-[var(--text)] truncate flex-1">{p.title}</span>
+          </div>
+          <div className="flex items-center gap-1.5 ml-[18px]">
+            <div className="flex-1 h-1.5 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+              <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(p.score / maxScore) * 100}%` }} />
+            </div>
+            <span className="text-[9px] font-mono text-[var(--text-dim)] w-16 text-right shrink-0">{p.score.toFixed(6)}</span>
+          </div>
+          <div className="ml-[18px] text-[9px] text-[var(--text-dim)]">{p.inlinks} inlinks</div>
+        </div>
+      ))}
     </div>
   );
 }
