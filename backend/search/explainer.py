@@ -176,7 +176,7 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     t0 = time.time()
     rerank_candidates = []
     pre_rerank_order = {}
-    for i, (page_id, score) in enumerate(ranked[:10]):
+    for i, (page_id, score) in enumerate(ranked[:5]):
         row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
         if row:
             rerank_candidates.append({
@@ -207,8 +207,9 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
-    # Step 7: Build results with snippets
+    # Step 7: Build results with snippets (reranked top 5 + remaining from original order)
     t0 = time.time()
+    reranked_ids = {c["page_id"] for c in reranked}
     results = []
     for c in reranked:
         snippet = generate_snippet(c.get("body_text", ""), query_terms)
@@ -219,6 +220,21 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
             bm25_score=round(bm25_scores.get(c["page_id"], 0), 4),
             pagerank_score=round(pagerank_scores.get(c["page_id"], 0), 6),
             final_score=round(c.get("rerank_score") or c["combined_score"], 4),
+        ))
+    for page_id, final_score in ranked:
+        if len(results) >= 10:
+            break
+        if page_id in reranked_ids:
+            continue
+        row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
+        if row is None:
+            continue
+        snippet = generate_snippet(row[2] or "", query_terms)
+        results.append(SearchResult(
+            url=row[0], title=row[1] or row[0], snippet=snippet,
+            bm25_score=round(bm25_scores.get(page_id, 0), 4),
+            pagerank_score=round(pagerank_scores.get(page_id, 0), 6),
+            final_score=round(final_score, 4),
         ))
 
     trace["snippet_generation"] = {
