@@ -141,4 +141,15 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
         "SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL"
     ).fetchone()[0]
     print(f"  {embedded_count} chunks have embeddings.")
+
+    # Create HNSW index for fast approximate nearest neighbor search
+    try:
+        conn.execute("DROP INDEX IF EXISTS idx_chunks_embedding_hnsw")
+        conn.execute("CREATE INDEX idx_chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops)")
+        conn.commit()
+        print("  HNSW index created for fast vector search.")
+    except Exception as e:
+        conn.rollback()
+        print(f"  HNSW index creation skipped: {e}")
+
     print("Embedding complete.")
