@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getStats, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks, exploreEmbed } from "@/lib/api";
 import type { OverviewSource, OverviewTrace } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
@@ -1153,6 +1153,82 @@ function DbTableView({ endpoint }: { endpoint: "pages" | "index" | "pagerank" | 
   );
 }
 
+// ─── Mobile Bottom Sheet with swipe-to-dismiss ──────────────
+
+function MobileSheet({ nodeId, onClose, data, stats, overviewText, overviewSources, overviewLoading, overviewTrace, onRefreshStats }: {
+  nodeId: NodeId;
+  onClose: () => void;
+  data: ExplainResponse | null;
+  stats: Stats | null;
+  overviewText: string;
+  overviewSources: OverviewSource[];
+  overviewLoading: boolean;
+  overviewTrace?: OverviewTrace | null;
+  onRefreshStats: () => void;
+}) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const drag = useRef({ startY: 0, active: false });
+
+  const onHandleTouchStart = useCallback((e: React.TouchEvent) => {
+    drag.current = { startY: e.touches[0].clientY, active: true };
+  }, []);
+
+  const onHandleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!drag.current.active || !sheetRef.current) return;
+    const diff = e.touches[0].clientY - drag.current.startY;
+    if (diff > 0) {
+      sheetRef.current.style.transform = `translateY(${diff}px)`;
+      sheetRef.current.style.transition = "none";
+    }
+  }, []);
+
+  const onHandleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!drag.current.active || !sheetRef.current) return;
+    drag.current.active = false;
+    const diff = e.changedTouches[0].clientY - drag.current.startY;
+    sheetRef.current.style.transition = "transform 0.2s ease-out";
+    if (diff > 80) {
+      sheetRef.current.style.transform = "translateY(100%)";
+      setTimeout(onClose, 200);
+    } else {
+      sheetRef.current.style.transform = "";
+    }
+  }, [onClose]);
+
+  return (
+    <>
+      <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={onClose} />
+      <div
+        ref={sheetRef}
+        className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto"
+        style={{ animation: "slide-up 0.2s ease-out" }}
+      >
+        {/* Drag handle — swipe down to dismiss */}
+        <div
+          className="sticky top-0 z-10 bg-[var(--bg-card)] flex justify-center pt-3 pb-2 cursor-pointer touch-none"
+          onClick={onClose}
+          onTouchStart={onHandleTouchStart}
+          onTouchMove={onHandleTouchMove}
+          onTouchEnd={onHandleTouchEnd}
+        >
+          <div className="w-10 h-1 bg-[var(--border-hover)] rounded-full" />
+        </div>
+        <DetailPanel
+          nodeId={nodeId}
+          data={data}
+          stats={stats}
+          onClose={onClose}
+          onRefreshStats={onRefreshStats}
+          overviewText={overviewText}
+          overviewSources={overviewSources}
+          overviewLoading={overviewLoading}
+          overviewTrace={overviewTrace}
+        />
+      </div>
+    </>
+  );
+}
+
 // ─── Exported Component ──────────────────────────────────────
 
 export { DetailPanel };
@@ -1191,18 +1267,19 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Mobile bottom sheet — always renders on mobile when a node is selected */}
+      {/* Mobile bottom sheet — swipe down from handle to dismiss */}
       {selectedNode && (
-        <>
-          <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
-          <div className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto"
-            style={{ animation: "slide-up 0.2s ease-out" }}>
-            <div className="sticky top-0 bg-[var(--bg-card)] flex justify-center pt-2 pb-1 cursor-pointer" onClick={() => setSelectedNode(null)}>
-              <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
-            </div>
-            <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} overviewTrace={overviewTrace} />
-          </div>
-        </>
+        <MobileSheet
+          nodeId={selectedNode}
+          onClose={() => setSelectedNode(null)}
+          data={data}
+          stats={stats}
+          overviewText={overviewText}
+          overviewSources={overviewSources}
+          overviewLoading={overviewLoading}
+          overviewTrace={overviewTrace}
+          onRefreshStats={() => getStats().then(setStats).catch(() => {})}
+        />
       )}
     </div>
   );
