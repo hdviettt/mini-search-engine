@@ -94,7 +94,7 @@ const ARROWS: ArrowDef[] = [
   { path: "M 390 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
   { path: "M 630 320 V 570 H 600 V 580", dashed: true, dim: true },   // vector_store → vector_search
   // QUERY — from query_input (all share same V-turn for clean fan-out)
-  { path: "M 390 405 V 430 H 195 V 440" },                       // query → tokenize
+  { path: "M 390 405 V 412 H 195 V 440" },                       // query → tokenize
   { path: "M 458 385 H 600 V 440" },                              // query → fanout (from right edge)
   // QUERY — search path
   { path: "M 195 480 V 510" },                                    // tokenize → index_lookup
@@ -149,7 +149,7 @@ function useAnimatedSteps(trace: PipelineTrace | null) {
     prev.current = trace;
     setStep(-1);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 12; i++) {
       timers.push(setTimeout(() => setStep(i), 300 * (i + 1)));
     }
     return () => timers.forEach(clearTimeout);
