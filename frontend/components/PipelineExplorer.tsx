@@ -327,7 +327,7 @@ function Flowchart({
             <Annotation x={265} y={450} text={`${data.pipeline.tokenization.tokens.join(", ")}`} />
           )}
           {data && activeStep >= 3 && (
-            <Annotation x={280} y={583} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
+            <Annotation x={460} y={590} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
           )}
           {data && activeStep >= 6 && (
             <Annotation x={345} y={818} text={`${data.total_results} results`} />

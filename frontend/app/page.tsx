@@ -207,6 +207,7 @@ export default function Home() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const hasResults = engine.searchData !== null;
+  const isSearching = engine.query !== "" && !hasResults;  // loading state: query set but no results yet
   const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
 
   useEffect(() => {
@@ -217,7 +218,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
-      {!hasResults ? (
+      {!hasResults && !isSearching ? (
         /* ═══════════════════ Hero state ═══════════════════ */
         <div className="min-h-screen flex flex-col items-center justify-center relative px-3 sm:px-4">
           <div className="absolute top-4 right-4 z-10">
@@ -295,6 +296,31 @@ export default function Home() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Loading skeleton */}
+      {isSearching && (
+        <div className="px-4 lg:pl-40 lg:pr-8 py-6 max-w-3xl">
+          <div className="space-y-3 mb-8">
+            <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
+            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
+            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[95%]" />
+            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[85%]" />
+            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[70%]" />
+          </div>
+          <div className="border-b border-[var(--separator)] mb-6" />
+          {[1, 2, 3].map(i => (
+            <div key={i} className="mb-6">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-full bg-[var(--skeleton)] animate-pulse" />
+                <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
+              </div>
+              <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-3/4 mb-2" />
+              <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full mb-1" />
+              <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[90%]" />
+            </div>
+          ))}
         </div>
       )}
 

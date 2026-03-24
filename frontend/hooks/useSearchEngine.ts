@@ -221,6 +221,7 @@ export function useSearchEngine(): SearchEngineState {
     async (q: string) => {
       setQuery(q);
       setPhase("idle");
+      setSearchData(null);  // clear immediately — triggers skeleton UI
 
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
@@ -228,6 +229,8 @@ export function useSearchEngine(): SearchEngineState {
       setOverviewText("");
       setOverviewSources([]);
       setOverviewTrace(null);
+      setOverviewLoading(false);
+      setOverviewStreaming(false);
 
       try {
         const data = await searchExplain(q, DEFAULT_PARAMS);
