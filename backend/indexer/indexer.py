@@ -14,6 +14,14 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
     """
     print("Building inverted index...")
 
+    # Ensure BM25F columns exist (migration for existing databases)
+    try:
+        conn.execute("ALTER TABLE postings ADD COLUMN IF NOT EXISTS title_freq INTEGER NOT NULL DEFAULT 0")
+        conn.execute("ALTER TABLE postings ADD COLUMN IF NOT EXISTS body_freq INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     # Clear existing index
     conn.execute("DELETE FROM postings")
     conn.execute("DELETE FROM terms")
