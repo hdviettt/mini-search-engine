@@ -24,15 +24,21 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     trace = {}
     total_start = time.time()
 
-    # Step 1: Tokenization
+    # Step 1: Tokenization (with stemming)
     t0 = time.time()
     query_terms = tokenize(query)
     raw_terms = query.lower().split()
-    removed = [t for t in raw_terms if t not in query_terms and len(t) > 1]
+    from indexer.tokenizer import STOPWORDS
+    from indexer.stemmer import stem
+    removed = [t for t in raw_terms if t in STOPWORDS or len(t) <= 1]
+    # Show pre-stem → post-stem mapping for terms that changed
+    pre_stem = [t for t in raw_terms if t not in STOPWORDS and len(t) > 1]
+    stemmed_map = {orig: stem(orig) for orig in pre_stem if stem(orig) != orig}
     trace["tokenization"] = {
         "input": query,
         "tokens": query_terms,
         "stopwords_removed": removed,
+        "stems_applied": stemmed_map,  # e.g. {"running": "run", "players": "player"}
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 

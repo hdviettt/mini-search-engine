@@ -580,15 +580,26 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
             </IOBlock>
             <IOBlock label="Output tokens">
               <div className="flex flex-wrap gap-1">
-                {trace.tokenization.tokens.map((t, i) => (
+                {trace.tokenization.tokens.map((t: string, i: number) => (
                   <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">{t}</span>
                 ))}
               </div>
             </IOBlock>
+            {trace.tokenization.stems_applied && Object.keys(trace.tokenization.stems_applied).length > 0 && (
+              <IOBlock label="Stems applied">
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(trace.tokenization.stems_applied).map(([orig, stemmed], i) => (
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded">
+                      {orig as string} &rarr; {stemmed as string}
+                    </span>
+                  ))}
+                </div>
+              </IOBlock>
+            )}
             {trace.tokenization.stopwords_removed.length > 0 && (
               <IOBlock label="Stopwords removed">
                 <div className="flex flex-wrap gap-1">
-                  {trace.tokenization.stopwords_removed.map((w, i) => (
+                  {trace.tokenization.stopwords_removed.map((w: string, i: number) => (
                     <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-red-50 text-red-400 rounded line-through">{w}</span>
                   ))}
                 </div>

@@ -20,6 +20,7 @@ export interface TokenizationTrace {
   input: string;
   tokens: string[];
   stopwords_removed: string[];
+  stems_applied?: Record<string, string>;  // e.g. {"running": "run"}
   time_ms: number;
 }
 
