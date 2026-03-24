@@ -27,13 +27,31 @@ SEED_URLS = [
     "https://www.bbc.com/sport/football/champions-league",
     # ESPN Soccer
     "https://www.espn.com/soccer/",
+    # GiveMeSport — football news & lists
+    "https://www.givemesport.com/football/",
+    # Sky Sports — football coverage
+    "https://www.skysports.com/football",
+    # Goal.com — football news
+    "https://www.goal.com/en/football",
+    # Transfermarkt — player/team data
+    "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
+    # The Guardian — football section
+    "https://www.theguardian.com/football",
+    # FourFourTwo — football magazine
+    "https://www.fourfourtwo.com/football",
 ]
 ALLOWED_DOMAINS = [
     "en.wikipedia.org",
     "www.bbc.com",
     "www.espn.com",
+    "www.givemesport.com",
+    "www.skysports.com",
+    "www.goal.com",
+    "www.transfermarkt.com",
+    "www.theguardian.com",
+    "www.fourfourtwo.com",
 ]
-MAX_PAGES = 1000
+MAX_PAGES = 3000
 MAX_DEPTH = 3
 CRAWL_DELAY = 1.5  # seconds between requests to same domain
 USER_AGENT = "Mozilla/5.0 (compatible; VietSearchBot/1.0; +https://github.com/hdviettt/mini-search-engine)"
@@ -41,12 +59,24 @@ REQUEST_TIMEOUT = 10  # seconds
 
 # URL filtering — only crawl football-related paths
 ALLOWED_PATH_PATTERNS = [
-    # Wikipedia: any /wiki/ page (we filter by football content later)
+    # Wikipedia: any /wiki/ page
     "/wiki/",
     # BBC: only football section
     "/sport/football",
     # ESPN: only soccer section
     "/soccer/",
+    # GiveMeSport: football section
+    "/football",
+    # Sky Sports: football section
+    "/football",
+    # Goal.com: football section
+    "/football",
+    # Transfermarkt: any page (all football)
+    "/",
+    # The Guardian: football section
+    "/football",
+    # FourFourTwo: football section
+    "/football",
 ]
 
 # Spam/junk domain blocklist
