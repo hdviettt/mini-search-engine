@@ -269,10 +269,10 @@ export default function Home() {
 
           {/* Pipeline — slides in from left as an overlay on desktop */}
           <div
-            className={`lg:absolute lg:top-0 lg:left-0 lg:bottom-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto transition-transform duration-500 ease-in-out lg:z-10 ${
+            className={`lg:absolute lg:top-0 lg:left-0 lg:bottom-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:z-10 ${
               view === "explore"
-                ? "translate-x-0"
-                : "max-h-0 lg:max-h-none lg:-translate-x-full lg:pointer-events-none overflow-hidden"
+                ? "translate-x-0 transition-transform duration-500 ease-in-out"
+                : "max-h-0 lg:max-h-none lg:-translate-x-full lg:pointer-events-none overflow-hidden transition-[transform,visibility] duration-500 ease-in-out lg:invisible"
             }`}
           >
             <PipelineExplorer
