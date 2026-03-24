@@ -45,6 +45,15 @@ class ScheduleRequest(BaseModel):
 def explain(req: ExplainRequest):
     conn = get_connection()
     result = search_explain(conn, req.q, req.params)
+    # Log query for analytics
+    try:
+        conn.execute(
+            "INSERT INTO query_log (query, results_count, time_ms) VALUES (%s, %s, %s)",
+            (req.q, result.get("total_results", 0), result.get("time_ms", 0)),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
     conn.close()
     return result
 

@@ -83,10 +83,22 @@ CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_queue_status ON crawl_queue(status);
 CREATE INDEX IF NOT EXISTS idx_chunks_page ON chunks(page_id);
 
+-- Query log: track every search for analytics and quality measurement
+CREATE TABLE IF NOT EXISTS query_log (
+    id            SERIAL PRIMARY KEY,
+    query         TEXT NOT NULL,
+    results_count INTEGER,
+    time_ms       REAL,
+    has_overview   BOOLEAN DEFAULT false,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Performance indexes added in Phase 1
 CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
 CREATE INDEX IF NOT EXISTS idx_pages_crawled_at ON pages(crawled_at);
 CREATE INDEX IF NOT EXISTS idx_ai_cache_created ON ai_cache(created_at);
+CREATE INDEX IF NOT EXISTS idx_query_log_created ON query_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_query_log_query ON query_log(query);
 """
 
 

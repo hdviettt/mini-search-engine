@@ -191,6 +191,15 @@ def home():
 def api_search(q: str = Query(""), page: int = 1, per_page: int = 10):
     conn = get_connection()
     result = search(conn, q, page, per_page)
+    # Log query for analytics
+    try:
+        conn.execute(
+            "INSERT INTO query_log (query, results_count, time_ms) VALUES (%s, %s, %s)",
+            (q, result.get("total_results", 0), result.get("time_ms", 0)),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
     conn.close()
     return result
 
