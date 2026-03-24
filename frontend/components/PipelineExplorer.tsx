@@ -257,10 +257,10 @@ function Flowchart({
 
             let fill = "#f5f5f5";
             let strokeColor = "#d4d4d4";
+            let sw = 1.5;
             if (status === "active") { fill = node.activeFill; strokeColor = node.stroke; }
             else if (status === "done" || status === "ready") { fill = node.fill; strokeColor = node.stroke; }
-
-            const pulseRx = isIO ? (node.h + 6) / 2 : 10;
+            if (selected) { fill = node.activeFill; strokeColor = "#2563eb"; sw = 2.5; }
 
             return (
               <g
@@ -268,28 +268,13 @@ function Flowchart({
                 onClick={() => clickable ? onSelectNode(selected ? null : node.id) : undefined}
                 style={{ cursor: clickable ? "pointer" : "default" }}
               >
-                {/* Active pulse */}
-                {status === "active" && !isStore && (
-                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
-                    stroke={node.stroke} strokeWidth="2" opacity="0.5">
-                    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
+                {/* Active pulse — subtle glow behind the node */}
+                {status === "active" && !selected && (
+                  <rect x={x - 2} y={y - 2} width={node.w + 4} height={node.h + 4}
+                    rx={isStore ? 12 : isIO ? (node.h + 4) / 2 : 10}
+                    fill={node.activeFill} opacity="0.3">
+                    <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.2s" repeatCount="indefinite" />
                   </rect>
-                )}
-                {status === "active" && isStore && (
-                  <rect x={x - 4} y={y - 4} width={node.w + 8} height={node.h + 8} rx={14} fill="none"
-                    stroke={node.stroke} strokeWidth="2" opacity="0.5">
-                    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
-                  </rect>
-                )}
-
-                {/* Selection ring */}
-                {selected && !isStore && (
-                  <rect x={x - 3} y={y - 3} width={node.w + 6} height={node.h + 6} rx={pulseRx} fill="none"
-                    stroke="#2563eb" strokeWidth="2" />
-                )}
-                {selected && isStore && (
-                  <rect x={x - 4} y={y - 4} width={node.w + 8} height={node.h + 8} rx={14} fill="none"
-                    stroke="#2563eb" strokeWidth="2" />
                 )}
 
                 {/* Node shape */}
@@ -298,25 +283,25 @@ function Flowchart({
                   <g>
                     {/* Body */}
                     <rect x={x} y={y + ry} width={node.w} height={node.h - 2 * ry}
-                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                      fill={fill} stroke={strokeColor} strokeWidth={sw} />
                     {/* Side lines connecting top and bottom ellipses */}
                     <line x1={x} y1={y + ry} x2={x} y2={y + node.h - ry}
-                      stroke={strokeColor} strokeWidth="1.5" />
+                      stroke={strokeColor} strokeWidth={sw} />
                     <line x1={x + node.w} y1={y + ry} x2={x + node.w} y2={y + node.h - ry}
-                      stroke={strokeColor} strokeWidth="1.5" />
+                      stroke={strokeColor} strokeWidth={sw} />
                     {/* Bottom ellipse */}
                     <ellipse cx={node.cx} cy={y + node.h - ry} rx={node.w / 2} ry={ry}
-                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                      fill={fill} stroke={strokeColor} strokeWidth={sw} />
                     {/* Top ellipse (drawn last to be on top) */}
                     <ellipse cx={node.cx} cy={y + ry} rx={node.w / 2} ry={ry}
-                      fill={fill} stroke={strokeColor} strokeWidth="1.5" />
+                      fill={fill} stroke={strokeColor} strokeWidth={sw} />
                   </g>
                 ) : (
                   /* Rectangle for process nodes, pill for I/O nodes */
                   <rect
                     x={x} y={y} width={node.w} height={node.h}
                     rx={isIO ? node.h / 2 : 8}
-                    fill={fill} stroke={strokeColor} strokeWidth="1.5"
+                    fill={fill} stroke={strokeColor} strokeWidth={sw}
                   />
                 )}
 
