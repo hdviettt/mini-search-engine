@@ -611,7 +611,22 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           </>
         )}
         {nodeId === "embed_query" && (
-          <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
+            <div className="space-y-1 mt-2">
+              <StatRow label="Model" value="Voyage AI" />
+              <StatRow label="Dimensions" value="512" />
+              <StatRow label="Input type" value="query" />
+            </div>
+            {data?.query && (
+              <IOBlock label="Input">
+                <span className="font-mono text-xs text-[var(--text)]">&quot;{data.query}&quot;</span>
+              </IOBlock>
+            )}
+            <IOBlock label="Output">
+              <span className="text-[10px] text-[var(--text-dim)] font-mono">[0.0234, -0.1092, 0.0871, ... ] (512 floats)</span>
+            </IOBlock>
+          </>
         )}
         {nodeId === "vector_search" && (
           <>
@@ -647,16 +662,16 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
             <div className="space-y-1 mt-2">
               <StatRow label="Provider" value="Groq" />
               <StatRow label="Model" value={overviewTrace?.synthesis?.model ?? "Llama 3.3 70B"} />
-              {overviewTrace?.synthesis && <StatRow label="Time" value={`${overviewTrace.synthesis.time_ms.toFixed(1)}ms`} />}
+              {overviewTrace?.synthesis?.time_ms != null && <StatRow label="Time" value={`${overviewTrace.synthesis.time_ms.toFixed(1)}ms`} />}
             </div>
           </>
         )}
         {nodeId === "ai_overview" && (
           <>
             <p className="text-xs text-[var(--text-muted)]">AI-generated summary with inline citations [1][2] linking to source pages.</p>
-            {overviewTrace?.total_ms && (
+            {overviewTrace?.total_ms != null && (
               <div className="space-y-1 mt-2" style={{ animation: "fade-in 0.3s ease-out" }}>
-                <StatRow label="Total AI pipeline" value={`${overviewTrace.total_ms.toFixed(0)}ms`} />
+                <StatRow label="Total AI pipeline" value={`${Number(overviewTrace.total_ms).toFixed(0)}ms`} />
                 <StatRow label="Sources" value={overviewSources.length} />
                 {overviewText && (
                   <IOBlock label="Preview">
