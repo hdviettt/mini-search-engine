@@ -119,6 +119,28 @@ CREATE TABLE IF NOT EXISTS entity_aliases (
     UNIQUE(entity_id, alias)
 );
 
+-- Knowledge Graph: entity attributes and relationships
+CREATE TABLE IF NOT EXISTS entity_attributes (
+    id          SERIAL PRIMARY KEY,
+    entity_id   INTEGER NOT NULL REFERENCES entities(id),
+    attr_key    TEXT NOT NULL,
+    attr_value  TEXT NOT NULL,
+    source_page INTEGER REFERENCES pages(id),
+    confidence  REAL DEFAULT 1.0,
+    UNIQUE(entity_id, attr_key, attr_value)
+);
+
+CREATE TABLE IF NOT EXISTS entity_relationships (
+    id              SERIAL PRIMARY KEY,
+    source_entity   INTEGER NOT NULL REFERENCES entities(id),
+    relation_type   TEXT NOT NULL,
+    target_entity   INTEGER NOT NULL REFERENCES entities(id),
+    attributes      JSONB DEFAULT '{}',
+    source_page     INTEGER REFERENCES pages(id),
+    confidence      REAL DEFAULT 1.0,
+    UNIQUE(source_entity, relation_type, target_entity)
+);
+
 -- Performance indexes added in Phase 1
 CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
 CREATE INDEX IF NOT EXISTS idx_pages_crawled_at ON pages(crawled_at);
@@ -129,6 +151,11 @@ CREATE INDEX IF NOT EXISTS idx_entities_canonical ON entities(canonical);
 CREATE INDEX IF NOT EXISTS idx_page_entities_page ON page_entities(page_id);
 CREATE INDEX IF NOT EXISTS idx_page_entities_entity ON page_entities(entity_id);
 CREATE INDEX IF NOT EXISTS idx_entity_aliases_alias ON entity_aliases(alias);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_entity ON entity_attributes(entity_id);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_key ON entity_attributes(attr_key);
+CREATE INDEX IF NOT EXISTS idx_entity_rels_source ON entity_relationships(source_entity);
+CREATE INDEX IF NOT EXISTS idx_entity_rels_target ON entity_relationships(target_entity);
+CREATE INDEX IF NOT EXISTS idx_entity_rels_type ON entity_relationships(relation_type);
 CREATE INDEX IF NOT EXISTS idx_query_log_created ON query_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_query_log_query ON query_log(query);
 """

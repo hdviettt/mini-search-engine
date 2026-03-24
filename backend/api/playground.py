@@ -394,7 +394,7 @@ def explore_embed(q: str):
     return {"query": q, "embedding": [round(v, 6) for v in vec], "dimensions": len(vec)}
 
 
-# --- NER endpoints ---
+# --- NER & Knowledge Graph endpoints ---
 
 @router.post("/ner/extract")
 def start_ner_extraction():
@@ -405,6 +405,26 @@ def start_ner_extraction():
     def run():
         conn = get_connection()
         try:
+            # Ensure NER tables exist
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS entities (
+                    id SERIAL PRIMARY KEY, name TEXT NOT NULL, entity_type TEXT NOT NULL,
+                    canonical TEXT, description TEXT, created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(name, entity_type)
+                )""")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS page_entities (
+                    page_id INTEGER NOT NULL REFERENCES pages(id),
+                    entity_id INTEGER NOT NULL REFERENCES entities(id),
+                    frequency INTEGER DEFAULT 1, in_title BOOLEAN DEFAULT false,
+                    PRIMARY KEY (page_id, entity_id)
+                )""")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS entity_aliases (
+                    id SERIAL PRIMARY KEY, entity_id INTEGER NOT NULL REFERENCES entities(id),
+                    alias TEXT NOT NULL, UNIQUE(entity_id, alias)
+                )""")
+            conn.commit()
             extract_all_entities(conn)
         finally:
             conn.close()
@@ -418,34 +438,35 @@ def start_ner_extraction():
 def explore_entities(entity_type: str | None = None, limit: int = 50):
     """Browse extracted entities, optionally filtered by type."""
     conn = get_connection()
-    if entity_type:
-        rows = conn.execute(
-            """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
-               FROM entities e
-               LEFT JOIN page_entities pe ON e.id = pe.entity_id
-               WHERE e.entity_type = %s
-               GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
-            (entity_type, limit),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
-               FROM entities e
-               LEFT JOIN page_entities pe ON e.id = pe.entity_id
-               GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
-            (limit,),
-        ).fetchall()
+    try:
+        if entity_type:
+            rows = conn.execute(
+                """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
+                   FROM entities e
+                   LEFT JOIN page_entities pe ON e.id = pe.entity_id
+                   WHERE e.entity_type = %s
+                   GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
+                (entity_type, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
+                   FROM entities e
+                   LEFT JOIN page_entities pe ON e.id = pe.entity_id
+                   GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
+                (limit,),
+            ).fetchall()
+
+        entities = [{"id": r[0], "name": r[1], "type": r[2], "page_count": r[3]} for r in rows]
+
+        type_counts = dict(conn.execute(
+            "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type ORDER BY 2 DESC"
+        ).fetchall())
+    except Exception as e:
+        conn.close()
+        return {"entities": [], "type_counts": {}, "error": str(e)}
+
     conn.close()
-
-    entities = [{"id": r[0], "name": r[1], "type": r[2], "page_count": r[3]} for r in rows]
-
-    # Also return type summary
-    conn2 = get_connection()
-    type_counts = dict(conn2.execute(
-        "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type ORDER BY 2 DESC"
-    ).fetchall())
-    conn2.close()
-
     return {"entities": entities, "type_counts": type_counts}
 
 
@@ -469,6 +490,74 @@ def explore_entity(entity_id: int):
     return {
         "entity": {"id": entity[0], "name": entity[1], "type": entity[2], "canonical": entity[3]},
         "pages": [{"id": p[0], "title": p[1], "url": p[2], "frequency": p[3], "in_title": p[4]} for p in pages],
+    }
+
+
+@router.post("/knowledge/build")
+def start_knowledge_graph_build():
+    """Run knowledge graph extraction (background job). Requires NER to have run first."""
+    from knowledge.graph import build_knowledge_graph
+    import threading
+
+    def run():
+        conn = get_connection()
+        try:
+            build_knowledge_graph(conn)
+        finally:
+            conn.close()
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    return {"status": "started"}
+
+
+@router.get("/knowledge/entity/{name}")
+def get_knowledge_entity(name: str):
+    """Get entity card data for OneBox rendering."""
+    from knowledge.query import get_entity_card
+    conn = get_connection()
+    card = get_entity_card(conn, name)
+    conn.close()
+    if not card:
+        return {"error": "Entity not found or insufficient data", "entity": None}
+    return card
+
+
+@router.get("/explore/knowledge")
+def explore_knowledge(limit: int = 30):
+    """Browse knowledge graph relationships."""
+    conn = get_connection()
+    try:
+        rels = conn.execute(
+            """SELECT e1.name, r.relation_type, e2.name, r.confidence
+               FROM entity_relationships r
+               JOIN entities e1 ON r.source_entity = e1.id
+               JOIN entities e2 ON r.target_entity = e2.id
+               ORDER BY r.confidence DESC LIMIT %s""",
+            (limit,),
+        ).fetchall()
+
+        attrs = conn.execute(
+            """SELECT e.name, a.attr_key, a.attr_value
+               FROM entity_attributes a
+               JOIN entities e ON a.entity_id = e.id
+               ORDER BY a.confidence DESC LIMIT %s""",
+            (limit,),
+        ).fetchall()
+
+        stats = {
+            "total_relationships": conn.execute("SELECT COUNT(*) FROM entity_relationships").fetchone()[0],
+            "total_attributes": conn.execute("SELECT COUNT(*) FROM entity_attributes").fetchone()[0],
+        }
+    except Exception as e:
+        conn.close()
+        return {"relationships": [], "attributes": [], "stats": {}, "error": str(e)}
+
+    conn.close()
+    return {
+        "relationships": [{"source": r[0], "relation": r[1], "target": r[2], "confidence": r[3]} for r in rels],
+        "attributes": [{"entity": a[0], "key": a[1], "value": a[2]} for a in attrs],
+        "stats": stats,
     }
 
 
