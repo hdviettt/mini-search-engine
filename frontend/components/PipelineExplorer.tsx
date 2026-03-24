@@ -46,7 +46,7 @@ interface ArrowDef {
 const LANES = [
   { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
   { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
-  { label: "Query", sub: "(per search)", y: 338, h: 450, bg: "#eff6ff" },
+  { label: "Query", sub: "(per search)", y: 338, h: 520, bg: "#eff6ff" },
 ];
 
 const NODES: NodeDef[] = [
@@ -224,13 +224,13 @@ function Flowchart({
           ))}
 
           {/* Sub-path labels — on the left edge of each column, rotated vertically */}
-          <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
-            transform="rotate(-90, 128, 590)">SEARCH PATH</text>
-          <text x="710" y="600" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
-            transform="rotate(-90, 710, 600)">AI OVERVIEW PATH</text>
+          <text x="128" y="640" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
+            transform="rotate(-90, 128, 640)">SEARCH PATH</text>
+          <text x="710" y="620" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
+            transform="rotate(-90, 710, 620)">AI OVERVIEW PATH</text>
 
           {/* Subtle divider between the two query paths */}
-          <line x1="415" y1="450" x2="415" y2="790" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+          <line x1="415" y1="450" x2="415" y2="850" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
@@ -331,7 +331,7 @@ function Flowchart({
             <Annotation x={280} y={583} text={`${data.pipeline.bm25_scoring.total_matched} docs matched`} />
           )}
           {data && activeStep >= 6 && (
-            <Annotation x={345} y={740} text={`${data.total_results} results`} />
+            <Annotation x={345} y={818} text={`${data.total_results} results`} />
           )}
         </svg>
       </div>
