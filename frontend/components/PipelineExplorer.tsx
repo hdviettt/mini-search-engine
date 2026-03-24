@@ -13,7 +13,7 @@ type NodeId =
   // Stores
   | "inv_index" | "pr_scores" | "vector_store"
   // Query — search path
-  | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "results"
+  | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "reranker" | "results"
   // Query — AI path
   | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview";
 
@@ -69,7 +69,8 @@ const NODES: NodeDef[] = [
   { id: "bm25",         label: "BM25 Scoring",   cx: 195, cy: 603, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
   { id: "pr_lookup",    label: "PR Lookup",      cx: 345, cy: 603, w: 110, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
   { id: "combine",      label: "Combine Scores", cx: 265, cy: 678, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "results",      label: "Ranked Results",  cx: 265, cy: 748, w: 135, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "io" },
+  { id: "reranker",     label: "Neural Rerank",  cx: 265, cy: 748, w: 130, h: 40, fill: "#fecdd3", stroke: "#fda4af", activeFill: "#fda4af", kind: "process" },
+  { id: "results",      label: "Ranked Results",  cx: 265, cy: 818, w: 135, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "io" },
   // ── QUERY — AI path (sequential: fan-out → embed → vector search → LLM → overview) ──
   { id: "fanout",        label: "Fan-out",          cx: 600, cy: 460, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "embed_query",   label: "Embed Query",     cx: 600, cy: 530, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
@@ -101,7 +102,8 @@ const ARROWS: ArrowDef[] = [
   { path: "M 195 550 V 583" },                                    // index_lookup → bm25
   { path: "M 195 623 V 648 H 265 V 658" },                       // bm25 → combine
   { path: "M 345 623 V 648 H 265 V 658" },                       // pr_lookup → combine
-  { path: "M 265 698 V 728" },                                    // combine → results
+  { path: "M 265 698 V 728" },                                    // combine → reranker
+  { path: "M 265 768 V 798" },                                    // reranker → results
   // QUERY — AI path (sequential)
   { path: "M 600 480 V 510" },                                    // fanout → embed_query
   { path: "M 600 550 V 580" },                                    // embed_query → vector_search
@@ -122,19 +124,20 @@ const NODE_STEP: Record<NodeId, number> = {
   bm25: 3,
   pr_lookup: 4, // pr_scores also activates
   combine: 5,
-  results: 6,
-  fanout: 7,
-  embed_query: 8,
-  vector_search: 9, // vector_store also activates
-  llm: 10,
-  ai_overview: 11,
+  reranker: 6,
+  results: 7,
+  fanout: 8,
+  embed_query: 9,
+  vector_search: 10, // vector_store also activates
+  llm: 11,
+  ai_overview: 12,
 };
 
 // Stores that activate with query steps
 const STORE_ACTIVATE: Record<number, NodeId[]> = {
   2: ["inv_index"],
   4: ["pr_scores"],
-  9: ["vector_store"],
+  10: ["vector_store"],
 };
 
 function useAnimatedSteps(trace: PipelineTrace | null) {
@@ -182,7 +185,7 @@ function Flowchart({
   return (
     <div className="overflow-x-auto -mx-2 px-2 sm:-mx-4 sm:px-4">
       <div className="min-w-[380px] sm:min-w-[500px]">
-        <svg viewBox="0 0 770 800" className="w-full h-auto pipeline-canvas" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 770 870" className="w-full h-auto pipeline-canvas" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="0.7" fill="var(--border)" />
@@ -629,6 +632,43 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "bm25" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><BM25Detail trace={trace} /></div>}
         {nodeId === "pr_lookup" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><PageRankDetail trace={trace} /></div>}
         {nodeId === "combine" && trace && <div style={{ animation: "fade-in 0.3s ease-out" }}><CombineDetail trace={trace} /></div>}
+
+        {nodeId === "reranker" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Cross-encoder (BERT) re-scores the top candidates by reading query and document together — captures semantic relevance that keyword matching misses.</p>
+            {trace?.reranking ? (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <div className="space-y-1 mt-2">
+                  <StatRow label="Model" value={trace.reranking.model} />
+                  <StatRow label="Candidates" value={trace.reranking.candidates} />
+                  <StatRow label="Time" value={`${trace.reranking.time_ms.toFixed(1)}ms`} />
+                </div>
+                {trace.reranking.rank_changes?.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-[9px] text-[var(--text-dim)] font-medium mb-1.5 uppercase tracking-wider">Rank changes (before → after)</div>
+                    <div className="space-y-1">
+                      {trace.reranking.rank_changes.map((c: { page_id: number; title: string; before_rank: number | string; after_rank: number; rerank_score: number | null }, i: number) => {
+                        const before = typeof c.before_rank === "number" ? c.before_rank : 99;
+                        const delta = typeof c.before_rank === "number" ? c.before_rank - c.after_rank : 0;
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-[11px]">
+                            <span className="text-[var(--text-dim)] font-mono w-16 shrink-0">#{c.before_rank} → #{c.after_rank}</span>
+                            <span className={`font-mono w-8 shrink-0 ${delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-[var(--text-dim)]"}`}>
+                              {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "="}
+                            </span>
+                            <span className="text-[var(--text)] truncate">{c.title}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <SkeletonRows rows={3} />
+            )}
+          </>
+        )}
 
         {nodeId === "results" && data && <div style={{ animation: "fade-in 0.3s ease-out" }}><ResultsDetail data={data} /></div>}
         {nodeId === "results" && !data && <SkeletonRows rows={4} />}
@@ -1287,7 +1327,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
     <div className="px-2 sm:px-4 py-3 sm:py-4">
       <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
-      {data && activeStep >= 10 && !selectedNode && (
+      {data && activeStep >= 11 && !selectedNode && (
         <div className="text-center pt-2" style={{ animation: "fade-in 0.4s ease-out" }}>
           <span className="text-xs text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
         </div>

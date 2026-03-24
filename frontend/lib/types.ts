@@ -76,12 +76,28 @@ export interface SnippetTrace {
   time_ms: number;
 }
 
+export interface RerankChange {
+  page_id: number;
+  title: string;
+  before_rank: number | string;
+  after_rank: number;
+  rerank_score: number | null;
+}
+
+export interface RerankTrace {
+  model: string;
+  candidates: number;
+  rank_changes: RerankChange[];
+  time_ms: number;
+}
+
 export interface PipelineTrace {
   tokenization: TokenizationTrace;
   index_lookup: IndexLookupTrace;
   bm25_scoring: BM25Trace;
   pagerank: PageRankTrace;
   combination: CombinationTrace;
+  reranking?: RerankTrace;
   snippet_generation: SnippetTrace;
 }
 

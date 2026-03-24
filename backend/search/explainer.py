@@ -171,23 +171,54 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
-    # Step 6: Build results with snippets
+    # Step 6: Neural re-ranking
+    from ranker.reranker import rerank
     t0 = time.time()
-    page_results = ranked[:10]
-    results = []
-    for page_id, final_score in page_results:
+    rerank_candidates = []
+    pre_rerank_order = {}
+    for i, (page_id, score) in enumerate(ranked[:10]):
         row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
-        if row is None:
-            continue
-        url, title, body_text = row
-        snippet = generate_snippet(body_text, query_terms)
+        if row:
+            rerank_candidates.append({
+                "page_id": page_id, "combined_score": score,
+                "url": row[0], "title": row[1], "body_text": row[2],
+            })
+            pre_rerank_order[page_id] = i + 1
+
+    reranked = rerank(query, rerank_candidates, top_k=10)
+
+    # Track rank changes from re-ranking
+    rerank_changes = []
+    for i, c in enumerate(reranked):
+        pid = c["page_id"]
+        rerank_changes.append({
+            "page_id": pid,
+            "title": (c.get("title") or "")[:50],
+            "before_rank": pre_rerank_order.get(pid, ">10"),
+            "after_rank": i + 1,
+            "rerank_score": c.get("rerank_score"),
+        })
+
+    model_available = reranked[0].get("rerank_score") is not None if reranked else False
+    trace["reranking"] = {
+        "model": "ms-marco-MiniLM-L-6-v2" if model_available else "unavailable",
+        "candidates": len(rerank_candidates),
+        "rank_changes": rerank_changes,
+        "time_ms": round((time.time() - t0) * 1000, 2),
+    }
+
+    # Step 7: Build results with snippets
+    t0 = time.time()
+    results = []
+    for c in reranked:
+        snippet = generate_snippet(c.get("body_text", ""), query_terms)
         results.append(SearchResult(
-            url=url,
-            title=title or url,
+            url=c["url"],
+            title=c.get("title") or c["url"],
             snippet=snippet,
-            bm25_score=round(bm25_scores.get(page_id, 0), 4),
-            pagerank_score=round(pagerank_scores.get(page_id, 0), 6),
-            final_score=round(final_score, 4),
+            bm25_score=round(bm25_scores.get(c["page_id"], 0), 4),
+            pagerank_score=round(pagerank_scores.get(c["page_id"], 0), 6),
+            final_score=round(c.get("rerank_score") or c["combined_score"], 4),
         ))
 
     trace["snippet_generation"] = {
