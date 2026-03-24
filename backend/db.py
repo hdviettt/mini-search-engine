@@ -106,10 +106,24 @@ def get_connection() -> psycopg.Connection:
     return psycopg.connect(DATABASE_URL)
 
 
+MIGRATIONS_SQL = """
+-- Phase 1 migrations: add columns to existing tables
+ALTER TABLE postings ADD COLUMN IF NOT EXISTS title_freq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE postings ADD COLUMN IF NOT EXISTS body_freq INTEGER NOT NULL DEFAULT 0;
+"""
+
+
 def init_db():
     with get_connection() as conn:
         conn.execute(SCHEMA_SQL)
         conn.commit()
+        # Run migrations for existing tables that need new columns
+        try:
+            conn.execute(MIGRATIONS_SQL)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Migration note: {e}")
     print("Database schema initialized.")
 
 
