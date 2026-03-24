@@ -152,3 +152,9 @@ export async function exploreChunks(limit = 8) {
   if (!res.ok) return { chunks: [] };
   return res.json();
 }
+
+export async function exploreEmbed(q: string): Promise<{ query: string; embedding: number[] | null; dimensions: number }> {
+  const res = await fetch(`${API_BASE}/api/explore/embed?q=${encodeURIComponent(q)}`);
+  if (!res.ok) return { query: q, embedding: null, dimensions: 0 };
+  return res.json();
+}

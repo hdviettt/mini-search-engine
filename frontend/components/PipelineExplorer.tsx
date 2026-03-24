@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getStats, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks } from "@/lib/api";
+import { getStats, startCrawl, rebuildIndex, rebuildEmbeddings, explorePages, exploreIndex, explorePageRank, exploreChunks, exploreEmbed } from "@/lib/api";
 import type { OverviewSource, OverviewTrace } from "@/lib/api";
 import type { ExplainResponse, PipelineTrace, Stats } from "@/lib/types";
 
@@ -612,20 +612,8 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         )}
         {nodeId === "embed_query" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Converts the search query into a 512-dim vector for cosine similarity matching against stored chunk embeddings.</p>
-            <div className="space-y-1 mt-2">
-              <StatRow label="Model" value="Voyage AI" />
-              <StatRow label="Dimensions" value="512" />
-              <StatRow label="Input type" value="query" />
-            </div>
-            {data?.query && (
-              <IOBlock label="Input">
-                <span className="font-mono text-xs text-[var(--text)]">&quot;{data.query}&quot;</span>
-              </IOBlock>
-            )}
-            <IOBlock label="Output">
-              <span className="text-[10px] text-[var(--text-dim)] font-mono">[0.0234, -0.1092, 0.0871, ... ] (512 floats)</span>
-            </IOBlock>
+            <p className="text-xs text-[var(--text-muted)]">Converts the search query into a dense vector for cosine similarity matching against stored chunk embeddings.</p>
+            {data?.query ? <EmbeddingPreview query={data.query} /> : <SkeletonRows rows={3} />}
           </>
         )}
         {nodeId === "vector_search" && (
@@ -837,6 +825,59 @@ function ResultsDetail({ data }: { data: ExplainResponse }) {
               </div>
             </a>
           ))}
+        </div>
+      </IOBlock>
+    </div>
+  );
+}
+
+// ─── Embedding Preview ──────────────────────────────────────────
+
+function EmbeddingPreview({ query }: { query: string }) {
+  const [embedding, setEmbedding] = useState<number[] | null>(null);
+  const [dims, setDims] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    exploreEmbed(query)
+      .then((res) => { setEmbedding(res.embedding); setDims(res.dimensions); })
+      .finally(() => setLoading(false));
+  }, [query]);
+
+  if (loading) return <SkeletonRows rows={2} />;
+  if (!embedding) return <p className="text-xs text-[var(--text-dim)]">Embedding unavailable.</p>;
+
+  const preview = embedding.slice(0, 8).map(v => v.toFixed(4)).join(", ");
+
+  return (
+    <div style={{ animation: "fade-in 0.3s ease-out" }}>
+      <div className="space-y-1">
+        <StatRow label="Dimensions" value={dims} />
+        <StatRow label="Model" value="Voyage AI" />
+        <StatRow label="Input type" value="query" />
+      </div>
+      <IOBlock label="Input">
+        <span className="font-mono text-xs text-[var(--text)]">&quot;{query}&quot;</span>
+      </IOBlock>
+      <IOBlock label={`Vector (${dims}d)`}>
+        <div className="font-mono text-[10px] text-[var(--text-muted)] break-all leading-relaxed">
+          [{preview}, <span className="text-[var(--text-dim)]">...{dims - 8} more</span>]
+        </div>
+        {/* Mini heatmap — first 64 dimensions */}
+        <div className="flex flex-wrap gap-px mt-2">
+          {embedding.slice(0, 64).map((v, i) => {
+            const abs = Math.min(Math.abs(v) * 8, 1);
+            const color = v >= 0
+              ? `rgba(59, 130, 246, ${abs})`
+              : `rgba(239, 68, 68, ${abs})`;
+            return <div key={i} className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} title={`[${i}] ${v.toFixed(4)}`} />;
+          })}
+        </div>
+        <div className="flex items-center gap-3 mt-1.5 text-[9px] text-[var(--text-dim)]">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(59, 130, 246, 0.7)" }} /> positive</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "rgba(239, 68, 68, 0.7)" }} /> negative</span>
+          <span>first 64 dims</span>
         </div>
       </IOBlock>
     </div>

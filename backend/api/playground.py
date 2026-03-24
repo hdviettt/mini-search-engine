@@ -362,6 +362,16 @@ def explore_chunks(page_id: int | None = None, limit: int = 10):
     }
 
 
+@router.get("/explore/embed")
+def explore_embed(q: str):
+    """Return the embedding vector for a query string."""
+    from rag.embedder import embed_query
+    vec = embed_query(q)
+    if vec is None:
+        return {"query": q, "embedding": None, "dimensions": 0}
+    return {"query": q, "embedding": [round(v, 6) for v in vec], "dimensions": len(vec)}
+
+
 # --- WebSocket for live progress ---
 
 async def websocket_jobs(websocket: WebSocket):
