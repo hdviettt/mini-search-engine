@@ -230,7 +230,7 @@ function Flowchart({
             transform="rotate(-90, 710, 620)">AI OVERVIEW PATH</text>
 
           {/* Subtle divider between the two query paths */}
-          <line x1="415" y1="450" x2="415" y2="850" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+          <line x1="415" y1="480" x2="415" y2="850" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
