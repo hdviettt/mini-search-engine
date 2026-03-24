@@ -37,9 +37,11 @@ CREATE TABLE IF NOT EXISTS terms (
 );
 
 CREATE TABLE IF NOT EXISTS postings (
-    term_id   INTEGER NOT NULL REFERENCES terms(id),
-    page_id   INTEGER NOT NULL REFERENCES pages(id),
-    term_freq INTEGER NOT NULL,
+    term_id    INTEGER NOT NULL REFERENCES terms(id),
+    page_id    INTEGER NOT NULL REFERENCES pages(id),
+    term_freq  INTEGER NOT NULL,
+    title_freq INTEGER NOT NULL DEFAULT 0,
+    body_freq  INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (term_id, page_id)
 );
 

@@ -25,28 +25,31 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
     pages = conn.execute("SELECT id, title, body_text FROM pages").fetchall()
     print(f"  Indexing {len(pages)} pages...")
 
-    # Phase 1: Tokenize everything in memory
+    # Phase 1: Tokenize everything in memory (title and body separately for BM25F)
     all_terms: set[str] = set()
-    page_data: list[tuple[int, Counter]] = []
+    page_data: list[tuple[int, Counter, Counter, Counter]] = []  # (page_id, all_counts, title_counts, body_counts)
     doc_lengths: list[tuple[int, int]] = []
     total_doc_length = 0
 
     for i, (page_id, title, body_text) in enumerate(pages):
-        text = (title or "") + " " + (body_text or "")
-        tokens = tokenize(text)
-        doc_length = len(tokens)
+        title_tokens = tokenize(title or "")
+        body_tokens = tokenize(body_text or "")
+        all_tokens = title_tokens + body_tokens
+        doc_length = len(all_tokens)
         total_doc_length += doc_length
 
-        term_counts = Counter(tokens)
-        page_data.append((page_id, term_counts))
+        all_counts = Counter(all_tokens)
+        title_counts = Counter(title_tokens)
+        body_counts = Counter(body_tokens)
+        page_data.append((page_id, all_counts, title_counts, body_counts))
         doc_lengths.append((page_id, doc_length))
-        all_terms.update(term_counts.keys())
+        all_terms.update(all_counts.keys())
 
         if (i + 1) % 100 == 0:
             print(f"    Tokenized {i + 1}/{len(pages)} pages...")
 
         if progress_callback and (i + 1) % 10 == 0:
-            sample_tokens = list(term_counts.keys())[:8]
+            sample_tokens = list(all_counts.keys())[:8]
             progress_callback({
                 "phase": "tokenizing",
                 "page_id": page_id,
@@ -92,18 +95,20 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
             copy.write(line.encode())
     conn.commit()
 
-    # Phase 4: Bulk insert postings using COPY
+    # Phase 4: Bulk insert postings using COPY (with per-field frequencies for BM25F)
     print("  Inserting postings...")
     postings_buf = io.StringIO()
     postings_count = 0
-    for page_id, term_counts in page_data:
-        for term, freq in term_counts.items():
+    for page_id, all_counts, title_counts, body_counts in page_data:
+        for term, freq in all_counts.items():
             term_id = term_to_id[term]
-            postings_buf.write(f"{term_id}\t{page_id}\t{freq}\n")
+            t_freq = title_counts.get(term, 0)
+            b_freq = body_counts.get(term, 0)
+            postings_buf.write(f"{term_id}\t{page_id}\t{freq}\t{t_freq}\t{b_freq}\n")
             postings_count += 1
     postings_buf.seek(0)
 
-    with cur.copy("COPY postings (term_id, page_id, term_freq) FROM STDIN") as copy:
+    with cur.copy("COPY postings (term_id, page_id, term_freq, title_freq, body_freq) FROM STDIN") as copy:
         for line in postings_buf:
             copy.write(line.encode())
     conn.commit()
