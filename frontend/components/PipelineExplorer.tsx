@@ -1191,13 +1191,13 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
         </div>
       )}
 
-      {/* Mobile bottom sheet — only when parent is NOT handling node selection */}
-      {selectedNode && !onNodeSelect && (
+      {/* Mobile bottom sheet — always renders on mobile when a node is selected */}
+      {selectedNode && (
         <>
-          <div className="fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
-          <div className="fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden"
+          <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={() => setSelectedNode(null)} />
+          <div className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[60vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto"
             style={{ animation: "slide-up 0.2s ease-out" }}>
-            <div className="flex justify-center pt-2 pb-1" onClick={() => setSelectedNode(null)}>
+            <div className="sticky top-0 bg-[var(--bg-card)] flex justify-center pt-2 pb-1 cursor-pointer" onClick={() => setSelectedNode(null)}>
               <div className="w-8 h-1 bg-[var(--border-hover)] rounded-full" />
             </div>
             <DetailPanel nodeId={selectedNode} data={data} stats={stats} onClose={() => setSelectedNode(null)} onRefreshStats={() => getStats().then(setStats).catch(() => {})} overviewText={overviewText} overviewSources={overviewSources} overviewLoading={overviewLoading} overviewTrace={overviewTrace} />
