@@ -98,7 +98,7 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
 const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExploring, selectedNode, onCloseNode }: { engine: SearchEngineState; onToggleView: () => void; isExploring: boolean; selectedNode: string | null; onCloseNode: () => void }) {
   if (!engine.searchData) return null;
 
-  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-[152px] lg:pr-4";
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-20 lg:pr-8";
 
   return (
     <div className="@container bg-[var(--bg)]">
@@ -122,14 +122,14 @@ const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExpl
 
         {/* AI Overview — shifts right when pipeline overlays */}
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "" : "max-w-4xl"
+          isExploring ? "" : "max-w-5xl"
         }`}>
           <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} compact={isExploring} />
         </div>
 
         {/* Results — shifts right when pipeline overlays */}
         <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "max-w-none" : "max-w-3xl"
+          isExploring ? "max-w-none" : "max-w-4xl"
         }`}>
           <div className="text-[12px] @lg:text-[13px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
@@ -239,7 +239,7 @@ export default function Home() {
       ) : (
         /* Results state — dynamic island pill bar */
         <div className="sticky top-0 z-30 bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="px-3 sm:px-4 lg:pl-[152px] lg:pr-4 max-w-4xl">
+          <div className="px-3 sm:px-4 lg:pl-20 lg:pr-8 max-w-5xl">
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
               className="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-3 sm:px-4"
             >
