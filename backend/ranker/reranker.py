@@ -13,8 +13,8 @@ import time
 
 import numpy as np
 
-RERANK_TOP_K = 10     # how many BM25 candidates to re-rank
-MAX_LENGTH = 192      # max tokens per (query, doc) pair
+RERANK_TOP_K = 5      # how many BM25 candidates to re-rank (fewer = faster)
+MAX_LENGTH = 128      # max tokens per (query, doc) pair (shorter = faster)
 
 # Lazy-loaded model components (loaded on first use, stays in memory)
 _session = None
@@ -88,8 +88,8 @@ def rerank(query: str, candidates: list[dict], top_k: int = RERANK_TOP_K) -> lis
     for c in candidates:
         title = c.get("title", "") or ""
         body = c.get("body_text", "") or ""
-        # Title + first part of body, truncated by tokenizer
-        doc_texts.append(f"{title}. {body[:500]}")
+        # Title + first part of body (tokenizer truncates to MAX_LENGTH)
+        doc_texts.append(f"{title}. {body[:300]}")
 
     # Encode all pairs in a batch
     pairs = [(query, doc) for doc in doc_texts]

@@ -93,7 +93,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     total_results = len(ranked)
 
     # Neural re-ranking: re-score top candidates with cross-encoder
-    rerank_candidates = ranked[:10]
+    rerank_candidates = ranked[:5]
     candidate_dicts = []
     for page_id, score in rerank_candidates:
         row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
@@ -102,9 +102,10 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
                 "page_id": page_id, "combined_score": score,
                 "url": row[0], "title": row[1], "body_text": row[2],
             })
-    reranked = rerank(query, candidate_dicts, top_k=per_page)
+    reranked = rerank(query, candidate_dicts, top_k=5)
+    reranked_ids = {c["page_id"] for c in reranked}
 
-    # Build results from reranked candidates
+    # Build results: reranked top 5 + remaining from original ranking
     results = []
     for c in reranked:
         snippet = generate_snippet(c.get("body_text", ""), query_terms)
@@ -115,6 +116,24 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
             bm25_score=round(bm25_scores.get(c["page_id"], 0), 4),
             pagerank_score=round(pagerank_scores.get(c["page_id"], 0), 6),
             final_score=round(c.get("rerank_score") or c["combined_score"], 4),
+        ))
+
+    # Fill remaining slots from the original ranking (not already reranked)
+    for page_id, final_score in ranked:
+        if len(results) >= per_page:
+            break
+        if page_id in reranked_ids:
+            continue
+        row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
+        if row is None:
+            continue
+        url, title, body_text = row
+        snippet = generate_snippet(body_text, query_terms)
+        results.append(SearchResult(
+            url=url, title=title or url, snippet=snippet,
+            bm25_score=round(bm25_scores.get(page_id, 0), 4),
+            pagerank_score=round(pagerank_scores.get(page_id, 0), 6),
+            final_score=round(final_score, 4),
         ))
 
     elapsed_ms = (time.time() - start_time) * 1000
