@@ -181,7 +181,7 @@ function Flowchart({
 }) {
   return (
     <div className="overflow-x-auto -mx-2 px-2 sm:-mx-4 sm:px-4">
-      <div style={{ minWidth: 500 }}>
+      <div className="min-w-[380px] sm:min-w-[500px]">
         <svg viewBox="0 0 770 800" className="w-full h-auto pipeline-canvas" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">

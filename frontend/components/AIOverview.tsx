@@ -138,7 +138,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
       {(text || streaming) && !loading && (
         <div>
           {/* AI-generated text with inline citations */}
-          <div className="text-[14px] sm:text-[15px] leading-[1.65] text-[var(--text)] max-w-2xl">
+          <div className="text-[15px] leading-[1.65] text-[var(--text)] max-w-2xl">
             {parts.map((part, i) =>
               part.type === "text" ? (
                 <span key={i}>{part.value}</span>
@@ -157,7 +157,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
 
           {/* Disclaimer */}
           {isDone && (
-            <p className="text-[12px] text-[var(--text-dim)] mt-4">
+            <p className="text-[13px] text-[var(--text-dim)] mt-4">
               AI-generated answer. Please verify critical facts.
             </p>
           )}
@@ -169,7 +169,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
                 <button
                   key={i}
                   onClick={() => onSearch(suggestion)}
-                  className="flex items-center gap-1.5 text-[13px] px-3.5 py-2 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-[14px] px-4 py-2.5 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
                 >
                   <SparkleSmall />
                   {suggestion}
@@ -182,7 +182,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
           {isDone && (
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--separator)]">
               <div className="flex items-center gap-4">
-                <button onClick={copyText} className="flex items-center gap-1.5 text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer">
+                <button onClick={copyText} className="flex items-center gap-1.5 text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer">
                   {copied ? (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6 9 17l-5-5" />
@@ -229,7 +229,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
             }} className="mt-4">
               <div className="flex items-center bg-[var(--bg-elevated)] rounded-full px-4 border border-transparent hover:border-[var(--border)] focus-within:border-[var(--border)] transition-colors">
                 <input name="followup" type="text" placeholder="Ask a follow-up question"
-                  className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-[13px] placeholder:text-[var(--text-dim)] focus:outline-none" />
+                  className="flex-1 py-3 bg-transparent text-[var(--text)] text-[14px] placeholder:text-[var(--text-dim)] focus:outline-none" />
                 <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" /><path d="m16 12-4-4-4 4" /><path d="M12 16V8" />
