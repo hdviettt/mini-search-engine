@@ -618,23 +618,25 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
             <p className="text-xs text-[var(--text-muted)]">Finds the most relevant text chunks by cosine similarity between the query vector and all chunk vectors.</p>
             {overviewTrace?.retrieval && (
               <div style={{ animation: "fade-in 0.3s ease-out" }}>
-                <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved} />
-                <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />
+                <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />
+                {overviewTrace.retrieval.time_ms != null && <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />}
+                {overviewTrace.retrieval.chunks?.length > 0 && (
                 <IOBlock label="Top chunks">
                   <div className="space-y-2">
                     {overviewTrace.retrieval.chunks.slice(0, 4).map((c, i) => (
                       <div key={i}>
-                        <div className="text-[11px] text-[var(--accent)] font-medium truncate">{c.title}</div>
-                        <div className="text-[10px] text-[var(--text-dim)] line-clamp-2 mt-0.5">{c.content_preview}</div>
+                        <div className="text-[11px] text-[var(--accent)] font-medium truncate">{c.title ?? "Untitled"}</div>
+                        <div className="text-[10px] text-[var(--text-dim)] line-clamp-2 mt-0.5">{c.content_preview ?? ""}</div>
                         <div className="flex gap-2 mt-0.5 text-[10px] font-mono text-[var(--text-dim)]">
-                          <span>vec {c.vector_score.toFixed(3)}</span>
-                          <span>kw {c.keyword_score.toFixed(3)}</span>
-                          <span className="text-[var(--accent)]">{c.combined_score.toFixed(3)}</span>
+                          <span>vec {(c.vector_score ?? 0).toFixed(3)}</span>
+                          <span>kw {(c.keyword_score ?? 0).toFixed(3)}</span>
+                          <span className="text-[var(--accent)]">{(c.combined_score ?? 0).toFixed(3)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </IOBlock>
+                )}
               </div>
             )}
           </>
