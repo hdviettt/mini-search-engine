@@ -276,10 +276,10 @@ function Flowchart({
                   </rect>
                 )}
                 {status === "active" && isStore && (
-                  <ellipse cx={node.cx} cy={node.cy} rx={node.w / 2 + 4} ry={node.h / 2 + 4} fill="none"
+                  <rect x={x - 4} y={y - 4} width={node.w + 8} height={node.h + 8} rx={14} fill="none"
                     stroke={node.stroke} strokeWidth="2" opacity="0.5">
                     <animate attributeName="opacity" values="0.5;0.15;0.5" dur="1.2s" repeatCount="indefinite" />
-                  </ellipse>
+                  </rect>
                 )}
 
                 {/* Selection ring */}
@@ -288,7 +288,7 @@ function Flowchart({
                     stroke="#2563eb" strokeWidth="2" />
                 )}
                 {selected && isStore && (
-                  <ellipse cx={node.cx} cy={node.cy} rx={node.w / 2 + 4} ry={node.h / 2 + 4} fill="none"
+                  <rect x={x - 4} y={y - 4} width={node.w + 8} height={node.h + 8} rx={14} fill="none"
                     stroke="#2563eb" strokeWidth="2" />
                 )}
 
