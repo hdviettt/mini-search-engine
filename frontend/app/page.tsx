@@ -98,40 +98,38 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
 const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExploring, selectedNode, onCloseNode }: { engine: SearchEngineState; onToggleView: () => void; isExploring: boolean; selectedNode: string | null; onCloseNode: () => void }) {
   if (!engine.searchData) return null;
 
-  // Desktop: show node detail panel in the right column when exploring + node selected
-  if (isExploring && selectedNode) {
-    return (
-      <div className="@container bg-[var(--bg)]">
-        <div className={`hidden lg:block lg:sticky lg:top-14 px-4 pt-3 transition-[padding-left] duration-500 lg:pl-[67%] lg:pr-4`}>
-          <DetailPanel
-            nodeId={selectedNode as NodeId}
-            data={engine.searchData}
-            stats={engine.stats}
-            onClose={onCloseNode}
-            onRefreshStats={() => getStats().then(() => {}).catch(() => {})}
-            overviewText={engine.overviewText}
-            overviewSources={engine.overviewSources}
-            overviewLoading={engine.overviewLoading}
-            overviewTrace={engine.overviewTrace}
-          />
-        </div>
-      </div>
-    );
-  }
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-[152px] lg:pr-4";
 
   return (
     <div className="@container bg-[var(--bg)]">
       <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
+        {/* Node detail panel — sticky above results when exploring + node selected */}
+        {isExploring && selectedNode && (
+          <div className={`hidden lg:block px-4 pt-3 pb-2 transition-[padding-left] duration-500 ${plExploring} border-b border-[var(--border)]`}>
+            <DetailPanel
+              nodeId={selectedNode as NodeId}
+              data={engine.searchData}
+              stats={engine.stats}
+              onClose={onCloseNode}
+              onRefreshStats={() => getStats().then(() => {}).catch(() => {})}
+              overviewText={engine.overviewText}
+              overviewSources={engine.overviewSources}
+              overviewLoading={engine.overviewLoading}
+              overviewTrace={engine.overviewTrace}
+            />
+          </div>
+        )}
+
         {/* AI Overview — shifts right when pipeline overlays */}
-        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${
-          isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-4xl"
+        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
+          isExploring ? "" : "max-w-4xl"
         }`}>
           <AIOverview text={engine.overviewText} sources={engine.overviewSources} loading={engine.overviewLoading} streaming={engine.overviewStreaming} compact={isExploring} />
         </div>
 
         {/* Results — shifts right when pipeline overlays */}
-        <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${
-          isExploring ? "lg:pl-[67%] lg:pr-4 max-w-none" : "sm:px-8 lg:pl-[152px] lg:pr-4 max-w-3xl"
+        <div className={`px-4 py-2 space-y-4 transition-[padding-left] duration-500 ${plExploring} ${
+          isExploring ? "max-w-none" : "max-w-3xl"
         }`}>
           <div className="text-[12px] @lg:text-[13px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
