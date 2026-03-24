@@ -42,7 +42,7 @@ def _set_cache(conn: psycopg.Connection, query: str, overview: str):
 
 def _get_sources_and_context(conn, query):
     """Run retrieval and build context + sources list."""
-    chunks = hybrid_retrieve(conn, [query], top_k=5)
+    chunks, _stats = hybrid_retrieve(conn, [query], top_k=5)
     context = ""
     sources = []
     for i, chunk in enumerate(chunks[:5], 1):
@@ -86,9 +86,13 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     }
 
     t0 = time.time()
-    chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
+    chunks, retrieval_stats = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
     trace["retrieval"] = {
         "chunks_retrieved": len(chunks),
+        "queries_searched": len(queries),
+        "vector_per_query": retrieval_stats.get("vector_queries", []),
+        "total_vector_chunks": retrieval_stats.get("total_vector_chunks", 0),
+        "total_bm25_chunks": retrieval_stats.get("total_bm25_chunks", 0),
         "chunks": [
             {"title": c["title"][:50], "content_preview": c["content"][:150],
              "vector_score": round(c.get("vector_score", 0), 4),
@@ -169,9 +173,13 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
 
         # Retrieval
         t0 = time.time()
-        chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
+        chunks, r_stats = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
         retrieval_trace = {
             "chunks_retrieved": len(chunks),
+            "queries_searched": len(queries),
+            "vector_per_query": r_stats.get("vector_queries", []),
+            "total_vector_chunks": r_stats.get("total_vector_chunks", 0),
+            "total_bm25_chunks": r_stats.get("total_bm25_chunks", 0),
             "chunks": [
                 {"title": c["title"][:50], "content_preview": c["content"][:150],
                  "vector_score": round(c.get("vector_score", 0), 4),
@@ -218,9 +226,13 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
 
     # Retrieval
     t0 = time.time()
-    chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
+    chunks, r_stats = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
     retrieval_trace = {
         "chunks_retrieved": len(chunks),
+        "queries_searched": len(queries),
+        "vector_per_query": r_stats.get("vector_queries", []),
+        "total_vector_chunks": r_stats.get("total_vector_chunks", 0),
+        "total_bm25_chunks": r_stats.get("total_bm25_chunks", 0),
         "chunks": [
             {"title": c["title"][:50], "content_preview": c["content"][:150],
              "vector_score": round(c.get("vector_score", 0), 4),

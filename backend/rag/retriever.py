@@ -41,6 +41,7 @@ def hybrid_retrieve(conn: psycopg.Connection, queries: list[str], query_embeddin
     """
     # --- Vector search across all fan-out queries ---
     vector_results: dict[int, dict] = {}  # chunk_id -> result
+    vector_stats: list[dict] = []  # per-query stats for trace
 
     for i, query in enumerate(queries):
         # Use pre-computed embedding if available
@@ -49,13 +50,18 @@ def hybrid_retrieve(conn: psycopg.Connection, queries: list[str], query_embeddin
         else:
             embedding = embed_query(query)
         if embedding is None:
+            vector_stats.append({"query": query, "chunks_found": 0, "skipped": True})
             continue
 
         chunks = vector_search(conn, embedding, top_k=10)
+        new_chunks = 0
         for chunk in chunks:
             cid = chunk["chunk_id"]
             if cid not in vector_results or chunk["similarity"] > vector_results[cid]["similarity"]:
+                if cid not in vector_results:
+                    new_chunks += 1
                 vector_results[cid] = chunk
+        vector_stats.append({"query": query, "chunks_found": len(chunks), "new_unique": new_chunks})
 
     # --- BM25 keyword search (page-level) ---
     # Use the original query (first in list) for keyword search
@@ -133,4 +139,13 @@ def hybrid_retrieve(conn: psycopg.Connection, queries: list[str], query_embeddin
         if len(deduped) >= top_k:
             break
 
-    return deduped
+    # Attach retrieval stats for trace
+    stats = {
+        "vector_queries": vector_stats,
+        "total_vector_chunks": len(vector_results),
+        "total_bm25_chunks": len(bm25_chunks),
+        "total_merged": len(all_chunk_ids),
+        "returned": len(deduped),
+    }
+
+    return deduped, stats

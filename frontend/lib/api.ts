@@ -13,7 +13,7 @@ export interface OverviewSource {
 export interface OverviewTrace {
   fanout?: { original: string; expanded: string[]; time_ms: number };
   embedding?: { queries_embedded: number; queries: string[]; dimensions: number; time_ms: number };
-  retrieval?: { chunks_retrieved: number; chunks: { title: string; content_preview: string; vector_score: number; keyword_score: number; combined_score: number }[]; time_ms: number };
+  retrieval?: { chunks_retrieved: number; queries_searched?: number; vector_per_query?: { query: string; chunks_found: number; new_unique?: number; skipped?: boolean }[]; total_vector_chunks?: number; total_bm25_chunks?: number; chunks: { title: string; content_preview: string; vector_score: number; keyword_score: number; combined_score: number }[]; time_ms: number };
   synthesis?: { model: string; time_ms: number };
   total_ms?: number;
 }

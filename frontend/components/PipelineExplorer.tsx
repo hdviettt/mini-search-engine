@@ -713,13 +713,29 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         )}
         {nodeId === "vector_search" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Hybrid retrieval: combines cosine similarity (vector) with BM25 keyword search.</p>
+            <p className="text-xs text-[var(--text-muted)]">Hybrid retrieval: each fan-out query is searched via vector similarity, merged with BM25 keyword results, then deduplicated by page.</p>
             {overviewTrace?.retrieval && (
               <div style={{ animation: "fade-in 0.3s ease-out" }}>
                 <div className="space-y-1">
-                  <StatRow label="Chunks retrieved" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />
+                  <StatRow label="Queries searched" value={overviewTrace.retrieval.queries_searched ?? 1} />
+                  <StatRow label="Vector chunks found" value={overviewTrace.retrieval.total_vector_chunks ?? 0} />
+                  <StatRow label="BM25 chunks found" value={overviewTrace.retrieval.total_bm25_chunks ?? 0} />
+                  <StatRow label="Final (deduped)" value={overviewTrace.retrieval.chunks_retrieved ?? 0} />
                   {overviewTrace.retrieval.time_ms != null && <StatRow label="Time" value={`${overviewTrace.retrieval.time_ms.toFixed(1)}ms`} />}
                 </div>
+                {overviewTrace.retrieval.vector_per_query && overviewTrace.retrieval.vector_per_query.length > 0 && (
+                  <IOBlock label="Per-query vector results">
+                    <div className="space-y-1">
+                      {overviewTrace.retrieval.vector_per_query.map((vq: { query: string; chunks_found: number; new_unique?: number; skipped?: boolean }, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-[11px]">
+                          <span className="font-mono text-[var(--text-dim)] shrink-0">{vq.chunks_found}</span>
+                          <span className="text-[var(--text)] truncate">{vq.query}</span>
+                          {vq.new_unique != null && vq.new_unique > 0 && <span className="text-green-400 shrink-0">+{vq.new_unique} new</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </IOBlock>
+                )}
                 <div className="mt-2 mb-1 text-[9px] text-[var(--text-dim)] font-mono bg-[var(--bg-elevated)] rounded px-2 py-1">
                   combined = 0.6 &times; <span className="text-blue-400">vector</span> + 0.4 &times; <span className="text-amber-400">keyword</span>
                 </div>
