@@ -578,20 +578,12 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
             <IOBlock label="Input">
               <span className="font-mono text-xs text-[var(--text)]">&quot;{trace.tokenization.input}&quot;</span>
             </IOBlock>
-            <IOBlock label="Output tokens">
-              <div className="flex flex-wrap gap-1">
-                {trace.tokenization.tokens.map((t: string, i: number) => (
-                  <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">{t}</span>
-                ))}
-              </div>
-            </IOBlock>
-            {trace.tokenization.stems_applied && Object.keys(trace.tokenization.stems_applied).length > 0 && (
-              <IOBlock label="Stems applied">
+            {/* Step 1: Tokenized (before stemming) */}
+            {trace.tokenization.pre_stem_tokens && trace.tokenization.pre_stem_tokens.length > 0 && (
+              <IOBlock label="Tokenized">
                 <div className="flex flex-wrap gap-1">
-                  {Object.entries(trace.tokenization.stems_applied).map(([orig, stemmed], i) => (
-                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded">
-                      {orig as string} &rarr; {stemmed as string}
-                    </span>
+                  {trace.tokenization.pre_stem_tokens.map((t: string, i: number) => (
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded">{t}</span>
                   ))}
                 </div>
               </IOBlock>
@@ -600,11 +592,34 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
               <IOBlock label="Stopwords removed">
                 <div className="flex flex-wrap gap-1">
                   {trace.tokenization.stopwords_removed.map((w: string, i: number) => (
-                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-red-50 text-red-400 rounded line-through">{w}</span>
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-red-500/10 text-red-400 rounded line-through">{w}</span>
                   ))}
                 </div>
               </IOBlock>
             )}
+            {/* Step 2: Stemmed (final output) */}
+            {trace.tokenization.stems_applied && Object.keys(trace.tokenization.stems_applied).length > 0 ? (
+              <IOBlock label="Stemmed">
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(trace.tokenization.stems_applied).map(([orig, stemmed], i) => (
+                    <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded">
+                      {orig as string} &rarr; {stemmed as string}
+                    </span>
+                  ))}
+                </div>
+              </IOBlock>
+            ) : (
+              <IOBlock label="Stemmed">
+                <span className="text-xs text-[var(--text-dim)]">No changes (tokens already in root form)</span>
+              </IOBlock>
+            )}
+            <IOBlock label="Final tokens">
+              <div className="flex flex-wrap gap-1">
+                {trace.tokenization.tokens.map((t: string, i: number) => (
+                  <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded">{t}</span>
+                ))}
+              </div>
+            </IOBlock>
             <StatRow label="Time" value={`${trace.tokenization.time_ms.toFixed(1)}ms`} />
           </div>
         )}

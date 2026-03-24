@@ -24,21 +24,24 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     trace = {}
     total_start = time.time()
 
-    # Step 1: Tokenization (with stemming)
+    # Step 1: Tokenization + Stemming
     t0 = time.time()
-    query_terms = tokenize(query)
-    raw_terms = query.lower().split()
+    import re
     from indexer.tokenizer import STOPWORDS
     from indexer.stemmer import stem
-    removed = [t for t in raw_terms if t in STOPWORDS or len(t) <= 1]
-    # Show pre-stem → post-stem mapping for terms that changed
-    pre_stem = [t for t in raw_terms if t not in STOPWORDS and len(t) > 1]
-    stemmed_map = {orig: stem(orig) for orig in pre_stem if stem(orig) != orig}
+
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", query.lower())
+    raw_tokens = cleaned.split()
+    removed = [t for t in raw_tokens if t in STOPWORDS or len(t) <= 1]
+    pre_stem_tokens = [t for t in raw_tokens if t not in STOPWORDS and len(t) > 1]
+    query_terms = [stem(t) for t in pre_stem_tokens]
+    stems_applied = {orig: stemmed for orig, stemmed in zip(pre_stem_tokens, query_terms) if orig != stemmed}
     trace["tokenization"] = {
         "input": query,
-        "tokens": query_terms,
+        "pre_stem_tokens": pre_stem_tokens,  # after cleanup + stopword removal, before stemming
+        "tokens": query_terms,               # final stemmed tokens
         "stopwords_removed": removed,
-        "stems_applied": stemmed_map,  # e.g. {"running": "run", "players": "player"}
+        "stems_applied": stems_applied,
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
