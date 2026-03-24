@@ -101,7 +101,7 @@ function getFollowUpSuggestions(query: string): string[] {
   ];
 }
 
-export default memo(function AIOverview({ text, sources, loading, streaming, onSearch, query }: AIOverviewProps) {
+export default memo(function AIOverview({ text, sources, loading, streaming, compact, onSearch, query }: AIOverviewProps) {
   const [copied, setCopied] = useState(false);
 
   const copyText = useCallback(() => {
@@ -162,8 +162,8 @@ export default memo(function AIOverview({ text, sources, loading, streaming, onS
             </p>
           )}
 
-          {/* Follow-up suggestions */}
-          {isDone && onSearch && query && (
+          {/* Follow-up suggestions — hidden in compact/explore mode */}
+          {isDone && onSearch && query && !compact && (
             <div className="mt-4 flex flex-wrap gap-2">
               {getFollowUpSuggestions(query).map((suggestion, i) => (
                 <button
@@ -220,8 +220,8 @@ export default memo(function AIOverview({ text, sources, loading, streaming, onS
             </div>
           )}
 
-          {/* Follow-up input */}
-          {isDone && onSearch && (
+          {/* Follow-up input — hidden in compact/explore mode */}
+          {isDone && onSearch && !compact && (
             <form onSubmit={(e) => {
               e.preventDefault();
               const q = new FormData(e.currentTarget).get("followup") as string;
