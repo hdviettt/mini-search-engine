@@ -93,10 +93,42 @@ CREATE TABLE IF NOT EXISTS query_log (
     created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- NER: entities extracted from crawled pages
+CREATE TABLE IF NOT EXISTS entities (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    canonical   TEXT,
+    description TEXT,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(name, entity_type)
+);
+
+CREATE TABLE IF NOT EXISTS page_entities (
+    page_id   INTEGER NOT NULL REFERENCES pages(id),
+    entity_id INTEGER NOT NULL REFERENCES entities(id),
+    frequency INTEGER DEFAULT 1,
+    in_title  BOOLEAN DEFAULT false,
+    PRIMARY KEY (page_id, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS entity_aliases (
+    id        SERIAL PRIMARY KEY,
+    entity_id INTEGER NOT NULL REFERENCES entities(id),
+    alias     TEXT NOT NULL,
+    UNIQUE(entity_id, alias)
+);
+
 -- Performance indexes added in Phase 1
 CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
 CREATE INDEX IF NOT EXISTS idx_pages_crawled_at ON pages(crawled_at);
 CREATE INDEX IF NOT EXISTS idx_ai_cache_created ON ai_cache(created_at);
+CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(entity_type);
+CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);
+CREATE INDEX IF NOT EXISTS idx_entities_canonical ON entities(canonical);
+CREATE INDEX IF NOT EXISTS idx_page_entities_page ON page_entities(page_id);
+CREATE INDEX IF NOT EXISTS idx_page_entities_entity ON page_entities(entity_id);
+CREATE INDEX IF NOT EXISTS idx_entity_aliases_alias ON entity_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_query_log_created ON query_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_query_log_query ON query_log(query);
 """

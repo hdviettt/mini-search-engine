@@ -394,6 +394,84 @@ def explore_embed(q: str):
     return {"query": q, "embedding": [round(v, 6) for v in vec], "dimensions": len(vec)}
 
 
+# --- NER endpoints ---
+
+@router.post("/ner/extract")
+def start_ner_extraction():
+    """Run entity extraction over all pages (background job)."""
+    from ner.extractor import extract_all_entities
+    import threading
+
+    def run():
+        conn = get_connection()
+        try:
+            extract_all_entities(conn)
+        finally:
+            conn.close()
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    return {"status": "started"}
+
+
+@router.get("/explore/entities")
+def explore_entities(entity_type: str | None = None, limit: int = 50):
+    """Browse extracted entities, optionally filtered by type."""
+    conn = get_connection()
+    if entity_type:
+        rows = conn.execute(
+            """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
+               FROM entities e
+               LEFT JOIN page_entities pe ON e.id = pe.entity_id
+               WHERE e.entity_type = %s
+               GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
+            (entity_type, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT e.id, e.name, e.entity_type, COUNT(pe.page_id) as page_count
+               FROM entities e
+               LEFT JOIN page_entities pe ON e.id = pe.entity_id
+               GROUP BY e.id ORDER BY page_count DESC LIMIT %s""",
+            (limit,),
+        ).fetchall()
+    conn.close()
+
+    entities = [{"id": r[0], "name": r[1], "type": r[2], "page_count": r[3]} for r in rows]
+
+    # Also return type summary
+    conn2 = get_connection()
+    type_counts = dict(conn2.execute(
+        "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type ORDER BY 2 DESC"
+    ).fetchall())
+    conn2.close()
+
+    return {"entities": entities, "type_counts": type_counts}
+
+
+@router.get("/explore/entity/{entity_id}")
+def explore_entity(entity_id: int):
+    """Get entity details with all pages it appears on."""
+    conn = get_connection()
+    entity = conn.execute("SELECT id, name, entity_type, canonical FROM entities WHERE id = %s", (entity_id,)).fetchone()
+    if not entity:
+        conn.close()
+        return {"error": "Entity not found"}
+
+    pages = conn.execute(
+        """SELECT p.id, p.title, p.url, pe.frequency, pe.in_title
+           FROM page_entities pe JOIN pages p ON pe.page_id = p.id
+           WHERE pe.entity_id = %s ORDER BY pe.frequency DESC LIMIT 20""",
+        (entity_id,),
+    ).fetchall()
+    conn.close()
+
+    return {
+        "entity": {"id": entity[0], "name": entity[1], "type": entity[2], "canonical": entity[3]},
+        "pages": [{"id": p[0], "title": p[1], "url": p[2], "frequency": p[3], "in_title": p[4]} for p in pages],
+    }
+
+
 # --- WebSocket for live progress ---
 
 async def websocket_jobs(websocket: WebSocket):
