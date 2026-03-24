@@ -70,12 +70,12 @@ const NODES: NodeDef[] = [
   { id: "pr_lookup",    label: "PR Lookup",      cx: 345, cy: 603, w: 110, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
   { id: "combine",      label: "Combine Scores", cx: 265, cy: 678, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
   { id: "results",      label: "Ranked Results",  cx: 265, cy: 748, w: 135, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "io" },
-  // ── QUERY — AI path ──
-  { id: "fanout",        label: "Fan-out",          cx: 530, cy: 460, w: 100, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "embed_query",   label: "Embed Query",     cx: 670, cy: 460, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "vector_search", label: "Vector Search",   cx: 600, cy: 530, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 603, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 678, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
+  // ── QUERY — AI path (sequential: fan-out → embed → vector search → LLM → overview) ──
+  { id: "fanout",        label: "Fan-out",          cx: 600, cy: 460, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "embed_query",   label: "Embed Query",     cx: 600, cy: 530, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "vector_search", label: "Vector Search",   cx: 600, cy: 600, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 670, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
+  { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 740, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
 ];
 
 const ARROWS: ArrowDef[] = [
@@ -91,11 +91,10 @@ const ARROWS: ArrowDef[] = [
   // BRIDGE (dashed, dim)
   { path: "M 150 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
   { path: "M 390 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
-  { path: "M 630 320 V 500 H 600 V 510", dashed: true, dim: true },   // vector_store → vector_search
+  { path: "M 630 320 V 570 H 600 V 580", dashed: true, dim: true },   // vector_store → vector_search
   // QUERY — from query_input (all share same V-turn for clean fan-out)
   { path: "M 390 405 V 430 H 195 V 440" },                       // query → tokenize
-  { path: "M 458 385 H 530 V 440" },                              // query → fanout (from right edge)
-  { path: "M 458 385 H 670 V 440" },                              // query → embed_query (from right edge)
+  { path: "M 458 385 H 600 V 440" },                              // query → fanout (from right edge)
   // QUERY — search path
   { path: "M 195 480 V 510" },                                    // tokenize → index_lookup
   { path: "M 230 480 V 495 H 345 V 583" },                       // tokenize → pr_lookup (down, right, down)
@@ -103,11 +102,11 @@ const ARROWS: ArrowDef[] = [
   { path: "M 195 623 V 648 H 265 V 658" },                       // bm25 → combine
   { path: "M 345 623 V 648 H 265 V 658" },                       // pr_lookup → combine
   { path: "M 265 698 V 728" },                                    // combine → results
-  // QUERY — AI path
-  { path: "M 530 480 V 502 H 600 V 510" },                       // fanout → vector_search
-  { path: "M 670 480 V 502 H 600 V 510" },                       // embed_query → vector_search
-  { path: "M 600 550 V 583" },                                    // vector_search → llm
-  { path: "M 600 623 V 658" },                                    // llm → ai_overview
+  // QUERY — AI path (sequential)
+  { path: "M 600 480 V 510" },                                    // fanout → embed_query
+  { path: "M 600 550 V 580" },                                    // embed_query → vector_search
+  { path: "M 600 620 V 650" },                                    // vector_search → llm
+  { path: "M 600 690 V 720" },                                    // llm → ai_overview
 ];
 
 // ─── Animation ──────────────────────────────────────────────────
@@ -124,17 +123,18 @@ const NODE_STEP: Record<NodeId, number> = {
   pr_lookup: 4, // pr_scores also activates
   combine: 5,
   results: 6,
-  fanout: 7, embed_query: 7,
-  vector_search: 8, // vector_store also activates
-  llm: 9,
-  ai_overview: 10,
+  fanout: 7,
+  embed_query: 8,
+  vector_search: 9, // vector_store also activates
+  llm: 10,
+  ai_overview: 11,
 };
 
 // Stores that activate with query steps
 const STORE_ACTIVATE: Record<number, NodeId[]> = {
   2: ["inv_index"],
   4: ["pr_scores"],
-  8: ["vector_store"],
+  9: ["vector_store"],
 };
 
 function useAnimatedSteps(trace: PipelineTrace | null) {
@@ -223,11 +223,11 @@ function Flowchart({
           {/* Sub-path labels — on the left edge of each column, rotated vertically */}
           <text x="128" y="590" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
             transform="rotate(-90, 128, 590)">SEARCH PATH</text>
-          <text x="710" y="570" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
-            transform="rotate(-90, 710, 570)">AI OVERVIEW PATH</text>
+          <text x="710" y="600" textAnchor="middle" fontSize="9" fill="#7c3aed" fontWeight="700" letterSpacing="0.06em" opacity="0.6"
+            transform="rotate(-90, 710, 600)">AI OVERVIEW PATH</text>
 
           {/* Subtle divider between the two query paths */}
-          <line x1="415" y1="450" x2="415" y2="770" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
+          <line x1="415" y1="450" x2="415" y2="790" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,4" />
 
           {/* Arrows */}
           {ARROWS.map((a, i) => (
@@ -629,8 +629,24 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         )}
         {nodeId === "embed_query" && (
           <>
-            <p className="text-xs text-[var(--text-muted)]">Converts the search query into a dense vector for cosine similarity matching against stored chunk embeddings.</p>
-            {data?.query ? <EmbeddingPreview query={data.query} /> : <SkeletonRows rows={3} />}
+            <p className="text-xs text-[var(--text-muted)]">Converts each expanded query into a dense vector for cosine similarity matching against stored chunk embeddings.</p>
+            {overviewTrace?.embedding ? (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <IOBlock label="Queries embedded">
+                  <div className="flex flex-wrap gap-1">
+                    {overviewTrace.embedding.queries.map((q: string, i: number) => (
+                      <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">{q}</span>
+                    ))}
+                  </div>
+                </IOBlock>
+                <StatRow label="Dimensions" value={overviewTrace.embedding.dimensions} />
+                <StatRow label="Time" value={`${overviewTrace.embedding.time_ms.toFixed(1)}ms`} />
+              </div>
+            ) : data?.query ? (
+              <EmbeddingPreview query={data.query} />
+            ) : (
+              <SkeletonRows rows={3} />
+            )}
           </>
         )}
         {nodeId === "vector_search" && (

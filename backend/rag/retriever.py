@@ -33,16 +33,21 @@ def vector_search(conn: psycopg.Connection, query_embedding: list[float], top_k:
     ]
 
 
-def hybrid_retrieve(conn: psycopg.Connection, queries: list[str], top_k: int = 8) -> list[dict]:
+def hybrid_retrieve(conn: psycopg.Connection, queries: list[str], query_embeddings: list | None = None, top_k: int = 8) -> list[dict]:
     """Combine vector search (from multiple fan-out queries) with BM25 keyword search.
 
+    If query_embeddings is provided, uses those instead of re-computing.
     Returns deduplicated chunks ranked by combined score.
     """
     # --- Vector search across all fan-out queries ---
     vector_results: dict[int, dict] = {}  # chunk_id -> result
 
-    for query in queries:
-        embedding = embed_query(query)
+    for i, query in enumerate(queries):
+        # Use pre-computed embedding if available
+        if query_embeddings and i < len(query_embeddings) and query_embeddings[i] is not None:
+            embedding = query_embeddings[i]
+        else:
+            embedding = embed_query(query)
         if embedding is None:
             continue
 

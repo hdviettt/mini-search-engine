@@ -8,6 +8,7 @@ import psycopg
 
 from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS, AI_CACHE_TTL_HOURS
 from rag.fanout import expand_query
+from rag.embedder import embed_queries
 from rag.retriever import hybrid_retrieve
 
 
@@ -74,7 +75,18 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     trace["fanout"] = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
 
     t0 = time.time()
-    chunks = hybrid_retrieve(conn, queries, top_k=5)
+    embeddings = embed_queries(queries)
+    valid_count = sum(1 for e in embeddings if e is not None)
+    dim = len(embeddings[0]) if embeddings and embeddings[0] else 0
+    trace["embedding"] = {
+        "queries_embedded": valid_count,
+        "queries": queries,
+        "dimensions": dim,
+        "time_ms": round((time.time() - t0) * 1000, 1),
+    }
+
+    t0 = time.time()
+    chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
     trace["retrieval"] = {
         "chunks_retrieved": len(chunks),
         "chunks": [
@@ -141,15 +153,23 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     if cached:
         total_start = time.time()
 
-        # Fan-out (use original query only for cached)
+        # Fan-out
         t0 = time.time()
         queries = expand_query(query)
         fanout_trace = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
         yield f"data: {json.dumps({'type': 'trace', 'step': 'fanout', 'data': fanout_trace})}\n\n"
 
+        # Embed expanded queries
+        t0 = time.time()
+        embeddings = embed_queries(queries)
+        valid_count = sum(1 for e in embeddings if e is not None)
+        dim = len(embeddings[0]) if embeddings and embeddings[0] else 0
+        embedding_trace = {"queries_embedded": valid_count, "queries": queries, "dimensions": dim, "time_ms": round((time.time() - t0) * 1000, 1)}
+        yield f"data: {json.dumps({'type': 'trace', 'step': 'embedding', 'data': embedding_trace})}\n\n"
+
         # Retrieval
         t0 = time.time()
-        chunks = hybrid_retrieve(conn, queries, top_k=5)
+        chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
         retrieval_trace = {
             "chunks_retrieved": len(chunks),
             "chunks": [
@@ -188,9 +208,17 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     fanout_trace = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
     yield f"data: {json.dumps({'type': 'trace', 'step': 'fanout', 'data': fanout_trace})}\n\n"
 
+    # Embed expanded queries
+    t0 = time.time()
+    embeddings = embed_queries(queries)
+    valid_count = sum(1 for e in embeddings if e is not None)
+    dim = len(embeddings[0]) if embeddings and embeddings[0] else 0
+    embedding_trace = {"queries_embedded": valid_count, "queries": queries, "dimensions": dim, "time_ms": round((time.time() - t0) * 1000, 1)}
+    yield f"data: {json.dumps({'type': 'trace', 'step': 'embedding', 'data': embedding_trace})}\n\n"
+
     # Retrieval
     t0 = time.time()
-    chunks = hybrid_retrieve(conn, queries, top_k=5)
+    chunks = hybrid_retrieve(conn, queries, query_embeddings=embeddings, top_k=5)
     retrieval_trace = {
         "chunks_retrieved": len(chunks),
         "chunks": [

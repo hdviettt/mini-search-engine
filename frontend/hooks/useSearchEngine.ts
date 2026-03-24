@@ -164,6 +164,10 @@ export function useSearchEngine(): SearchEngineState {
                 traceData.fanout = msg.data;
                 setPhase("aiFanout");
               }
+              if (msg.step === "embedding") {
+                traceData.embedding = msg.data;
+                setPhase("aiEmbedding");
+              }
               if (msg.step === "retrieval") {
                 traceData.retrieval = msg.data;
                 setPhase("aiRetrieval");

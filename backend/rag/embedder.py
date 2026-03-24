@@ -60,6 +60,14 @@ def embed_query(text: str) -> list[float] | None:
     return result[0] if result else None
 
 
+def embed_queries(texts: list[str]) -> list[list[float] | None]:
+    """Get embeddings for multiple search queries in one batch."""
+    result = _get_embeddings_batch(texts, input_type="query")
+    if result and len(result) == len(texts):
+        return result
+    return [None] * len(texts)
+
+
 def _ensure_vector_dimension(conn: psycopg.Connection, dim: int):
     """Ensure the embedding column matches the expected dimension. Re-creates if needed."""
     try:
