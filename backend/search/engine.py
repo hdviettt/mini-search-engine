@@ -11,7 +11,11 @@ from models import SearchResult
 
 
 def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 200) -> str:
-    """Find the best window of text containing query terms."""
+    """Find the best window of text containing query terms.
+
+    Optimized: stems first 2000 words once, then uses a sliding window
+    with O(1) set lookups instead of the old O(n × m × 30) substring scan.
+    """
     if not body_text:
         return ""
 
@@ -22,21 +26,35 @@ def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 2
     if not query_terms:
         return " ".join(words[:30])[:max_length]
 
-    # Find the window with the most query term matches
+    from indexer.stemmer import stem
+
+    # Only scan first 2000 words — snippet is almost always near the top
+    scan_limit = min(len(words), 2000)
+    term_set = set(query_terms)  # already stemmed from tokenize()
+
+    # Stem each word once for matching (keep original words for display)
+    stemmed = [stem(w.lower()) for w in words[:scan_limit]]
+
+    # Sliding window: find 30-word window with most query term matches
+    window = 30
     best_pos = 0
-    best_count = 0
-    for i in range(len(words)):
-        window = " ".join(words[i:i + 30]).lower()
-        count = sum(1 for t in query_terms if t in window)
-        if count > best_count:
-            best_count = count
+    best_count = sum(1 for w in stemmed[:window] if w in term_set)
+    current_count = best_count
+
+    for i in range(1, scan_limit - window + 1):
+        if stemmed[i - 1] in term_set:
+            current_count -= 1
+        if stemmed[i + window - 1] in term_set:
+            current_count += 1
+        if current_count > best_count:
+            best_count = current_count
             best_pos = i
 
     start = max(0, best_pos - 3)
-    snippet = " ".join(words[start:start + 30])
+    snippet = " ".join(words[start:start + window])
     if start > 0:
         snippet = "..." + snippet
-    if start + 30 < len(words):
+    if start + window < len(words):
         snippet += "..."
     return snippet[:max_length]
 

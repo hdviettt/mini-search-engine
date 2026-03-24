@@ -84,16 +84,15 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     t0 = time.time()
     bm25_scores = search_bm25(conn, query, k1=k1, b=b)
 
-    # Get top 10 with titles
+    # Get top 10 with titles (batched query)
     bm25_sorted = sorted(bm25_scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    bm25_top = []
-    for page_id, score in bm25_sorted:
-        title = conn.execute("SELECT title FROM pages WHERE id = %s", (page_id,)).fetchone()
-        bm25_top.append({
-            "page_id": page_id,
-            "score": round(score, 4),
-            "title": (title[0] if title else "")[:60],
-        })
+    top_ids = [pid for pid, _ in bm25_sorted]
+    if top_ids:
+        ph = ",".join(["%s"] * len(top_ids))
+        title_rows = dict(conn.execute(f"SELECT id, title FROM pages WHERE id IN ({ph})", top_ids).fetchall())
+    else:
+        title_rows = {}
+    bm25_top = [{"page_id": pid, "score": round(s, 4), "title": (title_rows.get(pid, "") or "")[:60]} for pid, s in bm25_sorted]
 
     trace["bm25_scoring"] = {
         "params": {"k1": k1, "b": b},
@@ -123,14 +122,13 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     pagerank_scores = dict(pr_rows)
 
     pr_sorted = sorted(pagerank_scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    pr_top = []
-    for page_id, score in pr_sorted:
-        title = conn.execute("SELECT title FROM pages WHERE id = %s", (page_id,)).fetchone()
-        pr_top.append({
-            "page_id": page_id,
-            "score": round(score, 6),
-            "title": (title[0] if title else "")[:60],
-        })
+    pr_ids = [pid for pid, _ in pr_sorted]
+    if pr_ids:
+        ph2 = ",".join(["%s"] * len(pr_ids))
+        pr_title_rows = dict(conn.execute(f"SELECT id, title FROM pages WHERE id IN ({ph2})", pr_ids).fetchall())
+    else:
+        pr_title_rows = {}
+    pr_top = [{"page_id": pid, "score": round(s, 6), "title": (pr_title_rows.get(pid, "") or "")[:60]} for pid, s in pr_sorted]
 
     trace["pagerank"] = {
         "damping": 0.85,
@@ -154,15 +152,13 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Track rank changes between BM25-only and combined
     bm25_rank = {pid: i + 1 for i, (pid, _) in enumerate(sorted(bm25_scores.items(), key=lambda x: x[1], reverse=True)[:10])}
     combined_rank = {pid: i + 1 for i, (pid, _) in enumerate(ranked[:10])}
-    rank_changes = []
-    for pid in list(combined_rank.keys())[:10]:
-        title = conn.execute("SELECT title FROM pages WHERE id = %s", (pid,)).fetchone()
-        rank_changes.append({
-            "page_id": pid,
-            "title": (title[0] if title else "")[:50],
-            "bm25_rank": bm25_rank.get(pid, ">10"),
-            "final_rank": combined_rank[pid],
-        })
+    comb_ids = list(combined_rank.keys())[:10]
+    if comb_ids:
+        ph3 = ",".join(["%s"] * len(comb_ids))
+        comb_title_rows = dict(conn.execute(f"SELECT id, title FROM pages WHERE id IN ({ph3})", comb_ids).fetchall())
+    else:
+        comb_title_rows = {}
+    rank_changes = [{"page_id": pid, "title": (comb_title_rows.get(pid, "") or "")[:50], "bm25_rank": bm25_rank.get(pid, ">10"), "final_rank": combined_rank[pid]} for pid in comb_ids]
 
     trace["combination"] = {
         "alpha": alpha,
