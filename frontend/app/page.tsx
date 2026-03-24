@@ -98,7 +98,7 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
 const SerpSidePanel = memo(function SerpSidePanel({ engine, onToggleView, isExploring, selectedNode, onCloseNode }: { engine: SearchEngineState; onToggleView: () => void; isExploring: boolean; selectedNode: string | null; onCloseNode: () => void }) {
   if (!engine.searchData) return null;
 
-  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-20 lg:pr-8";
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-40 lg:pr-8";
 
   return (
     <div className="@container bg-[var(--bg)]">
@@ -239,7 +239,7 @@ export default function Home() {
       ) : (
         /* Results state — dynamic island pill bar */
         <div className="sticky top-0 z-30 bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="px-3 sm:px-4 lg:pl-20 lg:pr-8 max-w-5xl">
+          <div className="px-3 sm:px-4 lg:pl-40 lg:pr-8 max-w-5xl">
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
               className="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-3 sm:px-4"
             >
