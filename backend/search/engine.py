@@ -126,8 +126,9 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     ranked = sorted(combined.items(), key=lambda x: x[1], reverse=True)
     total_results = len(ranked)
 
-    # Neural re-ranking: re-score top candidates with cross-encoder
-    rerank_candidates = ranked[:5]
+    # Neural re-ranking: skip for queries with very few results (not worth the latency)
+    skip_rerank = total_results <= 3 or len(query_terms) == 0
+    rerank_candidates = ranked[:5] if not skip_rerank else []
     candidate_dicts = []
     for page_id, score in rerank_candidates:
         row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
@@ -187,8 +188,8 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
                 sports_data = {"type": "standings", "detection": detection.to_dict(), "data": get_standings(detection.leagues[0])}
             elif detection.action == "live":
                 sports_data = {"type": "live", "detection": detection.to_dict(), "data": get_live_scores()}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Sports detection error: {e}")
 
     elapsed_ms = (time.time() - start_time) * 1000
 

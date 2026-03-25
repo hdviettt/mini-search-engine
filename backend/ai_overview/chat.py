@@ -10,7 +10,10 @@ from typing import Generator
 
 import httpx
 
+import psycopg
+
 from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS
+from db import get_connection
 from sports.detector import detect_sports, TEAM_MAP, LEAGUE_MAP
 from sports.api import get_upcoming_fixtures, get_standings, get_live_scores, get_league_fixtures
 
@@ -118,14 +121,32 @@ def _gather_sports_context(messages: list[dict]) -> str:
             live_text = [f"{m['home_team']} {m['score_home']}-{m['score_away']} {m['away_team']} ({m['elapsed']}', {m['league']})" for m in live[:5]]
             context_parts.append(f"Live matches: {'; '.join(live_text)}")
 
-    # If no specific data found, fetch Premier League top 5 as default context
-    if not context_parts:
-        pl_standings = get_standings(39)  # Premier League
-        if pl_standings:
-            top5 = [f"#{s['rank']} {s['team']} ({s['points']}pts, Form:{s['form']})" for s in pl_standings[:5]]
-            context_parts.append(f"Premier League top 5: {'; '.join(top5)}")
-
     return "\n".join(context_parts) if context_parts else ""
+
+
+def _search_index(query: str) -> str:
+    """Search our own index for relevant chunks — grounds the AI in our corpus."""
+    try:
+        conn = get_connection()
+        from rag.embedder import embed_queries
+        from rag.retriever import hybrid_retrieve
+
+        embeddings = embed_queries([query])
+        chunks, _ = hybrid_retrieve(conn, [query], query_embeddings=embeddings, top_k=3)
+        conn.close()
+
+        if not chunks:
+            return ""
+
+        parts = []
+        for i, chunk in enumerate(chunks[:3], 1):
+            title = chunk.get("title", "")[:60]
+            content = chunk.get("content", "")[:400]
+            parts.append(f"[Source {i}: {title}] {content}")
+
+        return "\n".join(parts)
+    except Exception:
+        return ""
 
 
 SYSTEM_PROMPT = """You are an expert football analyst embedded in a search engine. You provide insightful, data-driven analysis about football (soccer).
@@ -147,18 +168,28 @@ def generate_chat_stream(messages: list[dict]) -> Generator[str, None, None]:
 
     total_start = time.time()
 
-    # Gather live sports data based on conversation
+    # Gather context: sports data + search index
     t0 = time.time()
+    latest_query = messages[-1]["content"] if messages else ""
     sports_context = _gather_sports_context(messages)
+    index_context = _search_index(latest_query)
     context_ms = round((time.time() - t0) * 1000, 1)
 
-    # Build system message with live data
+    # Build system message with all context
     system_content = SYSTEM_PROMPT
+    if index_context:
+        system_content += f"\n\nSEARCH INDEX DATA (from our football corpus):\n{index_context}"
     if sports_context:
         system_content += f"\n\nLIVE DATA (from API-Football, current as of now):\n{sports_context}"
 
-    # Send metadata about sports context
-    yield f"data: {json.dumps({'type': 'context', 'sports_data': sports_context, 'time_ms': context_ms})}\n\n"
+    all_context = ""
+    if index_context:
+        all_context += f"[Index] {index_context[:200]}..."
+    if sports_context:
+        all_context += f" [Live] {sports_context[:200]}..."
+
+    # Send metadata
+    yield f"data: {json.dumps({'type': 'context', 'sports_data': all_context.strip(), 'time_ms': context_ms})}\n\n"
 
     # Build messages for LLM
     llm_messages = [{"role": "system", "content": system_content}]

@@ -100,10 +100,7 @@ def get_upcoming_fixtures(team_id: int, next_count: int = 3) -> list[dict]:
 
 def get_league_fixtures(league_id: int, next_count: int = 5) -> list[dict]:
     """Get next N upcoming matches for a league/tournament."""
-    data = _api_get("fixtures", {"league": league_id, "next": next_count, "season": 2024}, cache_ttl=900)
-    if not data:
-        # Try current year as season
-        data = _api_get("fixtures", {"league": league_id, "next": next_count, "season": 2025}, cache_ttl=900)
+    data = _api_get("fixtures", {"league": league_id, "next": next_count}, cache_ttl=900)
     if not data:
         return []
 

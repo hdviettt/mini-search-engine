@@ -13,9 +13,23 @@ from search.engine import search
 from ai_overview.generator import generate_overview, generate_overview_stream
 from api.playground import router as playground_router, websocket_jobs
 
-_executor = ThreadPoolExecutor(max_workers=2)
+_executor = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def startup_prewarm():
+    """Pre-warm heavy models on startup so first request isn't slow."""
+    import threading
+    def _warm():
+        try:
+            from ranker.reranker import _get_model
+            _get_model()
+            print("Reranker model pre-warmed.")
+        except Exception as e:
+            print(f"Reranker pre-warm failed: {e}")
+    threading.Thread(target=_warm, daemon=True).start()
 
 app.add_middleware(
     CORSMiddleware,

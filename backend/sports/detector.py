@@ -111,12 +111,12 @@ def detect_sports(query: str) -> SportsDetection | None:
     if any(kw in q for kw in FIXTURE_KEYWORDS) and (team_ids or league_ids):
         return SportsDetection("upcoming", team_ids, league_ids, matched_name)
 
-    # If just a team name with no specific keyword → show upcoming fixtures
-    if team_ids and len(q.split()) <= 3:
+    # Only trigger sports cards when an explicit action keyword is present,
+    # or the query is EXACTLY a team/league name (1-2 words, nothing else)
+    if team_ids and len(q.split()) <= 2 and q.strip() in TEAM_MAP:
         return SportsDetection("upcoming", team_ids, league_ids, matched_name)
 
-    # If just a league name with no specific keyword → show standings
-    if league_ids and len(q.split()) <= 4:
+    if league_ids and len(q.split()) <= 3 and q.strip() in LEAGUE_MAP:
         return SportsDetection("standings", team_ids, league_ids, matched_name)
 
     return None
