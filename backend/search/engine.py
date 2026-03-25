@@ -193,7 +193,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     elapsed_ms = (time.time() - start_time) * 1000
 
     return {
-        "query": query,
+        "query": search_query,
         "sports": sports_data,
         "results": results,
         "total_results": total_results,

@@ -62,6 +62,12 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     if not GROQ_API_KEY:
         return None
 
+    # Expand query aliases
+    from search.engine import QUERY_ALIASES
+    expanded = QUERY_ALIASES.get(query.lower().strip())
+    if expanded:
+        query = expanded
+
     trace = {}
     total_start = time.time()
 
@@ -151,6 +157,12 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     """Stream AI Overview as Server-Sent Events."""
     if not GROQ_API_KEY:
         return
+
+    # Expand query aliases (goat → Cristiano Ronaldo, cr7 → Cristiano Ronaldo)
+    from search.engine import QUERY_ALIASES
+    expanded = QUERY_ALIASES.get(query.lower().strip())
+    if expanded:
+        query = expanded
 
     # Check cache — still run retrieval for trace data
     cached = _get_cached(conn, query)
