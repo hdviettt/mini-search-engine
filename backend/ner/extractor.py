@@ -120,12 +120,45 @@ def _classify_person(name: str, context: str) -> str:
 
 # ── Extraction ───────────────────────────────────────────────
 
+def _clean_body_for_ner(text: str) -> str:
+    """Strip common Wikipedia/web noise from body text before NER."""
+    import re
+
+    # Remove citation markers: [1], [2], [edit], [citation needed]
+    text = re.sub(r"\[\d+\]", "", text)
+    text = re.sub(r"\[edit\]", "", text)
+    text = re.sub(r"\[citation needed\]", "", text)
+    text = re.sub(r"\[unreliable source[^\]]*\]", "", text)
+
+    # Cut at "References" or "See also" sections
+    for marker in ["References ", "External links ", "See also ", "Further reading ",
+                    "Notes and references ", "Bibliography "]:
+        idx = text.find(marker)
+        if idx > 500:
+            text = text[:idx]
+            break
+
+    # Remove ISBN, ISSN, DOI patterns
+    text = re.sub(r"ISBN\s+[\d\-X]+", "", text)
+    text = re.sub(r"ISSN\s+[\d\-]+", "", text)
+    text = re.sub(r"doi:\S+", "", text)
+
+    # Remove URLs
+    text = re.sub(r"https?://\S+", "", text)
+
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def extract_entities(title: str, body_text: str) -> list[dict]:
     """Extract football entities from a page's title and body."""
     nlp = _get_nlp()
 
+    clean_body = _clean_body_for_ner(body_text or "")
     title_doc = nlp(title or "")
-    body_doc = nlp((body_text or "")[:10000])
+    body_doc = nlp(clean_body[:10000])
 
     entity_counts: dict[tuple[str, str], dict] = {}
     full_text = (title or "") + " " + (body_text or "")
@@ -256,9 +289,9 @@ def extract_all_entities(conn: psycopg.Connection, progress_callback=None):
     conn.commit()
     print(f"  Removed {len(removed)} single-page entities (noise).")
 
-    # Remove entities on >40% of pages (too generic)
+    # Remove entities on >15% of pages (too generic — likely boilerplate)
     total_pages = len(pages)
-    threshold = int(total_pages * 0.4)
+    threshold = int(total_pages * 0.15)
     if threshold > 10:
         removed2 = conn.execute("""
             DELETE FROM entities WHERE id IN (
