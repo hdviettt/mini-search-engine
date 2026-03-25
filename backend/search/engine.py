@@ -9,6 +9,17 @@ from ranker.bm25 import search_bm25
 from ranker.reranker import rerank
 from models import SearchResult
 
+# Query aliases — expand slang/nicknames to their real search terms
+QUERY_ALIASES: dict[str, str] = {
+    "goat": "Cristiano Ronaldo",
+    "goat football": "Cristiano Ronaldo",
+    "football goat": "Cristiano Ronaldo",
+    "goat of football": "Cristiano Ronaldo",
+    "cr7": "Cristiano Ronaldo",
+    "leo": "Lionel Messi",
+    "the goat": "Cristiano Ronaldo",
+}
+
 
 def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 200) -> str:
     """Find the best window of text containing query terms.
@@ -74,10 +85,15 @@ def _normalize_scores(scores: dict[int, float]) -> dict[int, float]:
 def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 10) -> dict:
     """Run a search query. Returns results with BM25 + PageRank combined scores."""
     start_time = time.time()
-    query_terms = tokenize(query)
+
+    # Expand query aliases (goat → Cristiano Ronaldo, cr7 → Cristiano Ronaldo)
+    expanded = QUERY_ALIASES.get(query.lower().strip())
+    search_query = expanded if expanded else query
+
+    query_terms = tokenize(search_query)
 
     # Get BM25 scores
-    bm25_scores = search_bm25(conn, query)
+    bm25_scores = search_bm25(conn, search_query)
     if not bm25_scores:
         return {
             "query": query,
@@ -120,7 +136,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
                 "page_id": page_id, "combined_score": score,
                 "url": row[0], "title": row[1], "body_text": row[2],
             })
-    reranked = rerank(query, candidate_dicts, top_k=5)
+    reranked = rerank(search_query, candidate_dicts, top_k=5)
     # Filter out clearly irrelevant results (negative reranker score)
     reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > -8]
     reranked_ids = {c["page_id"] for c in reranked}
@@ -161,7 +177,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     try:
         from sports.detector import detect_sports
         from sports.api import get_upcoming_fixtures, get_league_fixtures, get_standings, get_live_scores
-        detection = detect_sports(query)
+        detection = detect_sports(search_query)
         if detection:
             if detection.action == "upcoming" and detection.teams:
                 sports_data = {"type": "fixtures", "detection": detection.to_dict(), "data": get_upcoming_fixtures(detection.teams[0])}

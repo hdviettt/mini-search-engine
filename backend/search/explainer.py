@@ -7,7 +7,7 @@ import psycopg
 from config import BM25_K1, BM25_B, RANK_ALPHA
 from indexer.tokenizer import tokenize
 from ranker.bm25 import search_bm25
-from search.engine import generate_snippet, _normalize_scores
+from search.engine import generate_snippet, _normalize_scores, QUERY_ALIASES
 from models import SearchResult
 
 
@@ -23,6 +23,11 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
 
     trace = {}
     total_start = time.time()
+
+    # Expand query aliases
+    expanded = QUERY_ALIASES.get(query.lower().strip())
+    if expanded:
+        query = expanded
 
     # Step 1: Tokenization + Stemming
     t0 = time.time()

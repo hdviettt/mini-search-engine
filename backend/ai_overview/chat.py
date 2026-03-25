@@ -34,6 +34,9 @@ PLAYER_TEAMS: dict[str, list[int]] = {
     "kane": [157],  # Bayern Munich
     "harry kane": [157],
     "de bruyne": [50],  # Man City
+    "goat": [2939],  # CR7 = Al Nassr
+    "cr7": [2939],
+    "the goat": [2939],
 }
 
 
