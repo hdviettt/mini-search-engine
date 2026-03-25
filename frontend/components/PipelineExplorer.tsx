@@ -11,7 +11,7 @@ type NodeId =
   // Build
   | "crawler" | "pages_db" | "indexer" | "pr_compute" | "chunker" | "embedder"
   // Stores
-  | "inv_index" | "pr_scores" | "vector_store"
+  | "inv_index" | "pr_scores" | "vector_store" | "knowledge_graph"
   // Query — search path
   | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "reranker" | "results"
   // Query — AI path
@@ -58,9 +58,10 @@ const NODES: NodeDef[] = [
   { id: "chunker",    label: "Chunker",          cx: 630, cy: 192, w: 110, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
   { id: "embedder",   label: "Embedder",         cx: 630, cy: 245, w: 110, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "process" },
   // ── STORES ──
-  { id: "inv_index",    label: "Inverted Index", cx: 150, cy: 300, w: 125, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
-  { id: "pr_scores",    label: "PR Scores",      cx: 390, cy: 300, w: 115, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
-  { id: "vector_store", label: "Vector Store",   cx: 630, cy: 300, w: 120, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "inv_index",       label: "Inverted Index",  cx: 110, cy: 300, w: 110, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "pr_scores",       label: "PR Scores",       cx: 295, cy: 300, w: 105, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "vector_store",    label: "Vector Store",    cx: 480, cy: 300, w: 110, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "knowledge_graph", label: "Knowledge Graph", cx: 665, cy: 300, w: 120, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
   // ── QUERY — shared ──
   { id: "query_input", label: "Search Query",    cx: 390, cy: 385, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "io" },
   // ── QUERY — search path ──
@@ -85,14 +86,15 @@ const ARROWS: ArrowDef[] = [
   { path: "M 390 132 V 152 H 150 V 172" },                       // pages_db → indexer
   { path: "M 390 132 V 172" },                                    // pages_db → pr_compute
   { path: "M 390 132 V 152 H 630 V 172" },                       // pages_db → chunker
-  { path: "M 150 212 V 280" },                                    // indexer → inv_index
-  { path: "M 390 212 V 280" },                                    // pr_compute → pr_scores
+  { path: "M 150 212 V 260 H 110 V 280" },                        // indexer → inv_index
+  { path: "M 390 212 V 260 H 295 V 280" },                        // pr_compute → pr_scores
   { path: "M 630 212 V 225" },                                    // chunker → embedder
-  { path: "M 630 265 V 280" },                                    // embedder → vector_store
+  { path: "M 630 265 V 270 H 480 V 280" },                        // embedder → vector_store
+  { path: "M 390 132 V 155 H 665 V 280" },                        // pages_db → knowledge_graph
   // BRIDGE (dashed, dim)
-  { path: "M 150 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
-  { path: "M 390 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
-  { path: "M 630 320 V 570 H 600 V 580", dashed: true, dim: true },   // vector_store → vector_search
+  { path: "M 110 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
+  { path: "M 295 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
+  { path: "M 480 320 V 570 H 600 V 580", dashed: true, dim: true },   // vector_store → vector_search
   // QUERY — from query_input (all share same V-turn for clean fan-out)
   { path: "M 390 405 V 412 H 195 V 440" },                       // query → tokenize
   { path: "M 458 385 H 600 V 440" },                              // query → fanout (from right edge)
@@ -116,7 +118,7 @@ const ARROWS: ArrowDef[] = [
 const NODE_STEP: Record<NodeId, number> = {
   // Build nodes start as "ready"
   crawler: -1, pages_db: -1, indexer: -1, pr_compute: -1, chunker: -1, embedder: -1,
-  inv_index: -1, pr_scores: -1, vector_store: -1,
+  inv_index: -1, pr_scores: -1, vector_store: -1, knowledge_graph: -1,
   // Query animation steps
   query_input: 0,
   tokenize: 1,
@@ -430,6 +432,92 @@ function ActionButton({ onClick, children }: { onClick: () => void; children: Re
   );
 }
 
+function KnowledgeGraphPanel() {
+  const [kgData, setKgData] = useState<{ entities: { id: number; name: string; type: string; page_count: number }[]; type_counts: Record<string, number> } | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<{ entity: { name: string; type: string }; attributes: Record<string, string>; relationships: { type: string; target: { name: string } }[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    fetch(`${API}/api/explore/entities?limit=100${selectedType ? `&entity_type=${selectedType}` : ""}`)
+      .then(r => r.json())
+      .then(d => { setKgData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [API, selectedType]);
+
+  const loadEntity = (id: number) => {
+    fetch(`${API}/api/explore/entity/${id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.entity) setSelectedEntity(d);
+      });
+  };
+
+  if (loading) return <div className="space-y-2"><div className="h-3 bg-[var(--skeleton)] animate-pulse rounded w-full" /><div className="h-3 bg-[var(--skeleton)] animate-pulse rounded w-3/4" /></div>;
+
+  // Entity detail view
+  if (selectedEntity) {
+    const e = selectedEntity;
+    return (
+      <div style={{ animation: "fade-in 0.2s ease-out" }}>
+        <button onClick={() => setSelectedEntity(null)} className="text-[11px] text-[var(--accent)] mb-2 cursor-pointer hover:underline">&larr; Back to list</button>
+        <div className="text-sm font-semibold text-[var(--text)] mb-1">{e.entity.name}</div>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)]">{e.entity.type}</span>
+        {Object.keys(e.attributes).length > 0 && (
+          <div className="mt-2 space-y-1">
+            {Object.entries(e.attributes).map(([k, v]) => (
+              <div key={k} className="flex items-baseline gap-2 text-[11px]">
+                <span className="text-[var(--text-dim)] shrink-0">{k}</span>
+                <span className="text-[var(--text)]">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {e.relationships?.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="text-[10px] text-[var(--text-dim)] font-medium uppercase tracking-wider">Relationships</div>
+            {e.relationships.map((r: { type: string; target: { name: string } }, i: number) => (
+              <div key={i} className="text-[11px]">
+                <span className="text-[var(--text-dim)]">{r.type}</span>{" "}
+                <span className="text-[var(--accent)]">{r.target.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Entity list view
+  return (
+    <div style={{ animation: "fade-in 0.2s ease-out" }}>
+      {kgData?.type_counts && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          <button onClick={() => setSelectedType(null)} className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition-colors ${!selectedType ? "bg-[var(--accent)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+            All ({Object.values(kgData.type_counts).reduce((a: number, b: number) => a + b, 0)})
+          </button>
+          {Object.entries(kgData.type_counts).slice(0, 6).map(([type, count]) => (
+            <button key={type} onClick={() => setSelectedType(type)} className={`text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition-colors ${selectedType === type ? "bg-[var(--accent)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+              {type} ({count})
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="space-y-1 max-h-64 overflow-y-auto">
+        {kgData?.entities?.slice(0, 50).map(e => (
+          <button key={e.id} onClick={() => loadEntity(e.id)} className="w-full text-left flex items-center gap-2 px-2 py-1 rounded hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors">
+            <span className="text-[11px] text-[var(--text)] truncate flex-1">{e.name}</span>
+            <span className="text-[9px] text-[var(--text-dim)] shrink-0">{e.page_count} pages</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewText, overviewSources, overviewLoading, overviewTrace }: {
   nodeId: NodeId;
   data: ExplainResponse | null;
@@ -561,6 +649,8 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
             <ChunkList limit={4} includeEmbeddings />
           </>
         )}
+
+        {nodeId === "knowledge_graph" && <KnowledgeGraphPanel />}
 
         {/* QUERY nodes */}
         {nodeId === "query_input" && data && (
