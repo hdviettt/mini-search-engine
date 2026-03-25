@@ -8,7 +8,7 @@ import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats } from "@/lib/api";
 
-type View = "search" | "explore";
+type View = "search" | "explore" | "ai";
 type Theme = "light" | "dark";
 
 function useTheme(): [Theme, () => void] {
@@ -55,20 +55,25 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
 }
 
 function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const tabs: { id: View; label: string }[] = [
+    { id: "search", label: "All" },
+    { id: "ai", label: "AI" },
+    { id: "explore", label: "Explore" },
+  ];
   return (
     <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-xs">
-      {(["search", "explore"] as const).map((v) => (
+      {tabs.map((t) => (
         <button
-          key={v}
+          key={t.id}
           type="button"
-          onClick={() => onChange(v)}
+          onClick={() => onChange(t.id)}
           className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
-            view === v
+            view === t.id
               ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
               : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
           }`}
         >
-          {v === "search" ? "All" : "Explore"}
+          {t.label}
         </button>
       ))}
     </div>
@@ -100,19 +105,21 @@ function urlBreadcrumb(url: string) {
    SerpSidePanel — always rendered; shifts right when exploring
    ═══════════════════════════════════════════════════════════════ */
 const SerpSidePanel = memo(function SerpSidePanel({
-  engine, onToggleView, isExploring, selectedNode, onCloseNode,
+  engine, onToggleView, view, onViewChange, selectedNode, onCloseNode,
 }: {
   engine: SearchEngineState;
   onToggleView: () => void;
-  isExploring: boolean;
+  view: View;
+  onViewChange: (v: View) => void;
   selectedNode: string | null;
   onCloseNode: () => void;
 }) {
-  const [aiChatMode, setAiChatMode] = useState(false);
   const [chatFollowUp, setChatFollowUp] = useState<string | undefined>();
+  const isExploring = view === "explore";
+  const isAiMode = view === "ai";
 
-  // Reset chat mode when query changes
-  useEffect(() => { setAiChatMode(false); setChatFollowUp(undefined); }, [engine.query]);
+  // Reset follow-up when query changes
+  useEffect(() => { setChatFollowUp(undefined); }, [engine.query]);
 
   if (!engine.searchData) return null;
 
@@ -142,12 +149,12 @@ const SerpSidePanel = memo(function SerpSidePanel({
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
           isExploring ? "" : "max-w-5xl"
         }`}>
-          {aiChatMode && engine.overviewText ? (
+          {(isAiMode || chatFollowUp) && engine.overviewText ? (
             <AIChat
               initialQuery={engine.query}
               initialOverview={engine.overviewText}
               initialFollowUp={chatFollowUp}
-              onClose={() => { setAiChatMode(false); setChatFollowUp(undefined); }}
+              onClose={() => { setChatFollowUp(undefined); onViewChange("search"); }}
             />
           ) : (
             <AIOverview
@@ -158,7 +165,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
               compact={isExploring}
               onSearch={engine.handleSearch}
               query={engine.query}
-              onEnterChat={(q) => { setChatFollowUp(q); setAiChatMode(true); }}
+              onEnterChat={(q) => { setChatFollowUp(q); onViewChange("ai"); }}
             />
           )}
         </div>
@@ -356,7 +363,7 @@ export default function Home() {
         <div className="relative">
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
           <div className={view === "explore" ? "hidden lg:block" : ""}>
-            <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
+            <SerpSidePanel engine={engine} onToggleView={toggleView} view={view} onViewChange={setView} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
           </div>
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}

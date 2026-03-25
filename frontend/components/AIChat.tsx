@@ -4,6 +4,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { getChatStreamUrl } from "@/lib/api";
 import type { ChatMessage } from "@/lib/types";
 
+interface Source {
+  index: number;
+  title: string;
+  url: string;
+}
+
 interface AIChatProps {
   initialQuery: string;
   initialOverview: string;
@@ -26,24 +32,97 @@ function SparkleIcon() {
   );
 }
 
+/** Render markdown-like text: **bold**, bullet lists, [N] citation chips, paragraphs */
+function RichText({ text, sources }: { text: string; sources: Source[] }) {
+  const lines = text.split("\n");
+
+  return (
+    <div className="text-[14px] sm:text-[15px] leading-[1.65] text-[var(--text)]">
+      {lines.map((line, li) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={li} className="h-2" />;
+
+        // Bullet list items
+        const isBullet = /^[-•*]\s/.test(trimmed);
+        const content = isBullet ? trimmed.replace(/^[-•*]\s/, "") : trimmed;
+
+        // Parse inline formatting
+        const parts = content.split(/(\*\*[^*]+\*\*|\[\d+\])/).map((part, pi) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return <strong key={pi}>{part.slice(2, -2)}</strong>;
+          }
+          const citMatch = part.match(/^\[(\d+)\]$/);
+          if (citMatch) {
+            const idx = parseInt(citMatch[1]);
+            const src = sources.find(s => s.index === idx);
+            if (src) {
+              return (
+                <a key={pi} href={src.url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-medium mx-0.5 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--accent)] cursor-pointer transition-colors align-top"
+                  title={src.title}>
+                  {idx}
+                </a>
+              );
+            }
+          }
+          return <span key={pi}>{part}</span>;
+        });
+
+        if (isBullet) {
+          return (
+            <div key={li} className="flex gap-2 ml-1 mb-1">
+              <span className="text-[var(--accent)] shrink-0 mt-0.5">•</span>
+              <span>{parts}</span>
+            </div>
+          );
+        }
+
+        return <p key={li} className="mb-2">{parts}</p>;
+      })}
+    </div>
+  );
+}
+
+function SourceCards({ sources }: { sources: Source[] }) {
+  if (!sources.length) return null;
+
+  return (
+    <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+      {sources.map(s => {
+        let domain = "";
+        try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = ""; }
+        return (
+          <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
+            className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--chip-hover)] transition-colors text-[12px] border border-[var(--border)]">
+            <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={14} height={14} className="rounded-full" />
+            <div className="min-w-0">
+              <div className="text-[var(--text)] truncate max-w-[150px]">{s.title}</div>
+              <div className="text-[var(--text-dim)] truncate">{domain}</div>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AIChat({ initialQuery, initialOverview, initialFollowUp, onClose }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "user", content: initialQuery },
     { role: "assistant", content: initialOverview },
   ]);
-  const followUpSent = useRef(false);
+  const [messageSources, setMessageSources] = useState<Record<number, Source[]>>({});
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [sportsContext, setSportsContext] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const followUpSent = useRef(false);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
 
-  // Auto-send the follow-up question that triggered AI Mode
+  // Auto-send follow-up that triggered AI Mode
   useEffect(() => {
     if (initialFollowUp && !followUpSent.current) {
       followUpSent.current = true;
@@ -60,9 +139,8 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
     setInput("");
     setStreaming(true);
 
-    // Add empty assistant message for streaming
-    const assistantMsg: ChatMessage = { role: "assistant", content: "" };
-    setMessages([...newMessages, assistantMsg]);
+    const assistantIdx = newMessages.length;
+    setMessages([...newMessages, { role: "assistant", content: "" }]);
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -95,8 +173,8 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
           if (!line.startsWith("data: ")) continue;
           try {
             const msg = JSON.parse(line.slice(6));
-            if (msg.type === "context" && msg.sports_data) {
-              setSportsContext(msg.sports_data);
+            if (msg.type === "sources") {
+              setMessageSources(prev => ({ ...prev, [assistantIdx]: msg.sources }));
             } else if (msg.type === "token") {
               fullText += msg.content;
               setMessages(prev => {
@@ -104,8 +182,6 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
                 updated[updated.length - 1] = { role: "assistant", content: fullText };
                 return updated;
               });
-            } else if (msg.type === "done") {
-              // done
             }
           } catch { /* */ }
         }
@@ -120,40 +196,34 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
   return (
     <div className="flex flex-col" style={{ animation: "fade-in 0.3s ease-out" }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <SparkleIcon />
           <span className="text-[15px] font-medium text-[var(--text)]">AI Mode</span>
-          {sportsContext && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">Live data</span>
-          )}
         </div>
-        <button onClick={onClose} className="text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] cursor-pointer px-2 py-1 rounded hover:bg-[var(--bg-elevated)] transition-colors">
+        <button onClick={onClose} className="text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] cursor-pointer px-2.5 py-1 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors">
           Exit chat
         </button>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+      <div ref={scrollRef} className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
         {messages.map((msg, i) => (
-          <div key={i} className={msg.role === "user" ? "flex justify-end" : ""}>
+          <div key={i}>
             {msg.role === "user" ? (
-              <div className="max-w-[80%] bg-[var(--accent)]/15 text-[var(--text)] text-[14px] px-4 py-2.5 rounded-2xl rounded-br-sm">
-                {msg.content}
+              <div className="flex justify-end">
+                <div className="max-w-[85%] bg-[var(--accent)]/12 text-[var(--text)] text-[14px] px-4 py-2.5 rounded-2xl rounded-br-sm">
+                  {msg.content}
+                </div>
               </div>
             ) : (
-              <div className="text-[14px] sm:text-[15px] leading-[1.65] text-[var(--text)]">
-                {msg.content.split("\n").map((line, j) => (
-                  <p key={j} className={line ? "mb-2" : "mb-1"}>
-                    {line.split(/(\*\*[^*]+\*\*)/).map((part, k) =>
-                      part.startsWith("**") && part.endsWith("**")
-                        ? <strong key={k}>{part.slice(2, -2)}</strong>
-                        : part
-                    )}
-                  </p>
-                ))}
+              <div>
+                <RichText text={msg.content} sources={messageSources[i] || []} />
                 {streaming && i === messages.length - 1 && (
                   <span className="inline-block w-[3px] h-4 bg-[var(--accent)] animate-pulse ml-0.5 align-middle rounded-sm" />
+                )}
+                {messageSources[i] && messageSources[i].length > 0 && !streaming && (
+                  <SourceCards sources={messageSources[i]} />
                 )}
               </div>
             )}
@@ -161,15 +231,8 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
         ))}
       </div>
 
-      {/* Sports context indicator */}
-      {sportsContext && (
-        <div className="mt-2 text-[11px] text-[var(--text-dim)] bg-[var(--bg-elevated)] rounded-lg px-3 py-2 max-h-20 overflow-y-auto">
-          <span className="text-green-400 font-medium">Live data used:</span> {sportsContext.slice(0, 200)}{sportsContext.length > 200 ? "..." : ""}
-        </div>
-      )}
-
       {/* Input */}
-      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="mt-3">
+      <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="mt-4">
         <div className="flex items-center bg-[var(--bg-elevated)] rounded-full px-4 border border-transparent focus-within:border-[var(--border)] transition-colors">
           <input
             value={input}
@@ -189,6 +252,11 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
           </button>
         </div>
       </form>
+
+      {/* Disclaimer */}
+      <p className="text-[11px] text-[var(--text-dim)] mt-2 text-center">
+        AI-generated. Cites sources from our search index. Verify critical facts.
+      </p>
     </div>
   );
 }
