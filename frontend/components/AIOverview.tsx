@@ -163,20 +163,9 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
             </p>
           )}
 
-          {/* Follow-up suggestions — hidden in compact/explore mode */}
-          {isDone && onSearch && query && !compact && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {getFollowUpSuggestions(query).map((suggestion, i) => (
-                <button
-                  key={i}
-                  onClick={() => onSearch(suggestion)}
-                  className="flex items-center gap-1.5 text-[14px] px-4 py-2.5 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
-                >
-                  <SparkleSmall />
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+          {/* Follow-up suggestions removed — the follow-up input is the entry point to AI Mode */}
+          {false && (
+            <div></div>
           )}
 
           {/* Action bar + source avatars */}
