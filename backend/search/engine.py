@@ -154,10 +154,27 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
             final_score=round(final_score, 4),
         ))
 
+    # Sports detection (lightweight keyword match, no DB)
+    sports_data = None
+    try:
+        from sports.detector import detect_sports
+        from sports.api import get_upcoming_fixtures, get_standings, get_live_scores
+        detection = detect_sports(query)
+        if detection:
+            if detection.action == "upcoming" and detection.teams:
+                sports_data = {"type": "fixtures", "detection": detection.to_dict(), "data": get_upcoming_fixtures(detection.teams[0])}
+            elif detection.action == "standings" and detection.leagues:
+                sports_data = {"type": "standings", "detection": detection.to_dict(), "data": get_standings(detection.leagues[0])}
+            elif detection.action == "live":
+                sports_data = {"type": "live", "detection": detection.to_dict(), "data": get_live_scores()}
+    except Exception:
+        pass
+
     elapsed_ms = (time.time() - start_time) * 1000
 
     return {
         "query": query,
+        "sports": sports_data,
         "results": results,
         "total_results": total_results,
         "time_ms": round(elapsed_ms, 2),

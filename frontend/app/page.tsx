@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
+import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats } from "@/lib/api";
 
@@ -144,6 +145,15 @@ const SerpSidePanel = memo(function SerpSidePanel({
             query={engine.query}
           />
         </div>
+
+        {/* Sports card — live scores, fixtures, standings */}
+        {engine.searchData?.sports && (
+          <div className={`px-4 transition-[padding-left] duration-500 ${plExploring} ${
+            isExploring ? "" : "max-w-4xl"
+          }`}>
+            <MatchCard data={engine.searchData.sports} />
+          </div>
+        )}
 
         {/* Results — shifts right when pipeline overlays */}
         <div className={`px-4 py-2 space-y-6 transition-[padding-left] duration-500 ${plExploring} ${

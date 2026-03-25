@@ -394,6 +394,39 @@ def explore_embed(q: str):
     return {"query": q, "embedding": [round(v, 6) for v in vec], "dimensions": len(vec)}
 
 
+# --- Sports data endpoints ---
+
+@router.get("/sports/matches")
+def sports_matches(team: str | None = None):
+    """Get upcoming matches for a team."""
+    from sports.detector import TEAM_MAP
+    from sports.api import get_upcoming_fixtures
+    if not team:
+        return {"error": "team parameter required", "fixtures": []}
+    team_id = TEAM_MAP.get(team.lower())
+    if not team_id:
+        return {"error": f"Unknown team: {team}", "fixtures": []}
+    return {"team": team, "fixtures": get_upcoming_fixtures(team_id)}
+
+
+@router.get("/sports/standings")
+def sports_standings(league: str):
+    """Get league standings."""
+    from sports.detector import LEAGUE_MAP
+    from sports.api import get_standings
+    league_id = LEAGUE_MAP.get(league.lower())
+    if not league_id:
+        return {"error": f"Unknown league: {league}", "standings": []}
+    return {"league": league, "standings": get_standings(league_id)}
+
+
+@router.get("/sports/live")
+def sports_live():
+    """Get all live scores."""
+    from sports.api import get_live_scores
+    return {"live": get_live_scores()}
+
+
 # --- WebSocket for live progress ---
 
 async def websocket_jobs(websocket: WebSocket):

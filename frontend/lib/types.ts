@@ -101,8 +101,47 @@ export interface PipelineTrace {
   snippet_generation: SnippetTrace;
 }
 
+export interface FixtureData {
+  id: number;
+  date: string;
+  venue: string;
+  status: string;
+  elapsed: number | null;
+  league: string;
+  league_logo: string;
+  round: string;
+  home_team: string;
+  home_logo: string;
+  away_team: string;
+  away_logo: string;
+  score_home: number | null;
+  score_away: number | null;
+}
+
+export interface StandingEntry {
+  rank: number;
+  team: string;
+  logo: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  points: number;
+  form: string;
+}
+
+export interface SportsData {
+  type: "fixtures" | "standings" | "live";
+  detection: { action: string; teams: number[]; leagues: number[]; matched_name: string };
+  data: FixtureData[] | StandingEntry[];
+}
+
 export interface ExplainResponse {
   query: string;
+  sports?: SportsData | null;
   results: SearchResult[];
   total_results: number;
   time_ms: number;

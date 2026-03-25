@@ -238,10 +238,27 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
+    # Sports detection
+    sports_data = None
+    try:
+        from sports.detector import detect_sports
+        from sports.api import get_upcoming_fixtures, get_standings, get_live_scores
+        detection = detect_sports(query)
+        if detection:
+            if detection.action == "upcoming" and detection.teams:
+                sports_data = {"type": "fixtures", "detection": detection.to_dict(), "data": get_upcoming_fixtures(detection.teams[0])}
+            elif detection.action == "standings" and detection.leagues:
+                sports_data = {"type": "standings", "detection": detection.to_dict(), "data": get_standings(detection.leagues[0])}
+            elif detection.action == "live":
+                sports_data = {"type": "live", "detection": detection.to_dict(), "data": get_live_scores()}
+    except Exception:
+        pass
+
     total_ms = round((time.time() - total_start) * 1000, 2)
 
     return {
         "query": query,
+        "sports": sports_data,
         "results": results,
         "total_results": len(bm25_scores),
         "time_ms": total_ms,
