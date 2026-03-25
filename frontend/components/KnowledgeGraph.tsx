@@ -60,16 +60,15 @@ const GraphCanvas = memo(function GraphCanvas({
 }) {
   const graphRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
-  // Center the graph on nodes after layout stabilizes
+  // Center the graph after force layout settles
   useEffect(() => {
-    if (graphRef.current && graphData.nodes.length > 0) {
-      // Multiple attempts — layout needs time to settle
-      const t1 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 300);
-      const t2 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 1000);
-      const t3 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 2500);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    if (graphRef.current && graphData.nodes.length > 0 && width > 0) {
+      const timers = [500, 1500, 3000].map(ms =>
+        setTimeout(() => graphRef.current?.zoomToFit(400, 30), ms)
+      );
+      return () => timers.forEach(clearTimeout);
     }
-  }, [graphData.nodes.length]);
+  }, [graphData.nodes.length, width]);
 
   if (graphData.nodes.length === 0) {
     return (
@@ -283,7 +282,7 @@ export default function KnowledgeGraphView() {
 
       <div className="flex flex-1 min-h-0">
         {/* Graph canvas */}
-        <div ref={containerRef} className="flex-1 relative bg-[var(--bg)]">
+        <div ref={containerRef} className="flex-1 relative bg-[var(--bg)]" style={{ minHeight: 300 }}>
           {dimensions.width > 0 && (
             <GraphCanvas graphData={graphData} onNodeClick={loadEntityDetail} width={dimensions.width} height={dimensions.height} />
           )}

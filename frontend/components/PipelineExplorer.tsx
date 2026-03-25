@@ -433,69 +433,10 @@ function ActionButton({ onClick, children }: { onClick: () => void; children: Re
 }
 
 function KnowledgeGraphPanel() {
-  const [stats, setStats] = useState<{ entities: number; relationships: number; attributes: number; types: Record<string, number> } | null>(null);
-  const [showGraph, setShowGraph] = useState(false);
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-  useEffect(() => {
-    Promise.all([
-      fetch(`${API}/api/explore/entities?limit=1`).then(r => r.json()),
-      fetch(`${API}/api/explore/knowledge?limit=1`).then(r => r.json()),
-    ]).then(([entData, kgData]) => {
-      const tc = entData.type_counts || {};
-      setStats({
-        entities: (Object.values(tc) as number[]).reduce((a, b) => a + b, 0),
-        relationships: kgData.stats?.total_relationships || 0,
-        attributes: kgData.stats?.total_attributes || 0,
-        types: tc,
-      });
-    }).catch(() => {});
-  }, [API]);
-
-  if (showGraph) {
-    const KnowledgeGraphView = require("@/components/KnowledgeGraph").default;
-    return (
-      <>
-        {/* Full-screen overlay for the graph */}
-        <div className="fixed inset-0 z-50 bg-[var(--bg)] flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
-            <h2 className="text-[15px] font-semibold text-[var(--text)]">Knowledge Graph</h2>
-            <button onClick={() => setShowGraph(false)} className="text-[13px] text-[var(--text-muted)] hover:text-[var(--text)] cursor-pointer px-3 py-1 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors">
-              Close
-            </button>
-          </div>
-          <div className="flex-1 min-h-0">
-            <KnowledgeGraphView />
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (!stats) return <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded w-full" />;
-
+  const KnowledgeGraphView = require("@/components/KnowledgeGraph").default;
   return (
-    <div style={{ animation: "fade-in 0.2s ease-out" }}>
-      <div className="space-y-1 mb-3">
-        <StatRow label="Entities" value={stats.entities.toLocaleString()} />
-        <StatRow label="Relationships" value={stats.relationships.toLocaleString()} />
-        <StatRow label="Attributes" value={stats.attributes.toLocaleString()} />
-      </div>
-      {Object.keys(stats.types).length > 0 && (
-        <div className="mb-3">
-          <div className="text-[10px] text-[var(--text-dim)] font-medium uppercase tracking-wider mb-1.5">Entity types</div>
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(stats.types).map(([type, count]) => (
-              <span key={type} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)]">
-                {type}: {count}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      <button onClick={() => setShowGraph(true)} className="w-full text-center text-[12px] py-2 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 cursor-pointer transition-colors">
-        Open Interactive Graph
-      </button>
+    <div className="rounded-lg overflow-hidden border border-[var(--border)] -mx-3" style={{ height: 400 }}>
+      <KnowledgeGraphView />
     </div>
   );
 }
