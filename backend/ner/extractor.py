@@ -213,11 +213,17 @@ def extract_all_entities(conn: psycopg.Connection, progress_callback=None):
         )""")
     conn.commit()
 
-    # Clear old data for a fresh extraction
+    # Clear old data for a fresh extraction (order matters: FK dependencies)
+    try:
+        conn.execute("DELETE FROM entity_relationships")
+        conn.execute("DELETE FROM entity_attributes")
+    except Exception:
+        conn.rollback()
     conn.execute("DELETE FROM page_entities")
     conn.execute("DELETE FROM entity_aliases")
     conn.execute("DELETE FROM entities")
     conn.commit()
+    print("  Cleared old entity data.")
 
     pages = conn.execute("SELECT id, title, body_text FROM pages ORDER BY id").fetchall()
     print(f"  {len(pages)} pages to process...")
