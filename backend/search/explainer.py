@@ -242,11 +242,13 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     sports_data = None
     try:
         from sports.detector import detect_sports
-        from sports.api import get_upcoming_fixtures, get_standings, get_live_scores
+        from sports.api import get_upcoming_fixtures, get_league_fixtures, get_standings, get_live_scores
         detection = detect_sports(query)
         if detection:
             if detection.action == "upcoming" and detection.teams:
                 sports_data = {"type": "fixtures", "detection": detection.to_dict(), "data": get_upcoming_fixtures(detection.teams[0])}
+            elif detection.action == "upcoming" and detection.leagues:
+                sports_data = {"type": "fixtures", "detection": detection.to_dict(), "data": get_league_fixtures(detection.leagues[0])}
             elif detection.action == "standings" and detection.leagues:
                 sports_data = {"type": "standings", "detection": detection.to_dict(), "data": get_standings(detection.leagues[0])}
             elif detection.action == "live":

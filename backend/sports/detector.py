@@ -108,7 +108,7 @@ def detect_sports(query: str) -> SportsDetection | None:
     if any(kw in q for kw in H2H_KEYWORDS) and len(matched_teams) >= 1:
         return SportsDetection("h2h", team_ids, league_ids, matched_name)
 
-    if any(kw in q for kw in FIXTURE_KEYWORDS) and team_ids:
+    if any(kw in q for kw in FIXTURE_KEYWORDS) and (team_ids or league_ids):
         return SportsDetection("upcoming", team_ids, league_ids, matched_name)
 
     # If just a team name with no specific keyword → show upcoming fixtures

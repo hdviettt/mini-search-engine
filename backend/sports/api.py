@@ -98,6 +98,42 @@ def get_upcoming_fixtures(team_id: int, next_count: int = 3) -> list[dict]:
     return fixtures
 
 
+def get_league_fixtures(league_id: int, next_count: int = 5) -> list[dict]:
+    """Get next N upcoming matches for a league/tournament."""
+    data = _api_get("fixtures", {"league": league_id, "next": next_count, "season": 2024}, cache_ttl=900)
+    if not data:
+        # Try current year as season
+        data = _api_get("fixtures", {"league": league_id, "next": next_count, "season": 2025}, cache_ttl=900)
+    if not data:
+        return []
+
+    fixtures = []
+    for f in data.get("response", []):
+        fixture = f.get("fixture", {})
+        teams = f.get("teams", {})
+        league = f.get("league", {})
+        goals = f.get("goals", {})
+
+        fixtures.append({
+            "id": fixture.get("id"),
+            "date": fixture.get("date"),
+            "venue": (fixture.get("venue") or {}).get("name", ""),
+            "status": (fixture.get("status") or {}).get("short", "NS"),
+            "elapsed": (fixture.get("status") or {}).get("elapsed"),
+            "league": league.get("name", ""),
+            "league_logo": league.get("logo", ""),
+            "round": league.get("round", ""),
+            "home_team": (teams.get("home") or {}).get("name", ""),
+            "home_logo": (teams.get("home") or {}).get("logo", ""),
+            "away_team": (teams.get("away") or {}).get("name", ""),
+            "away_logo": (teams.get("away") or {}).get("logo", ""),
+            "score_home": goals.get("home"),
+            "score_away": goals.get("away"),
+        })
+
+    return fixtures
+
+
 def get_standings(league_id: int, season: int = 2024) -> list[dict]:
     """Get league standings table."""
     data = _api_get("standings", {"league": league_id, "season": season}, cache_ttl=3600)
