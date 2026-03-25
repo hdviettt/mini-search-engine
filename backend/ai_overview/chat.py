@@ -14,6 +14,28 @@ from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS
 from sports.detector import detect_sports, TEAM_MAP, LEAGUE_MAP
 from sports.api import get_upcoming_fixtures, get_standings, get_live_scores, get_league_fixtures
 
+# Player name → team ID (for fetching team context when players are mentioned)
+PLAYER_TEAMS: dict[str, list[int]] = {
+    "ronaldo": [2939],  # Al Nassr
+    "cristiano ronaldo": [2939],
+    "messi": [1600],  # Inter Miami
+    "lionel messi": [1600],
+    "neymar": [1062],  # Santos (returned 2025)
+    "mbappe": [541],  # Real Madrid
+    "kylian mbappe": [541],
+    "haaland": [50],  # Man City
+    "erling haaland": [50],
+    "salah": [40],  # Liverpool
+    "mohamed salah": [40],
+    "vinicius": [541],  # Real Madrid
+    "bellingham": [541],  # Real Madrid
+    "saka": [42],  # Arsenal
+    "bukayo saka": [42],
+    "kane": [157],  # Bayern Munich
+    "harry kane": [157],
+    "de bruyne": [50],  # Man City
+}
+
 
 def _gather_sports_context(messages: list[dict]) -> str:
     """Scan conversation for team/league mentions and fetch relevant live data."""
@@ -23,12 +45,20 @@ def _gather_sports_context(messages: list[dict]) -> str:
 
     context_parts = []
 
-    # Find all teams mentioned
+    # Find all teams mentioned (direct team names)
     found_teams = []
     for name, team_id in sorted(TEAM_MAP.items(), key=lambda x: -len(x[0])):
         if name in q and team_id not in [t[1] for t in found_teams]:
             found_teams.append((name, team_id))
         if len(found_teams) >= 3:
+            break
+
+    # Also detect player names → add their teams
+    for name, team_ids in sorted(PLAYER_TEAMS.items(), key=lambda x: -len(x[0])):
+        if name in q:
+            for tid in team_ids:
+                if tid not in [t[1] for t in found_teams]:
+                    found_teams.append((name, tid))
             break
 
     # Find all leagues mentioned
@@ -84,6 +114,13 @@ def _gather_sports_context(messages: list[dict]) -> str:
         if live:
             live_text = [f"{m['home_team']} {m['score_home']}-{m['score_away']} {m['away_team']} ({m['elapsed']}', {m['league']})" for m in live[:5]]
             context_parts.append(f"Live matches: {'; '.join(live_text)}")
+
+    # If no specific data found, fetch Premier League top 5 as default context
+    if not context_parts:
+        pl_standings = get_standings(39)  # Premier League
+        if pl_standings:
+            top5 = [f"#{s['rank']} {s['team']} ({s['points']}pts, Form:{s['form']})" for s in pl_standings[:5]]
+            context_parts.append(f"Premier League top 5: {'; '.join(top5)}")
 
     return "\n".join(context_parts) if context_parts else ""
 

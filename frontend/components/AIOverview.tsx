@@ -11,7 +11,7 @@ interface AIOverviewProps {
   compact?: boolean;
   onSearch?: (q: string) => void;
   query?: string;
-  onEnterChat?: () => void;
+  onEnterChat?: (followUpQuestion?: string) => void;
 }
 
 function parseOverviewWithCitations(text: string) {
@@ -221,12 +221,12 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
             </div>
           )}
 
-          {/* Follow-up input — enters AI Chat Mode */}
+          {/* Follow-up input — enters AI Chat Mode with the typed question */}
           {isDone && !compact && (
             <form onSubmit={(e) => {
               e.preventDefault();
-              if (onEnterChat) { onEnterChat(); return; }
               const q = new FormData(e.currentTarget).get("followup") as string;
+              if (q.trim() && onEnterChat) { onEnterChat(q.trim()); return; }
               if (q.trim() && onSearch) { onSearch(q.trim()); e.currentTarget.reset(); }
             }} className="mt-4">
               <div className="flex items-center bg-[var(--bg-elevated)] rounded-full px-4 border border-transparent hover:border-[var(--border)] focus-within:border-[var(--border)] transition-colors">

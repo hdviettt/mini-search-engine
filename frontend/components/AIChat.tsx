@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/lib/types";
 interface AIChatProps {
   initialQuery: string;
   initialOverview: string;
+  initialFollowUp?: string;
   onClose: () => void;
 }
 
@@ -25,11 +26,12 @@ function SparkleIcon() {
   );
 }
 
-export default function AIChat({ initialQuery, initialOverview, onClose }: AIChatProps) {
+export default function AIChat({ initialQuery, initialOverview, initialFollowUp, onClose }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "user", content: initialQuery },
     { role: "assistant", content: initialOverview },
   ]);
+  const followUpSent = useRef(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [sportsContext, setSportsContext] = useState("");
@@ -40,6 +42,14 @@ export default function AIChat({ initialQuery, initialOverview, onClose }: AICha
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
+
+  // Auto-send the follow-up question that triggered AI Mode
+  useEffect(() => {
+    if (initialFollowUp && !followUpSent.current) {
+      followUpSent.current = true;
+      sendMessage(initialFollowUp);
+    }
+  }, [initialFollowUp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || streaming) return;

@@ -109,9 +109,10 @@ const SerpSidePanel = memo(function SerpSidePanel({
   onCloseNode: () => void;
 }) {
   const [aiChatMode, setAiChatMode] = useState(false);
+  const [chatFollowUp, setChatFollowUp] = useState<string | undefined>();
 
   // Reset chat mode when query changes
-  useEffect(() => { setAiChatMode(false); }, [engine.query]);
+  useEffect(() => { setAiChatMode(false); setChatFollowUp(undefined); }, [engine.query]);
 
   if (!engine.searchData) return null;
 
@@ -145,7 +146,8 @@ const SerpSidePanel = memo(function SerpSidePanel({
             <AIChat
               initialQuery={engine.query}
               initialOverview={engine.overviewText}
-              onClose={() => setAiChatMode(false)}
+              initialFollowUp={chatFollowUp}
+              onClose={() => { setAiChatMode(false); setChatFollowUp(undefined); }}
             />
           ) : (
             <AIOverview
@@ -156,7 +158,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
               compact={isExploring}
               onSearch={engine.handleSearch}
               query={engine.query}
-              onEnterChat={() => setAiChatMode(true)}
+              onEnterChat={(q) => { setChatFollowUp(q); setAiChatMode(true); }}
             />
           )}
         </div>
