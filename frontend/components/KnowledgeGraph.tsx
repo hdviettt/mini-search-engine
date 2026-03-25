@@ -1,19 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import dynamic from "next/dynamic";
 
-// Force graph must be loaded client-side only (uses Canvas)
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface Entity {
-  id: number;
-  name: string;
-  type: string;
-  page_count: number;
-}
 
 interface Relationship {
   source: string;
@@ -22,12 +14,18 @@ interface Relationship {
   confidence: number;
 }
 
+interface Attribute {
+  entity: string;
+  key: string;
+  value: string;
+}
+
 interface GraphNode {
   id: string;
   name: string;
   type: string;
-  pageCount: number;
-  val: number; // size
+  degree: number;
+  val: number;
 }
 
 interface GraphLink {
@@ -48,9 +46,88 @@ const TYPE_COLORS: Record<string, string> = {
   federation: "#818cf8",
 };
 
+// Memoized graph canvas to prevent zoom reset on parent re-renders
+const GraphCanvas = memo(function GraphCanvas({
+  graphData,
+  onNodeClick,
+}: {
+  graphData: { nodes: GraphNode[]; links: GraphLink[] };
+  onNodeClick: (name: string) => void;
+}) {
+  const graphRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const initialZoom = useRef(false);
+
+  useEffect(() => {
+    if (!initialZoom.current && graphRef.current && graphData.nodes.length > 0) {
+      setTimeout(() => graphRef.current?.zoomToFit(400, 60), 200);
+      initialZoom.current = true;
+    }
+  }, [graphData.nodes.length]);
+
+  if (graphData.nodes.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-[var(--text-dim)]">
+        No relationships found yet. Run Knowledge Graph build first.
+      </div>
+    );
+  }
+
+  return (
+    <ForceGraph2D
+      ref={graphRef}
+      graphData={graphData}
+      nodeVal={(node) => (node as GraphNode).val}
+      nodeRelSize={5}
+      nodeLabel={(node) => {
+        const n = node as GraphNode;
+        return `${n.name} (${n.type}, ${n.degree} connections)`;
+      }}
+      nodeColor={(node) => TYPE_COLORS[(node as GraphNode).type] || "#888"}
+      nodeCanvasObject={(node, ctx, globalScale) => {
+        const n = node as GraphNode & { x: number; y: number };
+        const r = Math.sqrt(n.val) * 2.5;
+        const color = TYPE_COLORS[n.type] || "#888";
+
+        // Circle
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+
+        // Label (only show when zoomed in enough)
+        if (globalScale > 0.8) {
+          const fontSize = Math.max(3, 10 / globalScale);
+          ctx.font = `${fontSize}px Inter, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#e5e5f0";
+          ctx.fillText(n.name, n.x, n.y + r + fontSize);
+        }
+      }}
+      linkLabel={(link) => (link as unknown as GraphLink).label}
+      linkColor={() => "rgba(255,255,255,0.12)"}
+      linkWidth={(link) => Math.min(3, 0.5 + (link as unknown as GraphLink).confidence * 0.5)}
+      linkDirectionalArrowLength={3}
+      linkDirectionalArrowRelPos={1}
+      linkDirectionalArrowColor={() => "rgba(255,255,255,0.25)"}
+      linkCurvature={0.15}
+      onNodeClick={(node) => onNodeClick((node as GraphNode).name)}
+      onEngineStop={() => {}}
+      cooldownTicks={200}
+      d3AlphaDecay={0.04}
+      d3VelocityDecay={0.3}
+      backgroundColor="transparent"
+    />
+  );
+}, (prev, next) => prev.graphData === next.graphData);
+
 export default function KnowledgeGraphView() {
-  const [entities, setEntities] = useState<Entity[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [entityTypes, setEntityTypes] = useState<Record<string, string>>({});
   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedEntity, setSelectedEntity] = useState<{
@@ -60,19 +137,39 @@ export default function KnowledgeGraphView() {
     reverse_relationships: { type: string; source: { name: string; entity_type: string }; detail: string }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const graphRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
 
+  // Measure container size
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      setDimensions({ width: el.clientWidth, height: Math.max(350, el.clientHeight) });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Fetch data
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/api/explore/entities?limit=200${selectedType ? `&entity_type=${selectedType}` : ""}`).then(r => r.json()),
-      fetch(`${API}/api/explore/knowledge?limit=200`).then(r => r.json()),
-    ]).then(([entData, kgData]) => {
-      setEntities(entData.entities || []);
-      setTypeCounts(entData.type_counts || {});
+      fetch(`${API}/api/explore/knowledge?limit=500`).then(r => r.json()),
+      fetch(`${API}/api/explore/entities?limit=500`).then(r => r.json()),
+    ]).then(([kgData, entData]) => {
       setRelationships(kgData.relationships || []);
+      setAttributes(kgData.attributes || []);
+
+      // Build entity name → type lookup
+      const typeMap: Record<string, string> = {};
+      for (const e of entData.entities || []) {
+        typeMap[e.name] = e.type;
+      }
+      setEntityTypes(typeMap);
+      setTypeCounts(entData.type_counts || {});
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [selectedType]);
+  }, []);
 
   const loadEntityDetail = useCallback((name: string) => {
     fetch(`${API}/api/knowledge/entity/${encodeURIComponent(name)}`)
@@ -80,20 +177,49 @@ export default function KnowledgeGraphView() {
       .then(d => { if (d.entity) setSelectedEntity(d); });
   }, []);
 
-  // Build graph data from entities + relationships
-  const entityNames = new Set(entities.map(e => e.name));
-  const graphNodes: GraphNode[] = entities.slice(0, 100).map(e => ({
-    id: e.name,
-    name: e.name,
-    type: e.type,
-    pageCount: e.page_count,
-    val: Math.max(2, Math.min(15, e.page_count)),
-  }));
+  // Build graph data FROM relationships (ensures nodes and links always match)
+  const graphData = useMemo(() => {
+    const nodeMap = new Map<string, { type: string; degree: number }>();
 
-  const nodeIds = new Set(graphNodes.map(n => n.id));
-  const graphLinks: GraphLink[] = relationships
-    .filter(r => nodeIds.has(r.source) && nodeIds.has(r.target))
-    .map(r => ({ source: r.source, target: r.target, label: r.relation, confidence: r.confidence }));
+    // Count degrees from relationships
+    for (const r of relationships) {
+      if (!nodeMap.has(r.source)) nodeMap.set(r.source, { type: entityTypes[r.source] || "unknown", degree: 0 });
+      if (!nodeMap.has(r.target)) nodeMap.set(r.target, { type: entityTypes[r.target] || "unknown", degree: 0 });
+      nodeMap.get(r.source)!.degree++;
+      nodeMap.get(r.target)!.degree++;
+    }
+
+    // Also add attribute entities as nodes (even without relationships)
+    for (const a of attributes) {
+      if (!nodeMap.has(a.entity)) nodeMap.set(a.entity, { type: entityTypes[a.entity] || "unknown", degree: 0 });
+    }
+
+    // Filter by selected type
+    let nodes: GraphNode[] = Array.from(nodeMap.entries()).map(([name, info]) => ({
+      id: name,
+      name,
+      type: info.type,
+      degree: info.degree,
+      val: Math.max(2, Math.sqrt(info.degree + 1) * 3),
+    }));
+
+    if (selectedType) {
+      const keepNames = new Set(nodes.filter(n => n.type === selectedType).map(n => n.id));
+      // Also keep nodes connected TO filtered nodes
+      for (const r of relationships) {
+        if (keepNames.has(r.source)) keepNames.add(r.target);
+        if (keepNames.has(r.target)) keepNames.add(r.source);
+      }
+      nodes = nodes.filter(n => keepNames.has(n.id));
+    }
+
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const links: GraphLink[] = relationships
+      .filter(r => nodeIds.has(r.source) && nodeIds.has(r.target))
+      .map(r => ({ source: r.source, target: r.target, label: r.relation, confidence: r.confidence }));
+
+    return { nodes, links };
+  }, [relationships, attributes, entityTypes, selectedType]);
 
   if (loading) {
     return (
@@ -108,17 +234,17 @@ export default function KnowledgeGraphView() {
       {/* Type filter pills */}
       <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-[var(--border)]">
         <button
-          onClick={() => { setSelectedType(null); setSelectedEntity(null); }}
+          onClick={() => setSelectedType(null)}
           className={`text-[12px] px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
             !selectedType ? "bg-[var(--accent)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}
         >
-          All ({Object.values(typeCounts).reduce((a, b) => a + b, 0)})
+          All
         </button>
-        {Object.entries(typeCounts).map(([type, count]) => (
+        {Object.entries(typeCounts).slice(0, 8).map(([type, count]) => (
           <button
             key={type}
-            onClick={() => { setSelectedType(type); setSelectedEntity(null); }}
+            onClick={() => setSelectedType(selectedType === type ? null : type)}
             className={`text-[12px] px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
               selectedType === type ? "bg-[var(--accent)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
@@ -127,37 +253,22 @@ export default function KnowledgeGraphView() {
             {type} ({count})
           </button>
         ))}
+        <span className="text-[11px] text-[var(--text-dim)] self-center ml-2">
+          {graphData.nodes.length} nodes, {graphData.links.length} edges
+        </span>
       </div>
 
       <div className="flex flex-1 min-h-0">
         {/* Graph canvas */}
-        <div className="flex-1 relative bg-[var(--bg)]">
-          {graphNodes.length > 0 ? (
-            <ForceGraph2D
-              ref={graphRef}
-              graphData={{ nodes: graphNodes, links: graphLinks }}
-              nodeLabel={(node) => `${(node as GraphNode).name} (${(node as GraphNode).type}, ${(node as GraphNode).pageCount} pages)`}
-              nodeColor={(node) => TYPE_COLORS[(node as GraphNode).type] || "#888"}
-              nodeVal={(node) => (node as GraphNode).val}
-              linkLabel={(link) => (link as unknown as GraphLink).label}
-              linkColor={() => "rgba(255,255,255,0.15)"}
-              linkDirectionalArrowLength={4}
-              linkDirectionalArrowRelPos={1}
-              onNodeClick={(node) => loadEntityDetail((node as GraphNode).name)}
-              backgroundColor="transparent"
-              width={600}
-              height={400}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-sm text-[var(--text-dim)]">
-              No entities with relationships to display
-            </div>
-          )}
+        <div ref={containerRef} className="flex-1 relative bg-[var(--bg)]" style={{ minHeight: 350 }}>
+          <div style={{ width: dimensions.width, height: dimensions.height }}>
+            <GraphCanvas graphData={graphData} onNodeClick={loadEntityDetail} />
+          </div>
         </div>
 
         {/* Entity detail sidebar */}
         {selectedEntity && (
-          <div className="w-72 border-l border-[var(--border)] overflow-y-auto p-4" style={{ animation: "fade-in 0.2s ease-out" }}>
+          <div className="w-72 border-l border-[var(--border)] overflow-y-auto p-4 shrink-0" style={{ animation: "fade-in 0.2s ease-out" }}>
             <button onClick={() => setSelectedEntity(null)} className="text-[11px] text-[var(--accent)] mb-2 cursor-pointer hover:underline">&times; Close</button>
             <h3 className="text-[16px] font-semibold text-[var(--text)] mb-1">{selectedEntity.entity.name}</h3>
             <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: `${TYPE_COLORS[selectedEntity.entity.type] || "#888"}30`, color: TYPE_COLORS[selectedEntity.entity.type] || "#888" }}>
