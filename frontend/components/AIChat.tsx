@@ -13,6 +13,7 @@ interface Source {
 interface AIChatProps {
   initialQuery: string;
   initialOverview: string;
+  initialSources?: Source[];
   initialFollowUp?: string;
   onClose: () => void;
 }
@@ -82,12 +83,15 @@ function RichText({ text, sources, streaming }: { text: string; sources: Source[
   );
 }
 
-export default function AIChat({ initialQuery, initialOverview, initialFollowUp, onClose }: AIChatProps) {
+export default function AIChat({ initialQuery, initialOverview, initialSources, initialFollowUp, onClose }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "user", content: initialQuery },
     { role: "assistant", content: initialOverview },
   ]);
-  const [messageSources, setMessageSources] = useState<Record<number, Source[]>>({});
+  // Pre-populate sources for the initial AI Overview message (index 1 = first assistant msg)
+  const [messageSources, setMessageSources] = useState<Record<number, Source[]>>(
+    initialSources?.length ? { 1: initialSources.map(s => ({ index: s.index, title: s.title, url: s.url })) } : {}
+  );
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -186,9 +190,10 @@ export default function AIChat({ initialQuery, initialOverview, initialFollowUp,
         {messages.map((msg, i) => (
           <div key={i}>
             {msg.role === "user" && i > 0 && (
-              /* Show user follow-ups as subtle section dividers — skip the initial query */
-              <div className="mt-5 mb-3 pt-4 border-t border-[var(--separator)]">
-                <span className="text-[13px] text-[var(--text-muted)]">{msg.content}</span>
+              <div className="mt-5 mb-3 pt-4 border-t border-[var(--separator)] flex justify-end">
+                <div className="bg-[var(--accent)]/12 text-[var(--text)] text-[14px] px-4 py-2.5 rounded-2xl rounded-br-sm max-w-[85%]">
+                  {msg.content}
+                </div>
               </div>
             )}
             {msg.role === "assistant" && (

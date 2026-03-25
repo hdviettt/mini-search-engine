@@ -150,6 +150,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
             <AIChat
               initialQuery={engine.query}
               initialOverview={engine.overviewText}
+              initialSources={engine.overviewSources.map(s => ({ index: s.index, title: s.title, url: s.url }))}
               initialFollowUp={chatFollowUp}
               onClose={() => { setChatFollowUp(undefined); setAiChatActive(false); }}
             />
