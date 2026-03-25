@@ -114,6 +114,21 @@ const GraphCanvas = memo(function GraphCanvas({
       linkDirectionalArrowRelPos={1}
       linkDirectionalArrowColor={() => "rgba(128,128,180,0.6)"}
       linkCurvature={0.15}
+      linkCanvasObjectMode={() => "after"}
+      linkCanvasObject={(link, ctx, globalScale) => {
+        const l = link as unknown as GraphLink & { source: { x: number; y: number }; target: { x: number; y: number } };
+        if (!l.source?.x || !l.target?.x) return;
+        const fontSize = Math.max(2, 8 / globalScale);
+        if (fontSize < 2.5) return; // too small to read
+        const mx = (l.source.x + l.target.x) / 2;
+        const my = (l.source.y + l.target.y) / 2;
+        const label = l.label.replace(/_/g, " ").toLowerCase();
+        ctx.font = `${fontSize}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(128,128,180,0.8)";
+        ctx.fillText(label, mx, my - fontSize * 0.7);
+      }}
       onNodeClick={(node) => onNodeClick((node as GraphNode).name)}
       onEngineStop={() => {}}
       cooldownTicks={200}
