@@ -21,45 +21,25 @@ RELATION_TYPES = [
     "LOCATED_IN",      # team/stadium → country
 ]
 
-EXTRACTION_PROMPT = """Extract football entity relationships from this text.
-
-Entities found on this page:
-{entities}
+EXTRACTION_PROMPT = """Extract football relationships from this text. Return a JSON array.
 
 Text:
 {text}
 
-Return ONLY a JSON array of relationships. Each relationship has:
-- "source": exact entity name from the list above
-- "relation": one of {relations}
-- "target": exact entity name from the list above
-- "detail": optional short detail (e.g. year, role)
+Each item: {{"source": "person or team name", "relation": "PLAYS_FOR|PLAYED_FOR|MANAGES|COMPETES_IN|NATIONALITY|WON|LOCATED_IN", "target": "team, league, country, or tournament name", "detail": "optional year or role"}}
 
-Rules:
-- ONLY use entity names from the list above
-- ONLY use relation types from the list above
-- Skip uncertain relationships
-- Return [] if no clear relationships found
+Extract ALL clear relationships. Use short, canonical entity names (e.g. "Messi" not "Lionel Andrés Messi"). Return [] if none found.
 
 JSON array:"""
 
-ATTRIBUTE_PROMPT = """Extract key attributes for these football entities from the text.
-
-Entities:
-{entities}
+ATTRIBUTE_PROMPT = """Extract football entity attributes from this text. Return a JSON array.
 
 Text:
 {text}
 
-Return ONLY a JSON array of attributes. Each attribute has:
-- "entity": exact entity name from the list above
-- "key": one of: nationality, position, birth_date, founded_year, stadium, capacity, nickname
-- "value": the attribute value
+Each item: {{"entity": "person or team name", "key": "nationality|position|birth_date|founded_year|stadium|nickname", "value": "the value"}}
 
-Rules:
-- ONLY use entity names from the list above
-- Skip uncertain attributes
-- Return [] if no clear attributes found
+Use short entity names. Return [] if none found.
 
 JSON array:"""
 
@@ -95,44 +75,55 @@ def _call_groq(prompt: str) -> list[dict]:
     return []
 
 
+def _fuzzy_match_entity(conn: psycopg.Connection, name: str, _cache: dict = {}) -> int | None:
+    """Find entity ID by exact or fuzzy name match. Cached per session."""
+    if name in _cache:
+        return _cache[name]
+
+    # Exact match
+    row = conn.execute("SELECT id FROM entities WHERE LOWER(name) = LOWER(%s) LIMIT 1", (name,)).fetchone()
+    if row:
+        _cache[name] = row[0]
+        return row[0]
+
+    # Partial match — entity name contains the query or vice versa
+    row = conn.execute(
+        "SELECT id FROM entities WHERE LOWER(name) LIKE %s OR LOWER(%s) LIKE '%%' || LOWER(name) || '%%' LIMIT 1",
+        (f"%{name.lower()}%", name),
+    ).fetchone()
+    if row:
+        _cache[name] = row[0]
+        return row[0]
+
+    _cache[name] = None
+    return None
+
+
 def extract_relationships(conn: psycopg.Connection, page_id: int, title: str, body_text: str, entity_names: list[str]) -> int:
     """Extract and store relationships for a single page."""
     text = f"{title}\n{(body_text or '')[:3000]}"
-    entities_str = ", ".join(entity_names)
 
-    prompt = EXTRACTION_PROMPT.format(
-        entities=entities_str,
-        text=text,
-        relations=", ".join(RELATION_TYPES),
-    )
-
+    prompt = EXTRACTION_PROMPT.format(text=text)
     rels = _call_groq(prompt)
     stored = 0
 
-    # Build name → entity_id lookup
-    name_to_id = {}
-    for name in entity_names:
-        row = conn.execute(
-            "SELECT id FROM entities WHERE name = %s LIMIT 1", (name,)
-        ).fetchone()
-        if row:
-            name_to_id[name] = row[0]
-
     for rel in rels:
-        source_name = rel.get("source", "")
-        target_name = rel.get("target", "")
-        relation = rel.get("relation", "")
+        source_name = rel.get("source", "").strip()
+        target_name = rel.get("target", "").strip()
+        relation = rel.get("relation", "").upper().replace(" ", "_")
         detail = rel.get("detail", "")
 
-        if source_name not in name_to_id or target_name not in name_to_id:
+        if not source_name or not target_name or source_name == target_name:
             continue
         if relation not in RELATION_TYPES:
             continue
-        if source_name == target_name:
+
+        source_id = _fuzzy_match_entity(conn, source_name)
+        target_id = _fuzzy_match_entity(conn, target_name)
+        if not source_id or not target_id:
             continue
 
         attrs = {"detail": detail} if detail else {}
-
         try:
             conn.execute(
                 """INSERT INTO entity_relationships (source_entity, relation_type, target_entity, attributes, source_page, confidence)
@@ -140,8 +131,7 @@ def extract_relationships(conn: psycopg.Connection, page_id: int, title: str, bo
                    ON CONFLICT (source_entity, relation_type, target_entity)
                    DO UPDATE SET confidence = entity_relationships.confidence + 0.5,
                                  attributes = entity_relationships.attributes || %s""",
-                (name_to_id[source_name], relation, name_to_id[target_name],
-                 json.dumps(attrs), page_id, json.dumps(attrs)),
+                (source_id, relation, target_id, json.dumps(attrs), page_id, json.dumps(attrs)),
             )
             stored += 1
         except Exception:
@@ -155,24 +145,21 @@ def extract_relationships(conn: psycopg.Connection, page_id: int, title: str, bo
 def extract_attributes(conn: psycopg.Connection, page_id: int, title: str, body_text: str, entity_names: list[str]) -> int:
     """Extract and store entity attributes for a single page."""
     text = f"{title}\n{(body_text or '')[:3000]}"
-    entities_str = ", ".join(entity_names)
 
-    prompt = ATTRIBUTE_PROMPT.format(entities=entities_str, text=text)
+    prompt = ATTRIBUTE_PROMPT.format(text=text)
     attrs = _call_groq(prompt)
     stored = 0
 
-    name_to_id = {}
-    for name in entity_names:
-        row = conn.execute("SELECT id FROM entities WHERE name = %s LIMIT 1", (name,)).fetchone()
-        if row:
-            name_to_id[name] = row[0]
-
     for attr in attrs:
-        entity_name = attr.get("entity", "")
+        entity_name = attr.get("entity", "").strip()
         key = attr.get("key", "")
         value = attr.get("value", "")
 
-        if entity_name not in name_to_id or not key or not value:
+        if not entity_name or not key or not value:
+            continue
+
+        entity_id = _fuzzy_match_entity(conn, entity_name)
+        if not entity_id:
             continue
 
         try:
@@ -181,7 +168,7 @@ def extract_attributes(conn: psycopg.Connection, page_id: int, title: str, body_
                    VALUES (%s, %s, %s, %s, 1.0)
                    ON CONFLICT (entity_id, attr_key, attr_value)
                    DO UPDATE SET confidence = entity_attributes.confidence + 0.5""",
-                (name_to_id[entity_name], key, str(value), page_id),
+                (entity_id, key, str(value), page_id),
             )
             stored += 1
         except Exception:
