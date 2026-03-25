@@ -182,6 +182,8 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
             pre_rerank_order[page_id] = i + 1
 
     reranked = rerank(query, rerank_candidates, top_k=10)
+    # Filter clearly irrelevant results
+    reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > -8]
 
     # Track rank changes from re-ranking
     rerank_changes = []

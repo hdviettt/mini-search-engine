@@ -121,9 +121,11 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
                 "url": row[0], "title": row[1], "body_text": row[2],
             })
     reranked = rerank(query, candidate_dicts, top_k=5)
+    # Filter out clearly irrelevant results (negative reranker score)
+    reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > -8]
     reranked_ids = {c["page_id"] for c in reranked}
 
-    # Build results: reranked top 5 + remaining from original ranking
+    # Build results: reranked top + remaining from original ranking
     results = []
     for c in reranked:
         snippet = generate_snippet(c.get("body_text", ""), query_terms)
