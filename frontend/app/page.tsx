@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
+import AIChat from "@/components/AIChat";
 import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats } from "@/lib/api";
@@ -107,6 +108,11 @@ const SerpSidePanel = memo(function SerpSidePanel({
   selectedNode: string | null;
   onCloseNode: () => void;
 }) {
+  const [aiChatMode, setAiChatMode] = useState(false);
+
+  // Reset chat mode when query changes
+  useEffect(() => { setAiChatMode(false); }, [engine.query]);
+
   if (!engine.searchData) return null;
 
   const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-40 lg:pr-8";
@@ -131,19 +137,28 @@ const SerpSidePanel = memo(function SerpSidePanel({
           </div>
         )}
 
-        {/* AI Overview — shifts right when pipeline overlays */}
+        {/* AI Overview / AI Chat Mode — shifts right when pipeline overlays */}
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
           isExploring ? "" : "max-w-5xl"
         }`}>
-          <AIOverview
-            text={engine.overviewText}
-            sources={engine.overviewSources}
-            loading={engine.overviewLoading}
-            streaming={engine.overviewStreaming}
-            compact={isExploring}
-            onSearch={engine.handleSearch}
-            query={engine.query}
-          />
+          {aiChatMode && engine.overviewText ? (
+            <AIChat
+              initialQuery={engine.query}
+              initialOverview={engine.overviewText}
+              onClose={() => setAiChatMode(false)}
+            />
+          ) : (
+            <AIOverview
+              text={engine.overviewText}
+              sources={engine.overviewSources}
+              loading={engine.overviewLoading}
+              streaming={engine.overviewStreaming}
+              compact={isExploring}
+              onSearch={engine.handleSearch}
+              query={engine.query}
+              onEnterChat={() => setAiChatMode(true)}
+            />
+          )}
         </div>
 
         {/* Sports card — live scores, fixtures, standings */}

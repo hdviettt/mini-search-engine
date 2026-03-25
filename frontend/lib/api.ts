@@ -47,6 +47,10 @@ export function getOverviewStreamUrl(q: string): string {
   return `${API_BASE}/api/overview/stream?q=${encodeURIComponent(q)}`;
 }
 
+export function getChatStreamUrl(): string {
+  return `${API_BASE}/api/ai/chat`;
+}
+
 export async function getStats(): Promise<Stats> {
   const res = await fetch(`${API_BASE}/api/stats`);
   if (!res.ok) throw new Error("Stats failed");

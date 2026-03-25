@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, Query, WebSocket
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -235,5 +236,19 @@ def api_overview_stream(q: str = Query("")):
             yield from generate_overview_stream(conn, q)
         finally:
             conn.close()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+
+
+@app.post("/api/ai/chat")
+def api_ai_chat(req: ChatRequest):
+    from ai_overview.chat import generate_chat_stream
+
+    def event_stream():
+        yield from generate_chat_stream(req.messages)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

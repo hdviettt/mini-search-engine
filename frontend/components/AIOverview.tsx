@@ -11,6 +11,7 @@ interface AIOverviewProps {
   compact?: boolean;
   onSearch?: (q: string) => void;
   query?: string;
+  onEnterChat?: () => void;
 }
 
 function parseOverviewWithCitations(text: string) {
@@ -101,7 +102,7 @@ function getFollowUpSuggestions(query: string): string[] {
   ];
 }
 
-export default memo(function AIOverview({ text, sources, loading, streaming, compact, onSearch, query }: AIOverviewProps) {
+export default memo(function AIOverview({ text, sources, loading, streaming, compact, onSearch, query, onEnterChat }: AIOverviewProps) {
   const [copied, setCopied] = useState(false);
 
   const copyText = useCallback(() => {
@@ -220,12 +221,13 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
             </div>
           )}
 
-          {/* Follow-up input — hidden in compact/explore mode */}
-          {isDone && onSearch && !compact && (
+          {/* Follow-up input — enters AI Chat Mode */}
+          {isDone && !compact && (
             <form onSubmit={(e) => {
               e.preventDefault();
+              if (onEnterChat) { onEnterChat(); return; }
               const q = new FormData(e.currentTarget).get("followup") as string;
-              if (q.trim()) { onSearch(q.trim()); e.currentTarget.reset(); }
+              if (q.trim() && onSearch) { onSearch(q.trim()); e.currentTarget.reset(); }
             }} className="mt-4">
               <div className="flex items-center bg-[var(--bg-elevated)] rounded-full px-4 border border-transparent hover:border-[var(--border)] focus-within:border-[var(--border)] transition-colors">
                 <input name="followup" type="text" placeholder="Ask a follow-up question"

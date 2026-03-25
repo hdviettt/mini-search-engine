@@ -139,6 +139,11 @@ export interface SportsData {
   data: FixtureData[] | StandingEntry[];
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface ExplainResponse {
   query: string;
   sports?: SportsData | null;
