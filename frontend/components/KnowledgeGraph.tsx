@@ -55,12 +55,15 @@ const GraphCanvas = memo(function GraphCanvas({
   onNodeClick: (name: string) => void;
 }) {
   const graphRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const initialZoom = useRef(false);
 
+  // Center the graph on nodes after layout stabilizes
   useEffect(() => {
-    if (!initialZoom.current && graphRef.current && graphData.nodes.length > 0) {
-      setTimeout(() => graphRef.current?.zoomToFit(400, 60), 200);
-      initialZoom.current = true;
+    if (graphRef.current && graphData.nodes.length > 0) {
+      // Multiple attempts — layout needs time to settle
+      const t1 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 300);
+      const t2 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 1000);
+      const t3 = setTimeout(() => graphRef.current?.zoomToFit(300, 40), 2500);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }
   }, [graphData.nodes.length]);
 
@@ -118,16 +121,15 @@ const GraphCanvas = memo(function GraphCanvas({
       linkCanvasObject={(link, ctx, globalScale) => {
         const l = link as unknown as GraphLink & { source: { x: number; y: number }; target: { x: number; y: number } };
         if (!l.source?.x || !l.target?.x) return;
-        const fontSize = Math.max(2, 8 / globalScale);
-        if (fontSize < 2.5) return; // too small to read
+        const fontSize = Math.min(12, Math.max(3, 10 / globalScale));
         const mx = (l.source.x + l.target.x) / 2;
         const my = (l.source.y + l.target.y) / 2;
         const label = l.label.replace(/_/g, " ").toLowerCase();
         ctx.font = `${fontSize}px Inter, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(128,128,180,0.8)";
-        ctx.fillText(label, mx, my - fontSize * 0.7);
+        ctx.fillStyle = "rgba(128,128,180,0.85)";
+        ctx.fillText(label, mx, my - fontSize * 0.8);
       }}
       onNodeClick={(node) => onNodeClick((node as GraphNode).name)}
       onEngineStop={() => {}}
