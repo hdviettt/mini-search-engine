@@ -50,9 +50,13 @@ const TYPE_COLORS: Record<string, string> = {
 const GraphCanvas = memo(function GraphCanvas({
   graphData,
   onNodeClick,
+  width,
+  height,
 }: {
   graphData: { nodes: GraphNode[]; links: GraphLink[] };
   onNodeClick: (name: string) => void;
+  width: number;
+  height: number;
 }) {
   const graphRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -137,9 +141,11 @@ const GraphCanvas = memo(function GraphCanvas({
       d3AlphaDecay={0.04}
       d3VelocityDecay={0.3}
       backgroundColor="transparent"
+      width={width}
+      height={height}
     />
   );
-}, (prev, next) => prev.graphData === next.graphData);
+}, (prev, next) => prev.graphData === next.graphData && prev.width === next.width && prev.height === next.height);
 
 export default function KnowledgeGraphView() {
   const [relationships, setRelationships] = useState<Relationship[]>([]);
@@ -277,10 +283,10 @@ export default function KnowledgeGraphView() {
 
       <div className="flex flex-1 min-h-0">
         {/* Graph canvas */}
-        <div ref={containerRef} className="flex-1 relative bg-[var(--bg)]" style={{ minHeight: 350 }}>
-          <div style={{ width: dimensions.width, height: dimensions.height }}>
-            <GraphCanvas graphData={graphData} onNodeClick={loadEntityDetail} />
-          </div>
+        <div ref={containerRef} className="flex-1 relative bg-[var(--bg)]">
+          {dimensions.width > 0 && (
+            <GraphCanvas graphData={graphData} onNodeClick={loadEntityDetail} width={dimensions.width} height={dimensions.height} />
+          )}
         </div>
 
         {/* Entity detail sidebar */}

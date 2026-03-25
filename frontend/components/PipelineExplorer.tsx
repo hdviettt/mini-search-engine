@@ -455,12 +455,20 @@ function KnowledgeGraphPanel() {
   if (showGraph) {
     const KnowledgeGraphView = require("@/components/KnowledgeGraph").default;
     return (
-      <div>
-        <button onClick={() => setShowGraph(false)} className="text-[11px] text-[var(--accent)] mb-2 cursor-pointer hover:underline">&larr; Back to stats</button>
-        <div className="rounded-lg overflow-hidden border border-[var(--border)] -mx-3">
-          <KnowledgeGraphView />
+      <>
+        {/* Full-screen overlay for the graph */}
+        <div className="fixed inset-0 z-50 bg-[var(--bg)] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+            <h2 className="text-[15px] font-semibold text-[var(--text)]">Knowledge Graph</h2>
+            <button onClick={() => setShowGraph(false)} className="text-[13px] text-[var(--text-muted)] hover:text-[var(--text)] cursor-pointer px-3 py-1 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors">
+              Close
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <KnowledgeGraphView />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
