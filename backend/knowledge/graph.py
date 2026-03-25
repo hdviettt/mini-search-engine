@@ -21,33 +21,22 @@ RELATION_TYPES = [
     "LOCATED_IN",      # team/stadium → country
 ]
 
-EXTRACTION_PROMPT = """Extract football relationships from this text. Return a JSON array.
+COMBINED_PROMPT = """From this football text, extract relationships AND attributes. Return JSON with two arrays.
 
 Text:
 {text}
 
-Each item: {{"source": "person or team name", "relation": "PLAYS_FOR|PLAYED_FOR|MANAGES|COMPETES_IN|NATIONALITY|WON|LOCATED_IN", "target": "team, league, country, or tournament name", "detail": "optional year or role"}}
+Return exactly this format:
+{{"relationships": [{{"source": "name", "relation": "PLAYS_FOR|PLAYED_FOR|MANAGES|COMPETES_IN|NATIONALITY|WON", "target": "name", "detail": "year or role"}}], "attributes": [{{"entity": "name", "key": "nationality|position|birth_date|founded_year|stadium|nickname", "value": "value"}}]}}
 
-Extract ALL clear relationships. Use short, canonical entity names (e.g. "Messi" not "Lionel Andrés Messi"). Return [] if none found.
-
-JSON array:"""
-
-ATTRIBUTE_PROMPT = """Extract football entity attributes from this text. Return a JSON array.
-
-Text:
-{text}
-
-Each item: {{"entity": "person or team name", "key": "nationality|position|birth_date|founded_year|stadium|nickname", "value": "the value"}}
-
-Use short entity names. Return [] if none found.
-
-JSON array:"""
+Use short canonical names. Only include facts clearly stated in the text.
+JSON:"""
 
 
-def _call_groq(prompt: str) -> list[dict]:
-    """Call Groq API and parse JSON array response."""
+def _call_groq_combined(prompt: str) -> dict:
+    """Call Groq API and parse JSON object response with relationships + attributes."""
     if not GROQ_API_KEY:
-        return []
+        return {"relationships": [], "attributes": []}
 
     try:
         response = httpx.post(
@@ -56,23 +45,27 @@ def _call_groq(prompt: str) -> list[dict]:
             json={
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
+                "max_tokens": 800,
                 "temperature": 0.1,
             },
-            timeout=10,
+            timeout=15,
         )
         response.raise_for_status()
         text = response.json()["choices"][0]["message"]["content"].strip()
 
-        # Extract JSON array from response
-        start = text.find("[")
-        end = text.rfind("]") + 1
+        # Extract JSON object from response
+        start = text.find("{")
+        end = text.rfind("}") + 1
         if start >= 0 and end > start:
-            return json.loads(text[start:end])
+            parsed = json.loads(text[start:end])
+            return {
+                "relationships": parsed.get("relationships", []),
+                "attributes": parsed.get("attributes", []),
+            }
     except Exception as e:
         print(f"  Groq KG error: {e}")
 
-    return []
+    return {"relationships": [], "attributes": []}
 
 
 def _fuzzy_match_entity(conn: psycopg.Connection, name: str, _cache: dict = {}) -> int | None:
@@ -229,18 +222,72 @@ def build_knowledge_graph(conn: psycopg.Connection, progress_callback=None):
            LIMIT 300"""
     ).fetchall()
 
-    print(f"  {len(pages)} pages with 2+ entities to process...")
+    print(f"  {len(pages)} pages with 3+ entities to process...")
     total_rels = 0
     total_attrs = 0
 
     for i, (page_id, title, body_text, entity_count, entity_names) in enumerate(pages):
-        # Extract relationships
-        rels = extract_relationships(conn, page_id, title, body_text, entity_names)
-        total_rels += rels
+        # Single combined API call for relationships + attributes
+        text = f"{title}\n{(body_text or '')[:3000]}"
+        prompt = COMBINED_PROMPT.format(text=text)
+        result = _call_groq_combined(prompt)
 
-        # Extract attributes
-        attrs = extract_attributes(conn, page_id, title, body_text, entity_names)
-        total_attrs += attrs
+        # Store relationships
+        for rel in result.get("relationships", []):
+            source_name = rel.get("source", "").strip()
+            target_name = rel.get("target", "").strip()
+            relation = rel.get("relation", "").upper().replace(" ", "_")
+            detail = rel.get("detail", "")
+
+            if not source_name or not target_name or source_name == target_name:
+                continue
+            if relation not in RELATION_TYPES:
+                continue
+
+            source_id = _fuzzy_match_entity(conn, source_name)
+            target_id = _fuzzy_match_entity(conn, target_name)
+            if not source_id or not target_id:
+                continue
+
+            attrs = {"detail": detail} if detail else {}
+            try:
+                conn.execute(
+                    """INSERT INTO entity_relationships (source_entity, relation_type, target_entity, attributes, source_page, confidence)
+                       VALUES (%s, %s, %s, %s, %s, 1.0)
+                       ON CONFLICT (source_entity, relation_type, target_entity)
+                       DO UPDATE SET confidence = entity_relationships.confidence + 0.5,
+                                     attributes = entity_relationships.attributes || %s""",
+                    (source_id, relation, target_id, json.dumps(attrs), page_id, json.dumps(attrs)),
+                )
+                total_rels += 1
+            except Exception:
+                conn.rollback()
+
+        # Store attributes
+        for attr in result.get("attributes", []):
+            entity_name = attr.get("entity", "").strip()
+            key = attr.get("key", "")
+            value = attr.get("value", "")
+            if not entity_name or not key or not value:
+                continue
+
+            entity_id = _fuzzy_match_entity(conn, entity_name)
+            if not entity_id:
+                continue
+
+            try:
+                conn.execute(
+                    """INSERT INTO entity_attributes (entity_id, attr_key, attr_value, source_page, confidence)
+                       VALUES (%s, %s, %s, %s, 1.0)
+                       ON CONFLICT (entity_id, attr_key, attr_value)
+                       DO UPDATE SET confidence = entity_attributes.confidence + 0.5""",
+                    (entity_id, key, str(value), page_id),
+                )
+                total_attrs += 1
+            except Exception:
+                conn.rollback()
+
+        conn.commit()
 
         if (i + 1) % 10 == 0:
             print(f"  Processed {i + 1}/{len(pages)} pages ({total_rels} relationships, {total_attrs} attributes)...")
@@ -253,8 +300,8 @@ def build_knowledge_graph(conn: psycopg.Connection, progress_callback=None):
                 "attributes": total_attrs,
             })
 
-        # Rate limit: ~2s between pages (2 API calls per page)
-        time.sleep(2)
+        # Rate limit: 3s between pages (1 API call per page, stay under Groq 30 RPM)
+        time.sleep(3)
 
     # Summary
     rel_count = conn.execute("SELECT COUNT(*) FROM entity_relationships").fetchone()[0]
