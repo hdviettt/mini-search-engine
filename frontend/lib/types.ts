@@ -91,16 +91,7 @@ export interface RerankTrace {
   time_ms: number;
 }
 
-export interface IntentTrace {
-  intent: string;
-  entities: string[];
-  confidence: number;
-  method: string;
-  time_ms?: number;
-}
-
 export interface PipelineTrace {
-  intent?: IntentTrace;
   tokenization: TokenizationTrace;
   index_lookup: IndexLookupTrace;
   bm25_scoring: BM25Trace;
@@ -110,25 +101,8 @@ export interface PipelineTrace {
   snippet_generation: SnippetTrace;
 }
 
-export interface IntentResult {
-  intent: string;
-  entities: string[];
-  confidence: number;
-  method: string;
-}
-
-export interface OneBoxData {
-  entity: { id: number; name: string; type: string; description: string | null };
-  attributes: Record<string, string>;
-  relationships: { type: string; target: { name: string; entity_type: string }; detail: string; confidence: number }[];
-  reverse_relationships: { type: string; source: { name: string; entity_type: string }; detail: string; confidence: number }[];
-  source_pages: { title: string; url: string }[];
-}
-
 export interface ExplainResponse {
   query: string;
-  intent?: IntentResult;
-  onebox?: OneBoxData | null;
   results: SearchResult[];
   total_results: number;
   time_ms: number;
