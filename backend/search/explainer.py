@@ -8,6 +8,8 @@ from config import BM25_K1, BM25_B, RANK_ALPHA
 from indexer.tokenizer import tokenize
 from ranker.bm25 import search_bm25
 from search.engine import generate_snippet, _normalize_scores
+from search.intent import detect_intent
+from search.onebox import get_onebox
 from models import SearchResult
 
 
@@ -23,6 +25,17 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
 
     trace = {}
     total_start = time.time()
+
+    # Step 0: Intent detection
+    t0 = time.time()
+    try:
+        intent_result = detect_intent(conn, query)
+    except Exception:
+        intent_result = {"intent": "informational", "entities": [], "confidence": 0, "method": "error"}
+    trace["intent"] = {
+        **intent_result,
+        "time_ms": round((time.time() - t0) * 1000, 2),
+    }
 
     # Step 1: Tokenization + Stemming
     t0 = time.time()
@@ -238,10 +251,20 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
+    # OneBox: entity card from Knowledge Graph
+    onebox = None
+    if intent_result.get("intent") == "entity_lookup":
+        try:
+            onebox = get_onebox(conn, intent_result)
+        except Exception:
+            pass
+
     total_ms = round((time.time() - total_start) * 1000, 2)
 
     return {
         "query": query,
+        "intent": intent_result,
+        "onebox": onebox,
         "results": results,
         "total_results": len(bm25_scores),
         "time_ms": total_ms,

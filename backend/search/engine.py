@@ -7,6 +7,8 @@ from config import RANK_ALPHA
 from indexer.tokenizer import tokenize
 from ranker.bm25 import search_bm25
 from ranker.reranker import rerank
+from search.intent import detect_intent
+from search.onebox import get_onebox
 from models import SearchResult
 
 
@@ -74,6 +76,13 @@ def _normalize_scores(scores: dict[int, float]) -> dict[int, float]:
 def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 10) -> dict:
     """Run a search query. Returns results with BM25 + PageRank combined scores."""
     start_time = time.time()
+
+    # Intent detection
+    try:
+        intent_result = detect_intent(conn, query)
+    except Exception:
+        intent_result = {"intent": "informational", "entities": [], "confidence": 0, "method": "error"}
+
     query_terms = tokenize(query)
 
     # Get BM25 scores
@@ -154,10 +163,20 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
             final_score=round(final_score, 4),
         ))
 
+    # OneBox: entity card from Knowledge Graph
+    onebox = None
+    if intent_result.get("intent") == "entity_lookup":
+        try:
+            onebox = get_onebox(conn, intent_result)
+        except Exception:
+            pass
+
     elapsed_ms = (time.time() - start_time) * 1000
 
     return {
         "query": query,
+        "intent": intent_result,
+        "onebox": onebox,
         "results": results,
         "total_results": total_results,
         "time_ms": round(elapsed_ms, 2),
