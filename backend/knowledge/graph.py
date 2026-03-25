@@ -200,6 +200,15 @@ def build_knowledge_graph(conn: psycopg.Connection, progress_callback=None):
     """
     print("Building knowledge graph...")
 
+    # Clear old KG data for a fresh build
+    try:
+        conn.execute("DELETE FROM entity_relationships")
+        conn.execute("DELETE FROM entity_attributes")
+        conn.commit()
+        print("  Cleared old relationships and attributes.")
+    except Exception:
+        conn.rollback()
+
     # Ensure KG tables exist
     conn.execute("""
         CREATE TABLE IF NOT EXISTS entity_attributes (
@@ -220,20 +229,17 @@ def build_knowledge_graph(conn: psycopg.Connection, progress_callback=None):
         )""")
     conn.commit()
 
-    # Find pages with 2+ entities that haven't been processed for KG yet
+    # Find pages with 3+ entities (pages with only 2 rarely yield good relationships)
     pages = conn.execute(
         """SELECT pe.page_id, p.title, p.body_text, COUNT(*) as entity_count,
                   ARRAY_AGG(e.name) as entity_names
            FROM page_entities pe
            JOIN pages p ON pe.page_id = p.id
            JOIN entities e ON pe.entity_id = e.id
-           WHERE pe.page_id NOT IN (
-               SELECT DISTINCT source_page FROM entity_relationships WHERE source_page IS NOT NULL
-           )
            GROUP BY pe.page_id, p.title, p.body_text
-           HAVING COUNT(*) >= 2
+           HAVING COUNT(*) >= 3
            ORDER BY COUNT(*) DESC
-           LIMIT 500"""
+           LIMIT 300"""
     ).fetchall()
 
     print(f"  {len(pages)} pages with 2+ entities to process...")

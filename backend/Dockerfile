@@ -8,8 +8,8 @@ RUN pip install --no-cache-dir httpx lxml fastapi "uvicorn[standard]" pydantic "
 # Neural re-ranking dependencies (ONNX cross-encoder, no GPU needed)
 RUN pip install --no-cache-dir onnxruntime tokenizers numpy huggingface-hub
 
-# NER: spaCy with small English model (local, no API)
-RUN pip install --no-cache-dir spacy && python -m spacy download en_core_web_sm
+# NER: spaCy with medium English model (better accuracy, +40MB)
+RUN pip install --no-cache-dir spacy && python -m spacy download en_core_web_md
 
 # Download the cross-encoder model at build time (not at runtime)
 RUN python -c "\
