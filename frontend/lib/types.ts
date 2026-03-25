@@ -91,7 +91,16 @@ export interface RerankTrace {
   time_ms: number;
 }
 
+export interface IntentTrace {
+  intent: string;
+  entities: string[];
+  confidence: number;
+  method: string;
+  time_ms?: number;
+}
+
 export interface PipelineTrace {
+  intent?: IntentTrace;
   tokenization: TokenizationTrace;
   index_lookup: IndexLookupTrace;
   bm25_scoring: BM25Trace;

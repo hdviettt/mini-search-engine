@@ -13,7 +13,7 @@ type NodeId =
   // Stores
   | "inv_index" | "pr_scores" | "vector_store" | "knowledge_graph"
   // Query — search path
-  | "query_input" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "reranker" | "results"
+  | "query_input" | "intent" | "tokenize" | "index_lookup" | "bm25" | "pr_lookup" | "combine" | "reranker" | "results"
   // Query — AI path
   | "fanout" | "embed_query" | "vector_search" | "llm" | "ai_overview";
 
@@ -63,7 +63,8 @@ const NODES: NodeDef[] = [
   { id: "vector_store",    label: "Vector Store",    cx: 480, cy: 300, w: 110, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
   { id: "knowledge_graph", label: "Knowledge Graph", cx: 665, cy: 300, w: 120, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
   // ── QUERY — shared ──
-  { id: "query_input", label: "Search Query",    cx: 390, cy: 385, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "io" },
+  { id: "query_input", label: "Search Query",    cx: 390, cy: 380, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "io" },
+  { id: "intent",      label: "Intent Classifier", cx: 390, cy: 425, w: 125, h: 30, fill: "#fbcfe8", stroke: "#f9a8d4", activeFill: "#f9a8d4", kind: "process" },
   // ── QUERY — search path ──
   { id: "tokenize",     label: "Tokenize",       cx: 195, cy: 460, w: 115, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
   { id: "index_lookup", label: "Index Lookup",   cx: 195, cy: 530, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
@@ -95,9 +96,10 @@ const ARROWS: ArrowDef[] = [
   { path: "M 110 320 V 500 H 195 V 510", dashed: true, dim: true },   // inv_index → index_lookup
   { path: "M 295 320 V 573 H 345 V 583", dashed: true, dim: true },   // pr_scores → pr_lookup
   { path: "M 480 320 V 570 H 600 V 580", dashed: true, dim: true },   // vector_store → vector_search
-  // QUERY — from query_input (all share same V-turn for clean fan-out)
-  { path: "M 390 405 V 412 H 195 V 440" },                       // query → tokenize
-  { path: "M 458 385 H 600 V 440" },                              // query → fanout (from right edge)
+  // QUERY — query → intent → both paths
+  { path: "M 390 400 V 410" },                                    // query → intent
+  { path: "M 328 425 H 195 V 440" },                              // intent → tokenize (from left edge)
+  { path: "M 453 425 H 600 V 440" },                              // intent → fanout (from right edge)
   // QUERY — search path
   { path: "M 195 480 V 510" },                                    // tokenize → index_lookup
   { path: "M 230 480 V 495 H 345 V 583" },                       // tokenize → pr_lookup (down, right, down)
@@ -121,25 +123,26 @@ const NODE_STEP: Record<NodeId, number> = {
   inv_index: -1, pr_scores: -1, vector_store: -1, knowledge_graph: -1,
   // Query animation steps
   query_input: 0,
-  tokenize: 1,
-  index_lookup: 2, // inv_index also activates
-  bm25: 3,
-  pr_lookup: 4, // pr_scores also activates
-  combine: 5,
-  reranker: 6,
-  results: 7,
-  fanout: 8,
-  embed_query: 9,
-  vector_search: 10, // vector_store also activates
-  llm: 11,
-  ai_overview: 12,
+  intent: 1,
+  tokenize: 2,
+  index_lookup: 3, // inv_index also activates
+  bm25: 4,
+  pr_lookup: 5, // pr_scores also activates
+  combine: 6,
+  reranker: 7,
+  results: 8,
+  fanout: 9,
+  embed_query: 10,
+  vector_search: 11, // vector_store also activates
+  llm: 12,
+  ai_overview: 13,
 };
 
 // Stores that activate with query steps
 const STORE_ACTIVATE: Record<number, NodeId[]> = {
-  2: ["inv_index"],
-  4: ["pr_scores"],
-  10: ["vector_store"],
+  3: ["inv_index"],
+  5: ["pr_scores"],
+  11: ["vector_store"],
 };
 
 function useAnimatedSteps(trace: PipelineTrace | null) {
@@ -151,7 +154,7 @@ function useAnimatedSteps(trace: PipelineTrace | null) {
     prev.current = trace;
     setStep(-1);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i <= 12; i++) {
+    for (let i = 0; i <= 13; i++) {
       timers.push(setTimeout(() => setStep(i), 300 * (i + 1)));
     }
     return () => timers.forEach(clearTimeout);
@@ -577,6 +580,32 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
         {nodeId === "knowledge_graph" && <KnowledgeGraphPanel />}
 
         {/* QUERY nodes */}
+        {nodeId === "intent" && (
+          <>
+            <p className="text-xs text-[var(--text-muted)]">Classifies the query to route it to the right experience — entity card, AI answer, or standard results.</p>
+            {trace?.intent ? (
+              <div style={{ animation: "fade-in 0.3s ease-out" }}>
+                <div className="space-y-1 mt-2">
+                  <StatRow label="Intent" value={trace.intent.intent} />
+                  <StatRow label="Method" value={trace.intent.method} />
+                  <StatRow label="Confidence" value={`${(trace.intent.confidence * 100).toFixed(0)}%`} />
+                  {trace.intent.time_ms != null && <StatRow label="Time" value={`${trace.intent.time_ms.toFixed(1)}ms`} />}
+                </div>
+                {trace.intent.entities?.length > 0 && (
+                  <IOBlock label="Entities detected">
+                    <div className="flex flex-wrap gap-1">
+                      {trace.intent.entities.map((e: string, i: number) => (
+                        <span key={i} className="font-mono text-xs px-1.5 py-0.5 bg-pink-500/10 text-pink-400 rounded">{e}</span>
+                      ))}
+                    </div>
+                  </IOBlock>
+                )}
+              </div>
+            ) : (
+              <SkeletonRows rows={2} />
+            )}
+          </>
+        )}
         {nodeId === "query_input" && data && (
           <div style={{ animation: "fade-in 0.3s ease-out" }}>
             <IOBlock label="Query">
@@ -1353,7 +1382,7 @@ export default function PipelineExplorer({ data, stats: propStats, overviewText,
     <div className="px-2 sm:px-4 py-3 sm:py-4">
       <Flowchart activeStep={activeStep} selectedNode={selectedNode} onSelectNode={setSelectedNode} data={data} />
 
-      {data && activeStep >= 11 && !selectedNode && (
+      {data && activeStep >= 12 && !selectedNode && (
         <div className="text-center pt-2" style={{ animation: "fade-in 0.4s ease-out" }}>
           <span className="text-xs text-[var(--text-dim)]">Pipeline complete · <span className="font-mono text-[var(--accent)]">{data.time_ms}ms</span></span>
         </div>
