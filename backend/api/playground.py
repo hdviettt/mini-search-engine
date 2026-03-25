@@ -394,6 +394,78 @@ def explore_embed(q: str):
     return {"query": q, "embedding": [round(v, 6) for v in vec], "dimensions": len(vec)}
 
 
+# --- Dashboard analytics ---
+
+@router.get("/dashboard")
+def dashboard():
+    """Aggregated search analytics for the dashboard."""
+    conn = get_connection()
+    try:
+        # Total queries
+        total_queries = conn.execute("SELECT COUNT(*) FROM query_log").fetchone()[0]
+
+        # Queries today
+        queries_today = conn.execute(
+            "SELECT COUNT(*) FROM query_log WHERE created_at > NOW() - INTERVAL '24 hours'"
+        ).fetchone()[0]
+
+        # Average latency
+        avg_latency = conn.execute(
+            "SELECT AVG(time_ms) FROM query_log WHERE created_at > NOW() - INTERVAL '24 hours'"
+        ).fetchone()[0] or 0
+
+        # Zero-result queries
+        zero_results = conn.execute(
+            "SELECT COUNT(*) FROM query_log WHERE results_count = 0 AND created_at > NOW() - INTERVAL '7 days'"
+        ).fetchone()[0]
+
+        # Popular queries (last 7 days)
+        popular = conn.execute(
+            """SELECT query, COUNT(*) as cnt, AVG(results_count) as avg_results, AVG(time_ms) as avg_ms
+               FROM query_log WHERE created_at > NOW() - INTERVAL '7 days'
+               GROUP BY query ORDER BY cnt DESC LIMIT 20"""
+        ).fetchall()
+
+        # Recent queries
+        recent = conn.execute(
+            "SELECT query, results_count, time_ms, created_at FROM query_log ORDER BY created_at DESC LIMIT 20"
+        ).fetchall()
+
+        # Corpus stats
+        pages = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
+        terms = conn.execute("SELECT COUNT(*) FROM terms").fetchone()[0]
+        chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        embedded = conn.execute("SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL").fetchone()[0]
+
+    except Exception as e:
+        conn.close()
+        return {"error": str(e)}
+
+    conn.close()
+    return {
+        "search": {
+            "total_queries": total_queries,
+            "queries_today": queries_today,
+            "avg_latency_ms": round(avg_latency, 1),
+            "zero_result_queries_7d": zero_results,
+        },
+        "popular_queries": [
+            {"query": r[0], "count": r[1], "avg_results": round(r[2] or 0, 1), "avg_ms": round(r[3] or 0, 1)}
+            for r in popular
+        ],
+        "recent_queries": [
+            {"query": r[0], "results": r[1], "time_ms": round(r[2] or 0, 1), "at": str(r[3])}
+            for r in recent
+        ],
+        "corpus": {
+            "pages": pages,
+            "terms": terms,
+            "chunks": chunks,
+            "chunks_embedded": embedded,
+        },
+    }
+
+
 # --- Sports data endpoints ---
 
 @router.get("/sports/matches")

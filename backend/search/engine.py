@@ -21,53 +21,68 @@ QUERY_ALIASES: dict[str, str] = {
 }
 
 
-def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 200) -> str:
-    """Find the best window of text containing query terms.
+def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 250) -> str:
+    """Extract a clean, sentence-aware snippet containing query terms.
 
-    Optimized: stems first 2000 words once, then uses a sliding window
-    with O(1) set lookups instead of the old O(n × m × 30) substring scan.
+    Strategy:
+    1. Split text into sentences
+    2. Find the sentence with the most query term matches
+    3. Return that sentence (+ neighbors if short), trimmed to max_length
+    4. Falls back to sliding window if no good sentence found
     """
+    import re
     if not body_text:
         return ""
 
-    words = body_text.split()
-    if not words:
+    # Clean Wikipedia noise from snippet text
+    text = re.sub(r"\[\d+\]", "", body_text)  # remove [1], [2] citations
+    text = re.sub(r"\[edit\]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    if not text:
         return ""
 
     if not query_terms:
-        return " ".join(words[:30])[:max_length]
+        # No query terms — return first meaningful sentence
+        sentences = re.split(r'(?<=[.!?])\s+', text[:1000])
+        for s in sentences:
+            s = s.strip()
+            if len(s) > 40:
+                return s[:max_length]
+        return text[:max_length]
 
     from indexer.stemmer import stem
 
-    # Only scan first 2000 words — snippet is almost always near the top
-    scan_limit = min(len(words), 2000)
-    term_set = set(query_terms)  # already stemmed from tokenize()
+    # Split into sentences and score each by query term matches
+    sentences = re.split(r'(?<=[.!?])\s+', text[:3000])
+    term_set = set(query_terms)
 
-    # Stem each word once for matching (keep original words for display)
-    stemmed = [stem(w.lower()) for w in words[:scan_limit]]
+    best_idx = 0
+    best_score = 0
+    for i, sent in enumerate(sentences):
+        words = sent.lower().split()
+        stemmed = [stem(w) for w in words]
+        score = sum(1 for w in stemmed if w in term_set)
+        # Bonus for sentences near the top (introductory sentences are usually best)
+        if i < 3:
+            score += 0.5
+        if score > best_score:
+            best_score = score
+            best_idx = i
 
-    # Sliding window: find 30-word window with most query term matches
-    window = 30
-    best_pos = 0
-    best_count = sum(1 for w in stemmed[:window] if w in term_set)
-    current_count = best_count
+    if best_score > 0:
+        # Take the best sentence + next sentence if short
+        snippet = sentences[best_idx].strip()
+        if len(snippet) < 100 and best_idx + 1 < len(sentences):
+            snippet += " " + sentences[best_idx + 1].strip()
+        return snippet[:max_length]
 
-    for i in range(1, scan_limit - window + 1):
-        if stemmed[i - 1] in term_set:
-            current_count -= 1
-        if stemmed[i + window - 1] in term_set:
-            current_count += 1
-        if current_count > best_count:
-            best_count = current_count
-            best_pos = i
-
-    start = max(0, best_pos - 3)
-    snippet = " ".join(words[start:start + window])
-    if start > 0:
-        snippet = "..." + snippet
-    if start + window < len(words):
-        snippet += "..."
-    return snippet[:max_length]
+    # Fallback: first meaningful sentence
+    for s in sentences[:5]:
+        s = s.strip()
+        if len(s) > 40:
+            return s[:max_length]
+    return text[:max_length]
 
 
 def _normalize_scores(scores: dict[int, float]) -> dict[int, float]:
@@ -142,18 +157,31 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > -8]
     reranked_ids = {c["page_id"] for c in reranked}
 
-    # Build results: reranked top + remaining from original ranking
+    # Build results with domain-level dedup (max 2 results per domain)
+    from urllib.parse import urlparse
     results = []
-    for c in reranked:
-        snippet = generate_snippet(c.get("body_text", ""), query_terms)
+    domain_counts: dict[str, int] = {}
+    MAX_PER_DOMAIN = 2
+
+    def _add_result(url: str, title: str, body_text: str, bm25: float, pr: float, score: float) -> bool:
+        domain = urlparse(url).hostname or ""
+        domain = domain.replace("www.", "")
+        if domain_counts.get(domain, 0) >= MAX_PER_DOMAIN:
+            return False
+        snippet = generate_snippet(body_text, query_terms)
         results.append(SearchResult(
-            url=c["url"],
-            title=c.get("title") or c["url"],
-            snippet=snippet,
-            bm25_score=round(bm25_scores.get(c["page_id"], 0), 4),
-            pagerank_score=round(pagerank_scores.get(c["page_id"], 0), 6),
-            final_score=round(c.get("rerank_score") or c["combined_score"], 4),
+            url=url, title=title or url, snippet=snippet,
+            bm25_score=round(bm25, 4),
+            pagerank_score=round(pr, 6),
+            final_score=round(score, 4),
         ))
+        domain_counts[domain] = domain_counts.get(domain, 0) + 1
+        return True
+
+    for c in reranked:
+        _add_result(c["url"], c.get("title") or c["url"], c.get("body_text", ""),
+                    bm25_scores.get(c["page_id"], 0), pagerank_scores.get(c["page_id"], 0),
+                    c.get("rerank_score") or c["combined_score"])
 
     # Fill remaining slots from the original ranking (not already reranked)
     for page_id, final_score in ranked:
@@ -164,14 +192,8 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
         row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
         if row is None:
             continue
-        url, title, body_text = row
-        snippet = generate_snippet(body_text, query_terms)
-        results.append(SearchResult(
-            url=url, title=title or url, snippet=snippet,
-            bm25_score=round(bm25_scores.get(page_id, 0), 4),
-            pagerank_score=round(pagerank_scores.get(page_id, 0), 6),
-            final_score=round(final_score, 4),
-        ))
+        _add_result(row[0], row[1] or row[0], row[2] or "",
+                    bm25_scores.get(page_id, 0), pagerank_scores.get(page_id, 0), final_score)
 
     # Sports detection (lightweight keyword match, no DB)
     sports_data = None
