@@ -401,6 +401,13 @@ def dashboard():
     """Aggregated search analytics for the dashboard."""
     conn = get_connection()
     try:
+        # Ensure query_log exists
+        conn.execute("""CREATE TABLE IF NOT EXISTS query_log (
+            id SERIAL PRIMARY KEY, query TEXT NOT NULL, results_count INTEGER,
+            time_ms REAL, has_overview BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW()
+        )""")
+        conn.commit()
+
         # Total queries
         total_queries = conn.execute("SELECT COUNT(*) FROM query_log").fetchone()[0]
 

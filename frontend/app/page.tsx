@@ -229,6 +229,47 @@ const SerpSidePanel = memo(function SerpSidePanel({
   );
 });
 
+function HeroStats() {
+  const [stats, setStats] = useState<{ pages: number; terms: number; queries: number; avg_ms: number } | null>(null);
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    fetch(`${API}/api/dashboard`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.error) {
+          setStats({
+            pages: d.corpus?.pages || 0,
+            terms: d.corpus?.terms || 0,
+            queries: d.search?.total_queries || 0,
+            avg_ms: d.search?.avg_latency_ms || 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [API]);
+
+  if (!stats) return null;
+
+  const items = [
+    { label: "Pages indexed", value: stats.pages.toLocaleString() },
+    { label: "Terms", value: stats.terms.toLocaleString() },
+    { label: "Queries served", value: stats.queries.toLocaleString() },
+    { label: "Avg latency", value: `${stats.avg_ms.toFixed(0)}ms` },
+  ];
+
+  return (
+    <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto" style={{ animation: "fade-in 0.6s ease-out 0.4s both" }}>
+      {items.map((item, i) => (
+        <div key={i} className="text-center">
+          <div className="text-[18px] sm:text-[20px] font-bold text-[var(--text)]">{item.value}</div>
+          <div className="text-[11px] text-[var(--text-dim)]">{item.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Home
    ═══════════════════════════════════════════════════════════════ */
@@ -258,15 +299,11 @@ export default function Home() {
           </div>
 
           <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
-            <div className="mb-6 sm:mb-8">
-              <img src="/ronaldo.svg" alt="Ronaldo SIU celebration" className="h-36 sm:h-48 mx-auto siu-entrance dark-svg-fix" draggable={false} />
-            </div>
-
             <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-4">
               Football Search
             </h1>
             <p className="text-[var(--text-muted)] text-sm sm:text-[15px] mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
-              A search engine built from scratch with BM25 ranking, PageRank authority scores, AI Overviews, and vector search
+              BM25F ranking, PageRank, neural re-ranking, AI Overviews &mdash; built from scratch
             </p>
 
             {/* Search bar */}
@@ -290,6 +327,9 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* Live dashboard stats */}
+            <HeroStats />
           </div>
         </div>
       ) : (
