@@ -103,16 +103,16 @@ const GraphCanvas = memo(function GraphCanvas({
           ctx.font = `${fontSize}px Inter, sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillStyle = "#e5e5f0";
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#333";
           ctx.fillText(n.name, n.x, n.y + r + fontSize);
         }
       }}
       linkLabel={(link) => (link as unknown as GraphLink).label}
-      linkColor={() => "rgba(255,255,255,0.12)"}
-      linkWidth={(link) => Math.min(3, 0.5 + (link as unknown as GraphLink).confidence * 0.5)}
-      linkDirectionalArrowLength={3}
+      linkColor={() => "rgba(128,128,180,0.4)"}
+      linkWidth={(link) => Math.min(3, 1 + (link as unknown as GraphLink).confidence * 0.5)}
+      linkDirectionalArrowLength={4}
       linkDirectionalArrowRelPos={1}
-      linkDirectionalArrowColor={() => "rgba(255,255,255,0.25)"}
+      linkDirectionalArrowColor={() => "rgba(128,128,180,0.6)"}
       linkCurvature={0.15}
       onNodeClick={(node) => onNodeClick((node as GraphNode).name)}
       onEngineStop={() => {}}
@@ -160,10 +160,10 @@ export default function KnowledgeGraphView() {
       setRelationships(kgData.relationships || []);
       setAttributes(kgData.attributes || []);
 
-      // Build entity name → type lookup
+      // Build entity name → type lookup (case-insensitive)
       const typeMap: Record<string, string> = {};
       for (const e of entData.entities || []) {
-        typeMap[e.name] = e.type;
+        typeMap[e.name.toLowerCase()] = e.type;
       }
       setEntityTypes(typeMap);
       setTypeCounts(entData.type_counts || {});
@@ -183,15 +183,15 @@ export default function KnowledgeGraphView() {
 
     // Count degrees from relationships
     for (const r of relationships) {
-      if (!nodeMap.has(r.source)) nodeMap.set(r.source, { type: entityTypes[r.source] || "unknown", degree: 0 });
-      if (!nodeMap.has(r.target)) nodeMap.set(r.target, { type: entityTypes[r.target] || "unknown", degree: 0 });
+      if (!nodeMap.has(r.source)) nodeMap.set(r.source, { type: entityTypes[r.source.toLowerCase()] || "unknown", degree: 0 });
+      if (!nodeMap.has(r.target)) nodeMap.set(r.target, { type: entityTypes[r.target.toLowerCase()] || "unknown", degree: 0 });
       nodeMap.get(r.source)!.degree++;
       nodeMap.get(r.target)!.degree++;
     }
 
     // Also add attribute entities as nodes (even without relationships)
     for (const a of attributes) {
-      if (!nodeMap.has(a.entity)) nodeMap.set(a.entity, { type: entityTypes[a.entity] || "unknown", degree: 0 });
+      if (!nodeMap.has(a.entity)) nodeMap.set(a.entity, { type: entityTypes[a.entity.toLowerCase()] || "unknown", degree: 0 });
     }
 
     // Filter by selected type
