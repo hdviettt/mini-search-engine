@@ -8,7 +8,7 @@ import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats } from "@/lib/api";
 
-type View = "search" | "explore" | "ai";
+type View = "search" | "explore";
 type Theme = "light" | "dark";
 
 function useTheme(): [Theme, () => void] {
@@ -57,7 +57,6 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
 function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   const tabs: { id: View; label: string }[] = [
     { id: "search", label: "All" },
-    { id: "ai", label: "AI" },
     { id: "explore", label: "Explore" },
   ];
   return (
@@ -105,21 +104,19 @@ function urlBreadcrumb(url: string) {
    SerpSidePanel — always rendered; shifts right when exploring
    ═══════════════════════════════════════════════════════════════ */
 const SerpSidePanel = memo(function SerpSidePanel({
-  engine, onToggleView, view, onViewChange, selectedNode, onCloseNode,
+  engine, onToggleView, isExploring, selectedNode, onCloseNode,
 }: {
   engine: SearchEngineState;
   onToggleView: () => void;
-  view: View;
-  onViewChange: (v: View) => void;
+  isExploring: boolean;
   selectedNode: string | null;
   onCloseNode: () => void;
 }) {
   const [chatFollowUp, setChatFollowUp] = useState<string | undefined>();
-  const isExploring = view === "explore";
-  const isAiMode = view === "ai";
+  const [aiChatActive, setAiChatActive] = useState(false);
 
-  // Reset follow-up when query changes
-  useEffect(() => { setChatFollowUp(undefined); }, [engine.query]);
+  // Reset chat when query changes
+  useEffect(() => { setChatFollowUp(undefined); setAiChatActive(false); }, [engine.query]);
 
   if (!engine.searchData) return null;
 
@@ -149,12 +146,12 @@ const SerpSidePanel = memo(function SerpSidePanel({
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
           isExploring ? "" : "max-w-5xl"
         }`}>
-          {(isAiMode || chatFollowUp) && engine.overviewText ? (
+          {aiChatActive && engine.overviewText ? (
             <AIChat
               initialQuery={engine.query}
               initialOverview={engine.overviewText}
               initialFollowUp={chatFollowUp}
-              onClose={() => { setChatFollowUp(undefined); onViewChange("search"); }}
+              onClose={() => { setChatFollowUp(undefined); setAiChatActive(false); }}
             />
           ) : (
             <AIOverview
@@ -165,7 +162,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
               compact={isExploring}
               onSearch={engine.handleSearch}
               query={engine.query}
-              onEnterChat={(q) => { setChatFollowUp(q); onViewChange("ai"); }}
+              onEnterChat={(q) => { setChatFollowUp(q); setAiChatActive(true); }}
             />
           )}
         </div>
@@ -363,7 +360,7 @@ export default function Home() {
         <div className="relative">
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
           <div className={view === "explore" ? "hidden lg:block" : ""}>
-            <SerpSidePanel engine={engine} onToggleView={toggleView} view={view} onViewChange={setView} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
+            <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
           </div>
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}
