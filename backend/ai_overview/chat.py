@@ -62,15 +62,20 @@ def generate_chat_stream(messages: list[dict]) -> Generator[str, None, None]:
 
     total_start = time.time()
 
-    # Search our index for the latest user message
-    latest_query = ""
-    for m in reversed(messages):
-        if m["role"] == "user":
-            latest_query = m["content"]
-            break
+    # Build search query from conversation context
+    # Combine the original query (first user message) with the latest question
+    # so "how tall is he" becomes "Ronaldo how tall is he"
+    user_messages = [m["content"] for m in messages if m["role"] == "user"]
+    original_topic = user_messages[0] if user_messages else ""
+    latest_question = user_messages[-1] if user_messages else ""
+
+    if len(user_messages) > 1 and original_topic.lower() not in latest_question.lower():
+        search_query = f"{original_topic} {latest_question}"
+    else:
+        search_query = latest_question
 
     t0 = time.time()
-    context, sources = _search_index(latest_query)
+    context, sources = _search_index(search_query)
     search_ms = round((time.time() - t0) * 1000, 1)
 
     # Send sources to frontend for rendering
