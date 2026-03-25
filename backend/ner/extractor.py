@@ -78,9 +78,28 @@ def _is_blocked(name: str) -> bool:
     if len(lower) < 3 or len(lower) > 60:
         return True
 
+    # Too many words — real entities are 1-3 words, concatenated lists are 4+
+    if len(lower.split()) > 4:
+        return True
+
     # All digits or mostly non-alpha
     alpha_count = sum(1 for c in lower if c.isalpha())
     if alpha_count < len(lower) * 0.5:
+        return True
+
+    # Contains sport/game names (Wikipedia sidebar contamination)
+    sport_words = {"korfball", "lumberjack", "badminton", "baseball", "basketball",
+                   "cricket", "curling", "cycling", "darts", "equestrian", "fencing",
+                   "gymnastics", "handball", "hockey", "judo", "karate", "lacrosse",
+                   "motorsport", "orienteering", "paralympic", "polo", "rowing",
+                   "rugby", "sailing", "shooting", "skating", "skiing", "snooker",
+                   "squash", "surfing", "swimming", "taekwondo", "tennis", "triathlon",
+                   "volleyball", "weightlifting", "wrestling", "archery", "boxing",
+                   "canoeing", "diving", "golf", "pentathlon", "softball", "cuju",
+                   "harpastum", "shinty", "sepak", "gateball", "cammag", "bando",
+                   "austus", "ritinis", "marn", "grook", "lelo"}
+    words = set(lower.split())
+    if words & sport_words:
         return True
 
     return False
