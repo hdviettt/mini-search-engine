@@ -58,6 +58,24 @@ def _split_into_chunks(text: str, max_tokens: int = 300) -> list[str]:
     return chunks
 
 
+def chunk_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str):
+    """Chunk a single page and store — called right after crawling."""
+    text = (title or "") + ". " + (body_text or "")
+    page_chunks = _split_into_chunks(text)
+
+    # Remove old chunks for this page
+    conn.execute("DELETE FROM chunks WHERE page_id = %s", (page_id,))
+
+    for chunk_idx, content in enumerate(page_chunks):
+        conn.execute(
+            """INSERT INTO chunks (page_id, chunk_idx, content)
+               VALUES (%s, %s, %s)""",
+            (page_id, chunk_idx, content),
+        )
+
+    conn.commit()
+
+
 def chunk_all_pages(conn: psycopg.Connection):
     """Split all crawled pages into chunks and store in the chunks table."""
     print("Chunking pages...")

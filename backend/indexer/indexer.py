@@ -7,6 +7,129 @@ import psycopg
 from indexer.tokenizer import tokenize
 
 
+def index_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str):
+    """Index a single page incrementally — called right after crawling.
+
+    1. Remove old postings/doc_stats for this page
+    2. Tokenize title + body
+    3. Upsert terms (ON CONFLICT)
+    4. Insert postings with per-field frequencies
+    5. Incrementally update corpus_stats
+    """
+    title = title or ""
+    body_text = body_text or ""
+
+    # Phase 1: Remove old data for this page
+    old_doc = conn.execute(
+        "SELECT doc_length FROM doc_stats WHERE page_id = %s", (page_id,)
+    ).fetchone()
+    old_doc_length = old_doc[0] if old_doc else 0
+
+    conn.execute("DELETE FROM postings WHERE page_id = %s", (page_id,))
+    conn.execute("DELETE FROM doc_stats WHERE page_id = %s", (page_id,))
+
+    # Phase 2: Tokenize
+    title_tokens = tokenize(title)
+    body_tokens = tokenize(body_text)
+    all_tokens = title_tokens + body_tokens
+    doc_length = len(all_tokens)
+
+    if doc_length == 0:
+        # Empty page — update corpus stats and return
+        _update_corpus_stats_remove(conn, old_doc_length) if old_doc else None
+        conn.commit()
+        return
+
+    all_counts = Counter(all_tokens)
+    title_counts = Counter(title_tokens)
+    body_counts = Counter(body_tokens)
+
+    # Phase 3: Upsert terms — get_or_create with ON CONFLICT
+    term_ids = {}
+    for term in all_counts:
+        row = conn.execute(
+            "INSERT INTO terms (term) VALUES (%s) ON CONFLICT (term) DO UPDATE SET term = EXCLUDED.term RETURNING id",
+            (term,),
+        ).fetchone()
+        term_ids[term] = row[0]
+
+    # Phase 4: Insert postings and doc_stats
+    for term, freq in all_counts.items():
+        conn.execute(
+            """INSERT INTO postings (term_id, page_id, term_freq, title_freq, body_freq)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (term_ids[term], page_id, freq, title_counts.get(term, 0), body_counts.get(term, 0)),
+        )
+
+    conn.execute(
+        "INSERT INTO doc_stats (page_id, doc_length) VALUES (%s, %s)",
+        (page_id, doc_length),
+    )
+
+    # Phase 5: Incrementally update corpus_stats
+    _update_corpus_stats_incremental(conn, old_doc_length if old_doc else None, doc_length)
+
+    conn.commit()
+
+
+def _update_corpus_stats_incremental(conn, old_doc_length: int | None, new_doc_length: int):
+    """Update total_docs and avg_doc_length incrementally.
+
+    If old_doc_length is None, this is a new page (total_docs += 1).
+    If old_doc_length is set, this is a re-index (total_docs unchanged).
+    """
+    stats = {}
+    for row in conn.execute("SELECT key, value FROM corpus_stats").fetchall():
+        stats[row[0]] = row[1]
+
+    total_docs = stats.get("total_docs", 0)
+    avg_dl = stats.get("avg_doc_length", 0)
+    total_length = avg_dl * total_docs
+
+    if old_doc_length is None:
+        # New page
+        total_length += new_doc_length
+        total_docs += 1
+    else:
+        # Re-index: swap old length for new
+        total_length = total_length - old_doc_length + new_doc_length
+
+    new_avg = total_length / total_docs if total_docs > 0 else 0
+
+    conn.execute(
+        "INSERT INTO corpus_stats (key, value) VALUES ('total_docs', %s) ON CONFLICT (key) DO UPDATE SET value = %s",
+        (total_docs, total_docs),
+    )
+    conn.execute(
+        "INSERT INTO corpus_stats (key, value) VALUES ('avg_doc_length', %s) ON CONFLICT (key) DO UPDATE SET value = %s",
+        (new_avg, new_avg),
+    )
+
+
+def _update_corpus_stats_remove(conn, old_doc_length: int):
+    """Remove a page's contribution from corpus_stats (page became empty)."""
+    stats = {}
+    for row in conn.execute("SELECT key, value FROM corpus_stats").fetchall():
+        stats[row[0]] = row[1]
+
+    total_docs = stats.get("total_docs", 0)
+    avg_dl = stats.get("avg_doc_length", 0)
+    total_length = avg_dl * total_docs
+
+    total_length -= old_doc_length
+    total_docs = max(0, total_docs - 1)
+    new_avg = total_length / total_docs if total_docs > 0 else 0
+
+    conn.execute(
+        "INSERT INTO corpus_stats (key, value) VALUES ('total_docs', %s) ON CONFLICT (key) DO UPDATE SET value = %s",
+        (total_docs, total_docs),
+    )
+    conn.execute(
+        "INSERT INTO corpus_stats (key, value) VALUES ('avg_doc_length', %s) ON CONFLICT (key) DO UPDATE SET value = %s",
+        (new_avg, new_avg),
+    )
+
+
 def build_index(conn: psycopg.Connection, progress_callback=None):
     """Build inverted index from all pages in the database.
 

@@ -5,6 +5,8 @@ import psycopg
 from config import ALLOWED_DOMAINS, ALLOWED_PATH_PATTERNS, BLOCKED_DOMAINS, MAX_PAGES, MAX_DEPTH
 from crawler.fetcher import Fetcher
 from crawler.parser import parse_page
+from indexer.indexer import index_page
+from rag.chunker import chunk_page
 
 
 class CrawlManager:
@@ -208,6 +210,10 @@ class CrawlManager:
 
             # Store links and enqueue new URLs
             self._store_links_and_enqueue(page_id, parsed["links"], depth)
+
+            # Incremental indexing — page is searchable immediately
+            index_page(self.conn, page_id, parsed["title"], parsed["body_text"])
+            chunk_page(self.conn, page_id, parsed["title"], parsed["body_text"])
 
             # Mark as crawled
             self._mark_queue_status(url, "crawled")
