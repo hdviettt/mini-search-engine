@@ -20,7 +20,7 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup_prewarm():
-    """Pre-warm heavy models on startup so first request isn't slow."""
+    """Pre-warm heavy models and load persistent schedules on startup."""
     import threading
     def _warm():
         try:
@@ -30,6 +30,13 @@ def startup_prewarm():
         except Exception as e:
             print(f"Reranker pre-warm failed: {e}")
     threading.Thread(target=_warm, daemon=True).start()
+
+    # Load persistent crawl schedules from DB
+    from api.jobs import crawl_scheduler
+    try:
+        crawl_scheduler.load_from_db()
+    except Exception as e:
+        print(f"Failed to load crawl schedules: {e}")
 
 app.add_middleware(
     CORSMiddleware,

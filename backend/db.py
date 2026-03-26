@@ -93,6 +93,20 @@ CREATE TABLE IF NOT EXISTS query_log (
     created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Crawl schedules: persistent recurring crawl configuration
+CREATE TABLE IF NOT EXISTS crawl_schedules (
+    id             TEXT PRIMARY KEY,
+    strategy       TEXT NOT NULL DEFAULT 'seed',
+    seed_urls      TEXT[] NOT NULL DEFAULT '{}',
+    max_pages      INTEGER NOT NULL DEFAULT 50,
+    max_depth      INTEGER NOT NULL DEFAULT 1,
+    interval_hours REAL NOT NULL DEFAULT 24.0,
+    enabled        BOOLEAN NOT NULL DEFAULT true,
+    last_run_at    TIMESTAMPTZ,
+    next_run_at    TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Performance indexes added in Phase 1
 CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
 CREATE INDEX IF NOT EXISTS idx_pages_crawled_at ON pages(crawled_at);

@@ -266,113 +266,202 @@ job_manager = JobManager()
 
 
 class CrawlScheduler:
-    """Simple recurring crawl scheduler using threading.Timer."""
+    """Recurring crawl scheduler with PostgreSQL persistence.
+
+    Strategies:
+      - 'seed': Crawl seed URLs to discover new content (max_depth, max_pages apply)
+      - 'top_pagerank': Re-crawl top N pages by PageRank score (keeps important content fresh)
+    """
 
     def __init__(self, job_manager: JobManager):
         self.job_manager = job_manager
-        self.schedules: dict[str, dict] = {}
+        self._timers: dict[str, threading.Timer] = {}
         self.lock = threading.Lock()
 
-    def add(self, seed_urls: list[str], max_pages: int, interval_hours: float) -> str:
+    def load_from_db(self):
+        """Load active schedules from DB and start their timers. Called on startup."""
+        conn = get_connection()
+        try:
+            conn.execute("""CREATE TABLE IF NOT EXISTS crawl_schedules (
+                id TEXT PRIMARY KEY, strategy TEXT NOT NULL DEFAULT 'seed',
+                seed_urls TEXT[] NOT NULL DEFAULT '{}', max_pages INTEGER NOT NULL DEFAULT 50,
+                max_depth INTEGER NOT NULL DEFAULT 1, interval_hours REAL NOT NULL DEFAULT 24.0,
+                enabled BOOLEAN NOT NULL DEFAULT true, last_run_at TIMESTAMPTZ,
+                next_run_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
+            )""")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        rows = conn.execute(
+            "SELECT id, enabled FROM crawl_schedules WHERE enabled = true"
+        ).fetchall()
+        conn.close()
+
+        for schedule_id, _ in rows:
+            self._start_timer(schedule_id)
+        if rows:
+            print(f"Loaded {len(rows)} active crawl schedule(s) from DB.")
+
+    def add(self, seed_urls: list[str], max_pages: int, interval_hours: float,
+            strategy: str = "seed", max_depth: int = 1) -> str:
         schedule_id = f"sched-{uuid.uuid4().hex[:8]}"
-        with self.lock:
-            schedule = {
-                "id": schedule_id,
-                "seed_urls": seed_urls,
-                "max_pages": max_pages,
-                "interval_hours": interval_hours,
-                "enabled": True,
-                "timer": None,
-                "last_run": None,
-                "next_run": time.time() + interval_hours * 3600,
-            }
-            self.schedules[schedule_id] = schedule
+        next_run = time.time() + interval_hours * 3600
+
+        conn = get_connection()
+        conn.execute(
+            """INSERT INTO crawl_schedules (id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run_at)
+               VALUES (%s, %s, %s, %s, %s, %s, to_timestamp(%s))""",
+            (schedule_id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run),
+        )
+        conn.commit()
+        conn.close()
+
         self._start_timer(schedule_id)
         return schedule_id
 
     def remove(self, schedule_id: str):
         with self.lock:
-            schedule = self.schedules.pop(schedule_id, None)
-        if schedule and schedule["timer"] is not None:
-            schedule["timer"].cancel()
+            timer = self._timers.pop(schedule_id, None)
+        if timer:
+            timer.cancel()
+
+        conn = get_connection()
+        conn.execute("DELETE FROM crawl_schedules WHERE id = %s", (schedule_id,))
+        conn.commit()
+        conn.close()
 
     def toggle(self, schedule_id: str, enabled: bool):
-        with self.lock:
-            schedule = self.schedules.get(schedule_id)
-            if not schedule:
-                return
-            schedule["enabled"] = enabled
+        conn = get_connection()
+        conn.execute("UPDATE crawl_schedules SET enabled = %s WHERE id = %s", (enabled, schedule_id))
+        conn.commit()
+        conn.close()
+
         if enabled:
             self._start_timer(schedule_id)
         else:
             with self.lock:
-                timer = schedule.get("timer")
-            if timer is not None:
+                timer = self._timers.pop(schedule_id, None)
+            if timer:
                 timer.cancel()
-                with self.lock:
-                    schedule["timer"] = None
-                    schedule["next_run"] = None
 
     def list_schedules(self) -> list[dict]:
-        with self.lock:
-            return [
-                {
-                    "id": s["id"],
-                    "seed_urls": s["seed_urls"],
-                    "max_pages": s["max_pages"],
-                    "interval_hours": s["interval_hours"],
-                    "enabled": s["enabled"],
-                    "last_run": s["last_run"],
-                    "next_run": s["next_run"],
-                }
-                for s in self.schedules.values()
-            ]
+        conn = get_connection()
+        rows = conn.execute(
+            """SELECT id, strategy, seed_urls, max_pages, max_depth, interval_hours,
+                      enabled, last_run_at, next_run_at FROM crawl_schedules ORDER BY created_at"""
+        ).fetchall()
+        conn.close()
+        return [
+            {
+                "id": r[0], "strategy": r[1], "seed_urls": r[2], "max_pages": r[3],
+                "max_depth": r[4], "interval_hours": r[5], "enabled": r[6],
+                "last_run": str(r[7]) if r[7] else None,
+                "next_run": str(r[8]) if r[8] else None,
+            }
+            for r in rows
+        ]
 
     def _start_timer(self, schedule_id: str):
         with self.lock:
-            schedule = self.schedules.get(schedule_id)
-            if not schedule or not schedule["enabled"]:
-                return
-            # Cancel any existing timer
-            if schedule["timer"] is not None:
-                schedule["timer"].cancel()
-            interval_seconds = schedule["interval_hours"] * 3600
-            schedule["next_run"] = time.time() + interval_seconds
-            timer = threading.Timer(interval_seconds, self._run_scheduled, args=[schedule_id])
-            timer.daemon = True
-            timer.start()
-            schedule["timer"] = timer
+            old = self._timers.pop(schedule_id, None)
+        if old:
+            old.cancel()
+
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT interval_hours, enabled FROM crawl_schedules WHERE id = %s", (schedule_id,)
+        ).fetchone()
+        conn.close()
+
+        if not row or not row[1]:
+            return
+
+        interval_seconds = row[0] * 3600
+        timer = threading.Timer(interval_seconds, self._run_scheduled, args=[schedule_id])
+        timer.daemon = True
+        timer.start()
+
+        with self.lock:
+            self._timers[schedule_id] = timer
+
+        # Update next_run_at in DB
+        conn = get_connection()
+        conn.execute(
+            "UPDATE crawl_schedules SET next_run_at = to_timestamp(%s) WHERE id = %s",
+            (time.time() + interval_seconds, schedule_id),
+        )
+        conn.commit()
+        conn.close()
 
     def _run_scheduled(self, schedule_id: str):
-        with self.lock:
-            schedule = self.schedules.get(schedule_id)
-            if not schedule or not schedule["enabled"]:
-                return
-            seed_urls = schedule["seed_urls"]
-            max_pages = schedule["max_pages"]
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT strategy, seed_urls, max_pages, max_depth, enabled FROM crawl_schedules WHERE id = %s",
+            (schedule_id,),
+        ).fetchone()
+        if not row or not row[4]:
+            conn.close()
+            return
+
+        strategy, seed_urls, max_pages, max_depth, _ = row
+        print(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
 
         try:
-            # Run crawl
-            conn = get_connection()
-            manager = CrawlManager(conn)
-            if seed_urls:
-                manager.seed(seed_urls)
-            stop_event = threading.Event()
-            manager.crawl(stop_event=stop_event, max_pages_override=max_pages)
-            # Re-index
-            build_index(conn)
-            # Re-compute pagerank
+            if strategy == "top_pagerank":
+                # Re-crawl top pages by PageRank — uses the refresh mechanism
+                from crawler.fetcher import Fetcher
+                from crawler.parser import parse_page
+                from crawler.manager import is_quality_page
+
+                top_rows = conn.execute(
+                    """SELECT p.id, p.url FROM pagerank pr
+                       JOIN pages p ON pr.page_id = p.id
+                       ORDER BY pr.score DESC LIMIT %s""",
+                    (max_pages,),
+                ).fetchall()
+
+                fetcher = Fetcher()
+                refreshed = 0
+                for page_id, url in top_rows:
+                    response = fetcher.fetch(url)
+                    if response is None or response.status_code >= 400:
+                        continue
+                    parsed = parse_page(url, response.text)
+                    conn.execute(
+                        "UPDATE pages SET title=%s, body_text=%s, content_hash=%s, crawled_at=NOW() WHERE id=%s",
+                        (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
+                    )
+                    conn.commit()
+                    if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
+                        index_page(conn, page_id, parsed["title"], parsed["body_text"])
+                        chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
+                    refreshed += 1
+                fetcher.close()
+                print(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
+
+            else:
+                # 'seed' strategy — crawl seed URLs to discover new content
+                manager = CrawlManager(conn)
+                if seed_urls:
+                    manager.seed(seed_urls)
+                stop_event = threading.Event()
+                manager.crawl(stop_event=stop_event, max_pages_override=max_pages, max_depth_override=max_depth)
+
+            # Recompute PageRank after any crawl
             compute_pagerank(conn)
-            conn.close()
+
         except Exception as e:
-            print(f"Scheduled crawl {schedule_id} failed: {e}")
+            print(f"[scheduler] Schedule {schedule_id} failed: {e}")
 
-        with self.lock:
-            schedule = self.schedules.get(schedule_id)
-            if schedule:
-                schedule["last_run"] = time.time()
+        # Update last_run_at
+        conn.execute(
+            "UPDATE crawl_schedules SET last_run_at = NOW() WHERE id = %s", (schedule_id,)
+        )
+        conn.commit()
+        conn.close()
 
-        # Reschedule the next run
+        # Reschedule
         self._start_timer(schedule_id)
 
 

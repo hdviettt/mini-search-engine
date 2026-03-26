@@ -36,7 +36,9 @@ class PageRankRequest(BaseModel):
 class ScheduleRequest(BaseModel):
     seed_urls: list[str] = []
     max_pages: int = 50
+    max_depth: int = 1
     interval_hours: float = 6.0
+    strategy: str = "seed"  # 'seed' or 'top_pagerank'
 
 
 # --- Endpoints ---
@@ -146,8 +148,11 @@ def pagerank_recompute(req: PageRankRequest):
 @router.post("/crawl/schedule")
 def schedule_create(req: ScheduleRequest):
     """Create a new recurring crawl schedule."""
-    schedule_id = crawl_scheduler.add(req.seed_urls, req.max_pages, req.interval_hours)
-    return {"schedule_id": schedule_id, "status": "scheduled", "interval_hours": req.interval_hours}
+    schedule_id = crawl_scheduler.add(
+        req.seed_urls, req.max_pages, req.interval_hours,
+        strategy=req.strategy, max_depth=req.max_depth,
+    )
+    return {"schedule_id": schedule_id, "status": "scheduled", "strategy": req.strategy, "interval_hours": req.interval_hours}
 
 
 @router.get("/crawl/schedules")
