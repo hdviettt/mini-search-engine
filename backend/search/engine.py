@@ -1,9 +1,10 @@
 """Search engine — combines BM25 and PageRank into final ranked results."""
 import time
+from datetime import datetime, timezone
 
 import psycopg
 
-from config import RANK_ALPHA
+from config import RANK_ALPHA, FRESHNESS_DECAY, FRESHNESS_FLOOR
 from indexer.tokenizer import tokenize
 from ranker.bm25 import search_bm25
 from ranker.reranker import rerank
@@ -136,6 +137,18 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
         bm25_norm = norm_bm25.get(page_id, 0)
         pr_norm = norm_pr.get(page_id, 0)
         combined[page_id] = RANK_ALPHA * bm25_norm + (1 - RANK_ALPHA) * pr_norm
+
+    # Freshness boost — recently crawled pages rank higher
+    now = datetime.now(timezone.utc)
+    freshness_rows = conn.execute(
+        f"SELECT id, crawled_at FROM pages WHERE id IN ({placeholders})",
+        matching_ids,
+    ).fetchall()
+    for page_id, crawled_at in freshness_rows:
+        if page_id in combined and crawled_at:
+            days_old = (now - crawled_at).days
+            boost = max(FRESHNESS_FLOOR, 1.0 - days_old * FRESHNESS_DECAY)
+            combined[page_id] *= boost
 
     # Sort by combined score
     ranked = sorted(combined.items(), key=lambda x: x[1], reverse=True)

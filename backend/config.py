@@ -93,6 +93,10 @@ BM25_B = 0.75
 # Ranking combination weight (0.7 = 70% BM25, 30% PageRank)
 RANK_ALPHA = 0.7
 
+# Freshness signal — decay rate per day, floor minimum
+FRESHNESS_DECAY = 0.01   # 1% per day (10 days old = 0.9 multiplier)
+FRESHNESS_FLOOR = 0.8    # minimum freshness multiplier
+
 # PageRank
 PAGERANK_DAMPING = 0.85
 PAGERANK_ITERATIONS = 20

@@ -1,10 +1,11 @@
 """Instrumented search that captures pipeline details for the playground."""
 import math
 import time
+from datetime import datetime, timezone
 
 import psycopg
 
-from config import BM25_K1, BM25_B, RANK_ALPHA
+from config import BM25_K1, BM25_B, RANK_ALPHA, FRESHNESS_DECAY, FRESHNESS_FLOOR
 from indexer.tokenizer import tokenize
 from ranker.bm25 import search_bm25
 from search.engine import generate_snippet, _normalize_scores, QUERY_ALIASES
@@ -169,6 +170,36 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
         "alpha": alpha,
         "formula": f"{alpha} * BM25 + {round(1 - alpha, 1)} * PageRank",
         "rank_changes": rank_changes,
+        "time_ms": round((time.time() - t0) * 1000, 2),
+    }
+
+    # Step 5b: Freshness boost
+    t0 = time.time()
+    now = datetime.now(timezone.utc)
+    freshness_rows = conn.execute(
+        f"SELECT id, crawled_at FROM pages WHERE id IN ({placeholders})",
+        matching_ids,
+    ).fetchall()
+    freshness_details = []
+    for page_id, crawled_at in freshness_rows:
+        if page_id in combined and crawled_at:
+            days_old = (now - crawled_at).days
+            boost = max(FRESHNESS_FLOOR, 1.0 - days_old * FRESHNESS_DECAY)
+            combined[page_id] *= boost
+            if page_id in combined_rank:
+                freshness_details.append({
+                    "page_id": page_id,
+                    "days_old": days_old,
+                    "boost": round(boost, 3),
+                })
+
+    # Re-sort after freshness
+    ranked = sorted(combined.items(), key=lambda x: x[1], reverse=True)
+
+    trace["freshness"] = {
+        "decay_per_day": FRESHNESS_DECAY,
+        "floor": FRESHNESS_FLOOR,
+        "details": freshness_details[:10],
         "time_ms": round((time.time() - t0) * 1000, 2),
     }
 
