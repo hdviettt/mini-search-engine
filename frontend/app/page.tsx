@@ -120,7 +120,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
   if (!engine.searchData) return null;
 
-  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-6" : "sm:pl-8 lg:pl-[180px]";
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-6" : "max-w-[692px] mx-auto";
 
   return (
     <div className="@container bg-[var(--bg)]">
@@ -315,33 +315,50 @@ export default function Home() {
 
   return (
     <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "min-h-screen"}`}>
-      {/* Header */}
-      {isHero ? (
-        /* ═══════════════════ Hero ═══════════════════ */
-        <div className="h-full flex flex-col items-center px-4 pt-[12vh]">
-          {/* Theme toggle — top right */}
-          <div className="fixed top-3 right-4 z-10">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          </div>
+      {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
+      <div className={`${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
+        <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
+          <a href="/" className="text-[18px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
+            FS
+          </a>
 
-          {/* Title */}
-          <h1 className="text-[28px] font-bold text-[var(--text)] tracking-tight mb-5">Football Search</h1>
-
-          {/* Centered search bar */}
           <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-            className="w-full max-w-[540px] mb-3"
+            className="flex-1 flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all px-3 sm:px-4"
           >
-            <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-4 hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+            <input name="q" type="text"
+              defaultValue={hasResults || isSearching ? engine.query : undefined}
+              key={hasResults || isSearching ? engine.query : "hero"}
+              placeholder={isHero ? PLACEHOLDERS[placeholderIdx] : "Search..."}
+              className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
+            {(hasResults || isSearching) && (
+              <button type="button" onClick={() => { window.location.href = "/"; }}
+                className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            )}
+            <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
-              <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                className="flex-1 py-3 px-3 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none" />
-            </div>
+            </button>
+            {(hasResults || isSearching) && (
+              <div className="shrink-0 border-l border-[var(--border)] pl-2 ml-1 flex items-center gap-1">
+                <ViewToggle view={view} onChange={setView} />
+              </div>
+            )}
           </form>
 
-          {/* Suggestion chips — right under search bar */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+      </div>
+
+      {/* ═══════════════════ Hero content ═══════════════════ */}
+      {isHero && (
+        <div className="flex flex-col items-center px-4 pt-6" style={{ animation: "content-in 0.3s ease-out" }}>
+          {/* Suggestion chips */}
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
             {SUGGESTIONS.map((q) => (
               <button key={q} onClick={() => engine.handleSearch(q)}
                 className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors">
@@ -353,48 +370,11 @@ export default function Home() {
           {/* Dashboard */}
           <HeroDashboard onSearch={engine.handleSearch} />
         </div>
-      ) : (
-        /* ═══════════════════ Results header — search bar with embedded controls ═══════════════════ */
-        <div className="sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
-            {/* Logo — sits in the lg:pl-40 gutter on desktop */}
-            <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
-              FS
-            </a>
-
-            <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-              className="flex-1 max-w-[600px] flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
-            >
-              <input name="q" type="text" defaultValue={engine.query} key={engine.query}
-                className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
-              {/* Clear button — hidden on mobile to save space */}
-              <button type="button" onClick={() => {
-                const input = document.querySelector('.sticky form input[name="q"]') as HTMLInputElement;
-                if (input) { input.value = ""; input.focus(); }
-              }} className="hidden sm:block p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-                </svg>
-              </button>
-              {/* Search button */}
-              <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
-              </button>
-              {/* Divider + view toggle + theme */}
-              <div className="shrink-0 border-l border-[var(--border)] pl-1.5 sm:pl-3 ml-0.5 sm:ml-1 flex items-center gap-0.5 sm:gap-1">
-                <ViewToggle view={view} onChange={setView} />
-                <ThemeToggle theme={theme} onToggle={toggleTheme} />
-              </div>
-            </form>
-          </div>
-        </div>
       )}
 
-      {/* Loading skeleton */}
+      {/* ═══════════════════ Loading skeleton ═══════════════════ */}
       {isSearching && (
-        <div className="px-4 sm:pl-8 lg:pl-[180px] py-6 max-w-[calc(180px+692px+2rem)]">
+        <div className="max-w-[692px] mx-auto px-4 py-6" style={{ animation: "content-in 0.3s ease-out" }}>
           <div className="space-y-3 mb-8">
             <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
             <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
@@ -419,7 +399,7 @@ export default function Home() {
 
       {/* Content */}
       {hasResults && (
-        <div className="relative lg:h-[calc(100vh-60px)]">
+        <div className="relative lg:h-[calc(100vh-60px)]" style={{ animation: "content-in 0.3s ease-out" }}>
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
           <div className={`lg:h-full lg:overflow-y-auto ${view === "explore" ? "hidden lg:block" : ""}`}>
             <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
