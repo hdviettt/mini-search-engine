@@ -330,12 +330,14 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  const isHero = !hasResults && !isSearching;
+
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className={`bg-[var(--bg)] ${isHero ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
       {/* Header */}
-      {!hasResults && !isSearching ? (
+      {isHero ? (
         /* ═══════════════════ Hero — same header position as results ═══════════════════ */
-        <div className="hero-container">
+        <div className="h-full flex flex-col">
           {/* Header — identical to results header for seamless transition */}
           <div className="bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
             <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
@@ -358,7 +360,7 @@ export default function Home() {
           </div>
 
           {/* Dashboard — centered in remaining space */}
-          <div className="hero-body">
+          <div className="flex-1 flex items-center justify-center px-4 min-h-0">
             <HeroDashboard onSearch={engine.handleSearch} />
           </div>
         </div>
