@@ -206,20 +206,25 @@ export default function AIChat({ initialQuery, initialOverview, initialSources, 
                   sources={messageSources[i] || []}
                   streaming={streaming && i === messages.length - 1}
                 />
-                {/* Source cards — shown after response finishes */}
+                {/* Source favicons — stacked circles matching AI Overview style */}
                 {messageSources[i] && messageSources[i].length > 0 && !(streaming && i === messages.length - 1) && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {messageSources[i].map(s => {
+                  <div className="flex items-center -space-x-1 mt-3">
+                    {messageSources[i].slice(0, 5).map(s => {
                       let domain = "";
                       try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = ""; }
                       return (
                         <a key={s.index} href={s.url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--chip-hover)] transition-colors text-[11px] border border-[var(--border)]">
-                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} alt="" width={12} height={12} className="rounded-full" />
-                          <span className="text-[var(--text-muted)] truncate max-w-[120px]">{s.title}</span>
+                          className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] border-2 border-[var(--bg)] flex items-center justify-center hover:z-10 hover:scale-110 transition-transform"
+                          title={`${s.title} — ${domain}`}>
+                          <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={14} height={14} className="rounded-full" />
                         </a>
                       );
                     })}
+                    {messageSources[i].length > 5 && (
+                      <span className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] border-2 border-[var(--bg)] flex items-center justify-center text-[9px] text-[var(--text-dim)] font-medium">
+                        +{messageSources[i].length - 5}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
