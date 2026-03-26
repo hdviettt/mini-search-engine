@@ -6,7 +6,6 @@
 
 :root,
 [data-theme="light"] {
-  --zoom: 1;
   --bg: #f8f8fb;
   --bg-card: #ffffff;
   --bg-elevated: #eff0f6;
@@ -71,10 +70,26 @@ body {
 
 /* Scale up the entire UI on large desktop screens */
 @media (min-width: 1280px) {
-  html { zoom: 1.2; --zoom: 1.2; }
+  html { zoom: 1.2; }
 }
 @media (min-width: 1600px) {
-  html { zoom: 1.3; --zoom: 1.3; }
+  html { zoom: 1.3; }
+}
+
+/* Hero container — fills exactly the visible viewport (accounts for zoom) */
+.hero-container {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hero-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  min-height: 0;
 }
 
 ::selection {

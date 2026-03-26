@@ -226,7 +226,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
   );
 });
 
-function HeroDashboard() {
+function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
   const [history, setHistory] = useState<StatsHistory | null>(null);
   const [currentStats, setCurrentStats] = useState<{ pages: number; terms: number; queries: number; avg_ms: number } | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -236,29 +236,15 @@ function HeroDashboard() {
     fetch(`${API}/api/dashboard`)
       .then(r => r.json())
       .then(d => {
-        if (!d.error) {
-          setCurrentStats({
-            pages: d.corpus?.pages || 0,
-            terms: d.corpus?.terms || 0,
-            queries: d.search?.total_queries || 0,
-            avg_ms: d.search?.avg_latency_ms || 0,
-          });
-        }
+        if (!d.error) setCurrentStats({ pages: d.corpus?.pages || 0, terms: d.corpus?.terms || 0, queries: d.search?.total_queries || 0, avg_ms: d.search?.avg_latency_ms || 0 });
       })
       .catch(() => {});
   }, [API]);
 
-  // Build chart data
   const pagesData = history?.pages_over_time || [];
   const queriesData = history?.queries_per_day || [];
-
-  // Cumulative pages
   let cumulative = 0;
-  const cumulativePages = pagesData.map(d => {
-    cumulative += d.count;
-    return { day: d.day.slice(5), value: cumulative };
-  });
-
+  const cumulativePages = pagesData.map(d => { cumulative += d.count; return { day: d.day.slice(5), value: cumulative }; });
   const queriesChart = queriesData.map(d => ({ day: d.day.slice(5), value: d.count }));
   const latencyChart = queriesData.map(d => ({ day: d.day.slice(5), value: Math.round(d.avg_ms) }));
 
@@ -270,61 +256,58 @@ function HeroDashboard() {
   ];
 
   return (
-    <div className="w-full max-w-3xl mx-auto" style={{ animation: "fade-in 0.5s ease-out 0.2s both" }}>
-      <div className="text-center mb-6">
-        <h2 className="text-[20px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
-        <p className="text-[12px] text-[var(--text-dim)]">BM25F &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews</p>
+    <div className="w-full max-w-[720px]" style={{ animation: "fade-in 0.5s ease-out 0.15s both" }}>
+      {/* Heading + suggestion chips */}
+      <div className="text-center mb-5">
+        <h2 className="text-[22px] font-bold text-[var(--text)] mb-1.5">Football Search Engine</h2>
+        <p className="text-[13px] text-[var(--text-dim)] mb-4">Built from scratch &mdash; crawling, indexing, ranking, and AI overviews</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {SUGGESTIONS.map((q) => (
+            <button key={q} onClick={() => onSearch(q)}
+              className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors">
+              {q}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {charts.map((c, i) => (
-          <StatsChart key={i} title={c.title} data={c.data} current={c.current} color={c.color} suffix={c.suffix} />
-        ))}
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {charts.map((c, i) => {
+          const hasData = c.data.length > 1;
+          const values = c.data.map(d => d.value);
+          const displayValue = c.current != null ? c.current.toLocaleString() + c.suffix : "—";
+
+          let sparkline = null;
+          if (hasData) {
+            const max = Math.max(...values, 1);
+            const min = Math.min(...values, 0);
+            const range = max - min || 1;
+            const w = 200, h = 40;
+            const pts = values.map((v, j) => `${(j / (values.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`).join(" ");
+            sparkline = (
+              <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[40px] mt-1.5" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id={`hg-${i}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={c.color} stopOpacity="0.2" />
+                    <stop offset="100%" stopColor={c.color} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#hg-${i})`} />
+                <polyline points={pts} fill="none" stroke={c.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            );
+          }
+
+          return (
+            <div key={i} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 pt-2.5 pb-1.5">
+              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">{c.title}</div>
+              <div className="text-[18px] font-bold tabular-nums leading-tight" style={{ color: c.color }}>{displayValue}</div>
+              {sparkline || <div className="h-[40px] mt-1.5 rounded bg-[var(--bg-elevated)]" />}
+            </div>
+          );
+        })}
       </div>
-    </div>
-  );
-}
-
-function StatsChart({ title, data, current, color, suffix }: {
-  title: string; data: { day: string; value: number }[];
-  current: number | null | undefined; color: string; suffix: string;
-}) {
-  const hasData = data.length > 1;
-  const values = data.map(d => d.value);
-  const displayValue = current != null ? current.toLocaleString() + suffix : "—";
-
-  // SVG area chart
-  let svgContent = null;
-  if (hasData) {
-    const max = Math.max(...values, 1);
-    const min = Math.min(...values, 0);
-    const range = max - min || 1;
-    const w = 200;
-    const h = 60;
-    const pts = values.map((v, i) => {
-      const x = (i / (values.length - 1)) * w;
-      const y = h - ((v - min) / range) * (h - 6) - 3;
-      return `${x},${y}`;
-    }).join(" ");
-
-    svgContent = (
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[60px] mt-2" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id={`g-${title.replace(/\s/g, "")}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#g-${title.replace(/\s/g, "")})`} />
-        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 pt-3 pb-2 flex flex-col">
-      <div className="text-[11px] text-[var(--text-dim)] mb-0.5">{title}</div>
-      <div className="text-[20px] font-bold tabular-nums" style={{ color }}>{displayValue}</div>
-      {svgContent || <div className="h-[60px] mt-2 flex items-center justify-center text-[11px] text-[var(--text-dim)]">Collecting data...</div>}
     </div>
   );
 }
@@ -351,20 +334,15 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults && !isSearching ? (
-        /* ═══════════════════ Hero — same header as results for seamless transition ═══════════════════ */
-        <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh / var(--zoom, 1))" }}>
-          {/* Header — identical position/padding to results header */}
-          <div className="shrink-0 bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
+        /* ═══════════════════ Hero — same header position as results ═══════════════════ */
+        <div className="hero-container">
+          {/* Header — identical to results header for seamless transition */}
+          <div className="bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
             <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
-              <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] tracking-tight shrink-0">
-                FS
-              </a>
+              <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] tracking-tight shrink-0">FS</a>
               <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
                 className="flex-1 max-w-[600px] flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all px-2.5 sm:px-4"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
                 <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
                   className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
                 <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
@@ -372,26 +350,16 @@ export default function Home() {
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                   </svg>
                 </button>
-                <div className="shrink-0 border-l border-[var(--border)] pl-1.5 sm:pl-3 ml-0.5 sm:ml-1 flex items-center gap-0.5 sm:gap-1">
+                <div className="shrink-0 border-l border-[var(--border)] pl-1.5 sm:pl-3 ml-0.5 sm:ml-1">
                   <ThemeToggle theme={theme} onToggle={toggleTheme} />
                 </div>
               </form>
             </div>
-            {/* Suggestion chips — aligned to content column */}
-            <div className="flex flex-wrap gap-2 px-4 sm:pl-8 lg:pl-[180px] mt-2">
-              {SUGGESTIONS.map((q, i) => (
-                <button key={q} onClick={() => engine.handleSearch(q)}
-                  className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
-                  style={{ animation: `fade-in 0.4s ease-out ${0.15 + i * 0.05}s both` }}>
-                  {q}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Dashboard — fills remaining space */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 min-h-0">
-            <HeroDashboard />
+          {/* Dashboard — centered in remaining space */}
+          <div className="hero-body">
+            <HeroDashboard onSearch={engine.handleSearch} />
           </div>
         </div>
       ) : (
