@@ -120,14 +120,14 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
   if (!engine.searchData) return null;
 
-  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-6" : "sm:px-8 lg:px-16 xl:px-24";
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-6" : "sm:pl-8 lg:pl-[180px]";
 
   return (
     <div className="@container bg-[var(--bg)]">
-      <div className="lg:overflow-y-auto lg:max-h-[calc(100vh-80px)]">
+      <div className={`lg:overflow-y-auto lg:max-h-[calc(100vh-80px)] px-4 transition-[padding-left] duration-500 ${plExploring}`}>
         {/* Node detail panel — sticky above results when exploring + node selected */}
         {isExploring && selectedNode && (
-          <div className={`hidden lg:block px-4 pt-3 pb-2 transition-[padding-left] duration-500 ${plExploring} border-b border-[var(--border)]`}>
+          <div className="hidden lg:block pt-3 pb-2 border-b border-[var(--border)]">
             <DetailPanel
               nodeId={selectedNode as NodeId}
               data={engine.searchData}
@@ -142,80 +142,83 @@ const SerpSidePanel = memo(function SerpSidePanel({
           </div>
         )}
 
-        {/* AI Overview / AI Chat Mode — shifts right when pipeline overlays */}
-        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring}`}>
-          {aiChatActive && engine.overviewText ? (
-            <AIChat
-              initialQuery={engine.query}
-              initialOverview={engine.overviewText}
-              initialSources={engine.overviewSources.map(s => ({ index: s.index, title: s.title, url: s.url }))}
-              initialFollowUp={chatFollowUp}
-              onClose={() => { setChatFollowUp(undefined); setAiChatActive(false); }}
-            />
-          ) : (
-            <AIOverview
-              text={engine.overviewText}
-              sources={engine.overviewSources}
-              loading={engine.overviewLoading}
-              streaming={engine.overviewStreaming}
-              compact={isExploring}
-              onSearch={engine.handleSearch}
-              query={engine.query}
-              onEnterChat={(q) => { setChatFollowUp(q); setAiChatActive(true); }}
-            />
+        {/* Single content column — Google-style ~692px max width */}
+        <div className="max-w-[692px]">
+          {/* AI Overview / AI Chat Mode */}
+          <div className="pt-2">
+            {aiChatActive && engine.overviewText ? (
+              <AIChat
+                initialQuery={engine.query}
+                initialOverview={engine.overviewText}
+                initialSources={engine.overviewSources.map(s => ({ index: s.index, title: s.title, url: s.url }))}
+                initialFollowUp={chatFollowUp}
+                onClose={() => { setChatFollowUp(undefined); setAiChatActive(false); }}
+              />
+            ) : (
+              <AIOverview
+                text={engine.overviewText}
+                sources={engine.overviewSources}
+                loading={engine.overviewLoading}
+                streaming={engine.overviewStreaming}
+                compact={isExploring}
+                onSearch={engine.handleSearch}
+                query={engine.query}
+                onEnterChat={(q) => { setChatFollowUp(q); setAiChatActive(true); }}
+              />
+            )}
+          </div>
+
+          {/* Sports card — live scores, fixtures, standings */}
+          {engine.searchData?.sports && (
+            <div>
+              <MatchCard data={engine.searchData.sports} />
+            </div>
           )}
-        </div>
 
-        {/* Sports card — live scores, fixtures, standings */}
-        {engine.searchData?.sports && (
-          <div className={`px-4 transition-[padding-left] duration-500 ${plExploring}`}>
-            <MatchCard data={engine.searchData.sports} />
-          </div>
-        )}
-
-        {/* Results — shifts right when pipeline overlays */}
-        <div className={`px-4 py-4 space-y-8 transition-[padding-left] duration-500 ${plExploring}`}>
-          <div className="text-[14px] text-[var(--meta)]">
-            {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
-          </div>
-          {engine.searchData.results.map((r, i) => {
-            const { domain, breadcrumb } = urlBreadcrumb(r.url);
-            return (
-              <article key={i} className="group">
-                {/* Site info — favicon + domain + breadcrumb */}
-                <div className="flex items-center gap-3.5 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={24} height={24} className="rounded-full" />
+          {/* Results */}
+          <div className="py-4 space-y-8">
+            <div className="text-[14px] text-[var(--meta)]">
+              {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
+            </div>
+            {engine.searchData.results.map((r, i) => {
+              const { domain, breadcrumb } = urlBreadcrumb(r.url);
+              return (
+                <article key={i} className="group">
+                  {/* Site info — favicon + domain + breadcrumb */}
+                  <div className="flex items-center gap-3.5 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
+                      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={24} height={24} className="rounded-full" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[16px] font-medium text-[var(--text)] truncate">{domain}</div>
+                      {breadcrumb && <div className="text-[14px] text-[var(--meta)] truncate">{domain} &rsaquo; {breadcrumb}</div>}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-[16px] font-medium text-[var(--text)] truncate">{domain}</div>
-                    {breadcrumb && <div className="text-[14px] text-[var(--meta)] truncate">{domain} &rsaquo; {breadcrumb}</div>}
+                  {/* Title */}
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
+                    <h3 className="text-[22px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
+                  </a>
+                  {/* Snippet */}
+                  <p className="text-[16px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
+                  {/* Score hints on hover */}
+                  <div className="hidden @lg:flex items-center gap-3 mt-2 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <span className="text-[11px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                    <span className="text-[11px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                    <span className="text-[11px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
                   </div>
-                </div>
-                {/* Title */}
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                  <h3 className="text-[22px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
-                </a>
-                {/* Snippet */}
-                <p className="text-[16px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
-                {/* Score hints on hover */}
-                <div className="hidden @lg:flex items-center gap-3 mt-2 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <span className="text-[11px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
-                  <span className="text-[11px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                  <span className="text-[11px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            })}
 
-          <div className="pt-4 @lg:pt-6">
-            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-sm text-[var(--meta)] hover:text-[var(--accent)] transition-colors cursor-pointer">
-              <span className="@lg:hidden">Explore pipeline</span>
-              <span className="hidden @lg:inline">See how these results were computed</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-              </svg>
-            </button>
+            <div className="pt-4 @lg:pt-6">
+              <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-sm text-[var(--meta)] hover:text-[var(--accent)] transition-colors cursor-pointer">
+                <span className="@lg:hidden">Explore pipeline</span>
+                <span className="hidden @lg:inline">See how these results were computed</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -329,14 +332,14 @@ export default function Home() {
       ) : (
         /* ═══════════════════ Results header — search bar with embedded controls ═══════════════════ */
         <div className="sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="flex items-center gap-3 px-3 sm:px-8 lg:px-16 xl:px-24">
+          <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
             {/* Logo — sits in the lg:pl-40 gutter on desktop */}
             <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
               FS
             </a>
 
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-              className="flex-1 max-w-2xl flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
+              className="flex-1 max-w-[600px] flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
             >
               <input name="q" type="text" defaultValue={engine.query} key={engine.query}
                 className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
@@ -367,7 +370,7 @@ export default function Home() {
 
       {/* Loading skeleton */}
       {isSearching && (
-        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6">
+        <div className="px-4 sm:pl-8 lg:pl-[180px] py-6 max-w-[calc(180px+692px+2rem)]">
           <div className="space-y-3 mb-8">
             <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
             <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
