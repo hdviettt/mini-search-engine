@@ -5,7 +5,7 @@ import uuid
 import time
 
 from db import get_connection
-from crawler.manager import CrawlManager
+from crawler.manager import CrawlManager, is_quality_page
 from crawler.fetcher import Fetcher
 from crawler.parser import parse_page
 from indexer.indexer import build_index, index_page
@@ -224,9 +224,10 @@ class JobManager:
                     )
                     conn.commit()
 
-                    # Re-index and re-chunk with new content
-                    index_page(conn, page_id, parsed["title"], parsed["body_text"])
-                    chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
+                    # Re-index and re-chunk only quality pages
+                    if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
+                        index_page(conn, page_id, parsed["title"], parsed["body_text"])
+                        chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
 
                     refreshed += 1
                     self._emit({"type": "refresh_progress", "job_id": job_id, "data": {

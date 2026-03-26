@@ -1,3 +1,4 @@
+import re
 from urllib.parse import urlparse
 
 import psycopg
@@ -7,6 +8,53 @@ from crawler.fetcher import Fetcher
 from crawler.parser import parse_page
 from indexer.indexer import index_page
 from rag.chunker import chunk_page
+
+
+# Titles that indicate error/placeholder pages
+_BAD_TITLES = {
+    "page not found", "404", "error", "not found", "access denied",
+    "403 forbidden", "untitled", "redirect", "loading", "just a moment",
+}
+
+# Patterns in body_text that indicate a redirect or soft-404
+_REDIRECT_PATTERNS = re.compile(
+    r"(you are being redirected|this page has moved|click here if you are not redirected|"
+    r"301 moved permanently|302 found|if you are not redirected)",
+    re.IGNORECASE,
+)
+
+
+def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str, content_hash: str) -> bool:
+    """Return True if the page is worth indexing. Logs reason when skipping."""
+    title = title or ""
+    body_text = body_text or ""
+
+    # 1. Minimum content length (100 words)
+    word_count = len(body_text.split())
+    if word_count < 100:
+        print(f"  [quality] skip page {page_id}: only {word_count} words (min 100)")
+        return False
+
+    # 2. Title quality
+    if not title or title.lower().strip() in _BAD_TITLES:
+        print(f"  [quality] skip page {page_id}: bad title '{title}'")
+        return False
+
+    # 3. Redirect detection
+    if _REDIRECT_PATTERNS.search(body_text[:1000]):
+        print(f"  [quality] skip page {page_id}: redirect/soft-404 detected")
+        return False
+
+    # 4. Content-hash dedup (different URL, same content)
+    dup = conn.execute(
+        "SELECT id FROM pages WHERE content_hash = %s AND id != %s LIMIT 1",
+        (content_hash, page_id),
+    ).fetchone()
+    if dup:
+        print(f"  [quality] skip page {page_id}: duplicate of page {dup[0]}")
+        return False
+
+    return True
 
 
 class CrawlManager:
@@ -208,12 +256,15 @@ class CrawlManager:
             # Store page
             page_id = self._store_page(url, response.status_code, parsed)
 
-            # Store links and enqueue new URLs
+            # Store links and enqueue new URLs (even for low-quality pages — links still matter for PageRank)
             self._store_links_and_enqueue(page_id, parsed["links"], depth)
 
-            # Incremental indexing — page is searchable immediately
-            index_page(self.conn, page_id, parsed["title"], parsed["body_text"])
-            chunk_page(self.conn, page_id, parsed["title"], parsed["body_text"])
+            # Quality gate — only index pages worth searching
+            if is_quality_page(self.conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
+                index_page(self.conn, page_id, parsed["title"], parsed["body_text"])
+                chunk_page(self.conn, page_id, parsed["title"], parsed["body_text"])
+            else:
+                status = "low_quality"
 
             # Mark as crawled
             self._mark_queue_status(url, "crawled")
