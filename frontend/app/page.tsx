@@ -124,7 +124,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
   return (
     <div className="@container bg-[var(--bg)]">
-      <div className={`lg:overflow-y-auto lg:max-h-[calc(100vh-80px)] px-4 transition-[padding-left] duration-500 ${plExploring}`}>
+      <div className={`px-4 transition-[padding-left] duration-500 ${plExploring}`}>
         {/* Node detail panel — sticky above results when exploring + node selected */}
         {isExploring && selectedNode && (
           <div className="hidden lg:block pt-3 pb-2 border-b border-[var(--border)]">
@@ -401,15 +401,15 @@ export default function Home() {
 
       {/* Content */}
       {hasResults && (
-        <div className="relative">
+        <div className="relative lg:h-[calc(100vh-60px)]">
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
-          <div className={view === "explore" ? "hidden lg:block" : ""}>
+          <div className={`lg:h-full lg:overflow-y-auto ${view === "explore" ? "hidden lg:block" : ""}`}>
             <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
           </div>
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}
           <div
-            className={`lg:absolute lg:top-0 lg:left-0 lg:bottom-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:z-10 ${
+            className={`lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:z-10 ${
               view === "explore"
                 ? "block lg:translate-x-0 lg:transition-transform lg:duration-500 lg:ease-in-out"
                 : "hidden lg:block lg:-translate-x-full lg:pointer-events-none lg:invisible lg:transition-[transform,visibility] lg:duration-500 lg:ease-in-out"
