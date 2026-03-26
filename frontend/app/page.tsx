@@ -314,9 +314,9 @@ export default function Home() {
   const isHero = !hasResults && !isSearching;
 
   return (
-    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "min-h-screen"}`}>
+    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:h-screen lg:flex lg:flex-col lg:overflow-hidden min-h-screen"}`}>
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
-      <div className={`${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
+      <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
         <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
           <a href="/" className="text-[18px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
             FS
@@ -399,7 +399,7 @@ export default function Home() {
 
       {/* Content */}
       {hasResults && (
-        <div className="relative lg:h-[calc(100vh-60px)]" style={{ animation: "content-in 0.3s ease-out" }}>
+        <div className="relative lg:flex-1 lg:min-h-0" style={{ animation: "content-in 0.3s ease-out" }}>
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
           <div className={`lg:h-full lg:overflow-y-auto lg:overscroll-contain ${view === "explore" ? "hidden lg:block" : ""}`}>
             <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
