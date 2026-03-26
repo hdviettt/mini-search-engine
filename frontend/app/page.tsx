@@ -60,7 +60,7 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
     { id: "explore", label: "Explore" },
   ];
   return (
-    <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-xs">
+    <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-sm">
       {tabs.map((t) => (
         <button
           key={t.id}
@@ -178,10 +178,10 @@ const SerpSidePanel = memo(function SerpSidePanel({
         )}
 
         {/* Results — shifts right when pipeline overlays */}
-        <div className={`px-4 py-2 space-y-6 transition-[padding-left] duration-500 ${plExploring} ${
+        <div className={`px-4 py-3 space-y-7 transition-[padding-left] duration-500 ${plExploring} ${
           isExploring ? "max-w-none" : "max-w-4xl"
         }`}>
-          <div className="text-[13px] text-[var(--meta)]">
+          <div className="text-[14px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
           {engine.searchData.results.map((r, i) => {
@@ -189,33 +189,33 @@ const SerpSidePanel = memo(function SerpSidePanel({
             return (
               <article key={i} className="group">
                 {/* Site info — favicon + domain + breadcrumb */}
-                <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={20} height={20} className="rounded-full" />
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={22} height={22} className="rounded-full" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[14px] font-medium text-[var(--text)] truncate">{domain}</div>
-                    {breadcrumb && <div className="text-[13px] text-[var(--meta)] truncate">{domain} &rsaquo; {breadcrumb}</div>}
+                    <div className="text-[15px] font-medium text-[var(--text)] truncate">{domain}</div>
+                    {breadcrumb && <div className="text-[14px] text-[var(--meta)] truncate">{domain} &rsaquo; {breadcrumb}</div>}
                   </div>
                 </div>
                 {/* Title */}
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                  <h3 className="text-[18px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
+                  <h3 className="text-[20px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
                 </a>
                 {/* Snippet */}
-                <p className="text-[14px] text-[var(--snippet)] leading-[1.58] line-clamp-2 sm:line-clamp-3 mt-0.5">{r.snippet}</p>
+                <p className="text-[15px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
                 {/* Score hints on hover */}
-                <div className="hidden @lg:flex items-center gap-3 mt-1.5 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <span className="text-[10px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
-                  <span className="text-[10px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                  <span className="text-[10px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                <div className="hidden @lg:flex items-center gap-3 mt-2 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-[11px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
+                  <span className="text-[11px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
+                  <span className="text-[11px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
                 </div>
               </article>
             );
           })}
 
           <div className="pt-4 @lg:pt-6">
-            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-xs text-[var(--meta)] hover:text-[var(--accent)] transition-colors cursor-pointer">
+            <button onClick={onToggleView} className="inline-flex items-center gap-1.5 text-sm text-[var(--meta)] hover:text-[var(--accent)] transition-colors cursor-pointer">
               <span className="@lg:hidden">Explore pipeline</span>
               <span className="hidden @lg:inline">See how these results were computed</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -262,8 +262,8 @@ function HeroStats() {
     <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto" style={{ animation: "fade-in 0.6s ease-out 0.4s both" }}>
       {items.map((item, i) => (
         <div key={i} className="text-center">
-          <div className="text-[18px] sm:text-[20px] font-bold text-[var(--text)]">{item.value}</div>
-          <div className="text-[11px] text-[var(--text-dim)]">{item.label}</div>
+          <div className="text-[22px] sm:text-[26px] font-bold text-[var(--text)]">{item.value}</div>
+          <div className="text-[13px] text-[var(--text-dim)]">{item.label}</div>
         </div>
       ))}
     </div>
@@ -299,10 +299,10 @@ export default function Home() {
           </div>
 
           <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
-            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-4">
+            <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-5">
               Football Search
             </h1>
-            <p className="text-[var(--text-muted)] text-sm sm:text-[15px] mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
+            <p className="text-[var(--text-muted)] text-base sm:text-[17px] mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
               BM25F ranking, PageRank, neural re-ranking, AI Overviews &mdash; built from scratch
             </p>
 
@@ -313,7 +313,7 @@ export default function Home() {
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                 </svg>
                 <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                  className="flex-1 py-3.5 sm:py-4 px-3 bg-transparent text-[var(--text)] text-sm sm:text-base placeholder:text-[var(--text-dim)] focus:outline-none" />
+                  className="flex-1 py-4 sm:py-5 px-3 bg-transparent text-[var(--text)] text-base sm:text-lg placeholder:text-[var(--text-dim)] focus:outline-none" />
               </div>
             </form>
 
@@ -321,7 +321,7 @@ export default function Home() {
             <div className="mt-4 sm:mt-5 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((q, i) => (
                 <button key={q} onClick={() => engine.handleSearch(q)}
-                  className="text-sm px-4 py-2 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
+                  className="text-base px-5 py-2.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
                   style={{ animation: `fade-in 0.4s ease-out ${0.2 + i * 0.06}s both` }}>
                   {q}
                 </button>
@@ -337,7 +337,7 @@ export default function Home() {
         <div className="sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md pt-2 sm:pt-3 pb-2 sm:pb-3">
           <div className="flex items-center gap-3 px-3 sm:px-4 lg:pl-40 lg:pr-8 max-w-5xl">
             {/* Logo — sits in the lg:pl-40 gutter on desktop */}
-            <a href="/" className="hidden lg:block fixed left-6 text-[17px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight z-40">
+            <a href="/" className="hidden lg:block fixed left-6 text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight z-40">
               FS
             </a>
 
@@ -345,7 +345,7 @@ export default function Home() {
               className="flex-1 flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
             >
               <input name="q" type="text" defaultValue={engine.query} key={engine.query}
-                className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-sm placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
+                className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
               {/* Clear button — hidden on mobile to save space */}
               <button type="button" onClick={() => {
                 const input = document.querySelector('.sticky form input[name="q"]') as HTMLInputElement;
