@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 import psycopg
 
-from config import ALLOWED_DOMAINS, ALLOWED_PATH_PATTERNS, BLOCKED_DOMAINS, MAX_PAGES, MAX_DEPTH
+from config import ALLOWED_DOMAINS, ALLOWED_PATH_PATTERNS, BLOCKED_DOMAINS, MAX_PAGES, MAX_DEPTH, WIKIPEDIA_FOOTBALL_KEYWORDS
 from crawler.fetcher import Fetcher
 from crawler.parser import parse_page
 from indexer.indexer import index_page
@@ -80,8 +80,13 @@ class CrawlManager:
         self.conn.commit()
         print(f"Seeded {len(urls)} URLs.")
 
-    def _is_in_scope(self, url: str) -> bool:
-        """Check if URL belongs to an allowed domain and matches allowed paths."""
+    def _is_in_scope(self, url: str, depth: int = 0) -> bool:
+        """Check if URL belongs to an allowed domain and matches allowed paths.
+
+        For Wikipedia, depth controls strictness:
+        - depth ≤ 1: allow any /wiki/ page (direct links from football seeds are almost all football)
+        - depth ≥ 2: require football keyword in URL path (prevents snowball into non-football topics)
+        """
         parsed = urlparse(url)
         domain = parsed.netloc
         path = parsed.path
@@ -98,7 +103,18 @@ class CrawlManager:
         if domain not in self.allowed_domains:
             return False
 
-        # Must match at least one allowed path pattern
+        # Wikipedia: depth-aware filtering
+        if domain == "en.wikipedia.org":
+            if "/wiki/" not in path:
+                return False
+            # Depth 0-1: trust links from curated seeds (player pages, etc.)
+            if depth <= 1:
+                return True
+            # Depth 2+: require football keyword to prevent topic drift
+            path_lower = path.lower()
+            return any(kw.lower() in path_lower for kw in WIKIPEDIA_FOOTBALL_KEYWORDS)
+
+        # Other domains: match against allowed path patterns
         for pattern in ALLOWED_PATH_PATTERNS:
             if pattern in path:
                 return True
@@ -164,7 +180,7 @@ class CrawlManager:
             )
 
             # Enqueue if in scope and within depth limit
-            if self._is_in_scope(link_url) and depth + 1 <= MAX_DEPTH:
+            if self._is_in_scope(link_url, depth=depth + 1) and depth + 1 <= MAX_DEPTH:
                 self.conn.execute(
                     """INSERT INTO crawl_queue (url, depth)
                        VALUES (%s, %s) ON CONFLICT (url) DO NOTHING""",

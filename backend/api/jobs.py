@@ -303,6 +303,38 @@ class CrawlScheduler:
         if rows:
             print(f"Loaded {len(rows)} active crawl schedule(s) from DB.")
 
+    def ensure_default_schedules(self):
+        """Create default schedules if none exist. Called once on startup."""
+        conn = get_connection()
+        existing = conn.execute("SELECT COUNT(*) FROM crawl_schedules").fetchone()[0]
+        conn.close()
+
+        if existing > 0:
+            return  # User has configured their own schedules
+
+        print("[scheduler] No schedules found. Creating defaults...")
+
+        # Weekly: re-crawl top 50 pages by PageRank to keep high-value content fresh
+        self.add(
+            seed_urls=[],
+            max_pages=50,
+            interval_hours=168.0,  # 7 days
+            strategy="top_pagerank",
+            max_depth=0,
+        )
+
+        # Daily: discover new content from seed URLs
+        from config import SEED_URLS
+        self.add(
+            seed_urls=SEED_URLS,
+            max_pages=30,
+            interval_hours=24.0,
+            strategy="seed",
+            max_depth=1,
+        )
+
+        print("[scheduler] Created 2 default schedules (weekly top-pagerank refresh, daily seed discovery).")
+
     def add(self, seed_urls: list[str], max_pages: int, interval_hours: float,
             strategy: str = "seed", max_depth: int = 1) -> str:
         schedule_id = f"sched-{uuid.uuid4().hex[:8]}"

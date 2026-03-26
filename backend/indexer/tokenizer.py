@@ -3,7 +3,7 @@ import re
 from indexer.stemmer import stem
 
 # Common English stopwords — words too frequent to be useful for search
-STOPWORDS = frozenset({
+_ENGLISH_STOPWORDS = frozenset({
     "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
     "of", "with", "by", "from", "is", "it", "as", "be", "was", "were",
     "are", "been", "being", "have", "has", "had", "do", "does", "did",
@@ -19,14 +19,38 @@ STOPWORDS = frozenset({
     "my", "your", "his", "our", "their", "here", "there",
 })
 
+# Wikipedia metadata and web noise that leaks through HTML parsing
+_WIKI_WEB_STOPWORDS = frozenset({
+    # Wikipedia editing/citation metadata
+    "edit", "edited", "retrieved", "archived", "accessed", "cite",
+    "citation", "isbn", "issn", "doi", "pmid", "oclc",
+    "original", "wayback", "pdf",
+    # Web infrastructure noise
+    "http", "https", "www", "com", "org", "html", "htm", "php",
+    # Web boilerplate
+    "cookie", "cookies", "privacy", "policy", "subscribe", "newsletter",
+    "login", "signup", "register", "advertisement", "sponsored",
+    "share", "tweet", "facebook", "twitter", "instagram",
+    # Navigation noise
+    "menu", "previous", "next", "skip", "navigation",
+})
+
+STOPWORDS = _ENGLISH_STOPWORDS | _WIKI_WEB_STOPWORDS
+
 
 def tokenize(text: str) -> list[str]:
     """Convert text into a list of normalized, stemmed tokens.
 
-    Pipeline: lowercase → keep alphanumeric → split → remove stopwords → stem
+    Pipeline: lowercase → keep alphanumeric → split → filter → stem
+    Filters: stopwords, pure numbers, length bounds (2-30 chars).
     Stemming ensures "running", "runs", "ran" all reduce to "run".
     """
     text = text.lower()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     tokens = text.split()
-    return [stem(t) for t in tokens if t not in STOPWORDS and len(t) > 1]
+    return [
+        stem(t) for t in tokens
+        if t not in STOPWORDS
+        and 2 <= len(t) <= 30
+        and not t.isdigit()
+    ]

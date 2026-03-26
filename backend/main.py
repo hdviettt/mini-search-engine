@@ -31,10 +31,11 @@ def startup_prewarm():
             print(f"Reranker pre-warm failed: {e}")
     threading.Thread(target=_warm, daemon=True).start()
 
-    # Load persistent crawl schedules from DB
+    # Load persistent crawl schedules from DB and create defaults if needed
     from api.jobs import crawl_scheduler
     try:
         crawl_scheduler.load_from_db()
+        crawl_scheduler.ensure_default_schedules()
     except Exception as e:
         print(f"Failed to load crawl schedules: {e}")
 

@@ -12,6 +12,7 @@ _STRIP_TAGS = [
     "iframe",      # embedded content
     "svg",         # icons
     "figure",      # images with captions (often noisy)
+    "table",       # stat tables flatten to garbage like "Player Goals 50 30"
 ]
 
 # CSS class/id patterns that indicate boilerplate (not article content)
@@ -25,6 +26,18 @@ _BOILERPLATE_PATTERNS = [
     "breadcrumb", "cookie", "popup", "modal", "social-share", "share-bar",
     "newsletter", "related-articles", "comments", "ad-", "advertisement",
     "footer", "sidebar", "widget", "menu", "dropdown",
+    # BBC Sport
+    "ssrcss-", "gel-", "bbc-footer", "orb-",
+    # ESPN
+    "article-meta", "game-strip", "scoreboard",
+    # Guardian
+    "dcr-", "submeta", "rich-link",
+    # Transfermarkt
+    "quick-select", "pager",
+    # Wikipedia additions
+    "mw-indicators", "printfooter", "mw-hidden-catlinks",
+    # Generic additions
+    "promo", "sponsored", "breaking-news", "ticker",
 ]
 
 
@@ -43,7 +56,7 @@ def _is_boilerplate(element) -> bool:
     return False
 
 
-def _find_main_content(tree) -> str:
+def _find_main_content(tree, domain: str = "") -> str:
     """Extract the main article content, stripping boilerplate.
 
     Strategy:
@@ -51,6 +64,13 @@ def _find_main_content(tree) -> str:
     2. If found, extract text from there (much cleaner)
     3. Fallback: use full body but strip more aggressively
     """
+    # Domain-specific selectors (prepended before generic ones)
+    _domain_selectors = {
+        "www.bbc.com": ['//article', '//div[contains(@class, "ssrcss")]//article'],
+        "www.espn.com": ['//article', '//div[contains(@class, "article-body")]'],
+        "www.theguardian.com": ['//div[@id="maincontent"]', '//div[contains(@class, "article-body")]'],
+    }
+
     # Try to find the main content container
     candidates = [
         # Wikipedia
@@ -66,6 +86,10 @@ def _find_main_content(tree) -> str:
         '//div[contains(@class, "story-body")]',
         '//div[contains(@class, "content-body")]',
     ]
+
+    # Prepend domain-specific selectors if available
+    if domain in _domain_selectors:
+        candidates = _domain_selectors[domain] + candidates
 
     content_root = None
     for xpath in candidates:
@@ -104,7 +128,8 @@ def parse_page(url: str, raw_html: str) -> dict:
                 parent.remove(element)
 
     # Find main content container
-    content_root = _find_main_content(tree)
+    domain = urlparse(url).netloc
+    content_root = _find_main_content(tree, domain=domain)
 
     # Extract text from main content only
     body_text = content_root.text_content()
@@ -112,11 +137,18 @@ def parse_page(url: str, raw_html: str) -> dict:
     # Clean up whitespace
     body_text = re.sub(r"\s+", " ", body_text).strip()
 
+    # Strip citation markers [1], [2] and [edit] from stored text
+    body_text = re.sub(r"\[\d+\]", "", body_text)
+    body_text = re.sub(r"\[edit\]", "", body_text, flags=re.IGNORECASE)
+    body_text = re.sub(r"\s+", " ", body_text).strip()
+
     # Remove common Wikipedia trailing noise
     # Cut at "References" or "External links" section if present
     for marker in ["References[edit]", "References [edit]", "External links[edit]",
                     "External links [edit]", "See also[edit]", "See also [edit]",
-                    " References ", " External links "]:
+                    " References ", " External links ",
+                    "Notes[edit]", "Notes [edit]", "Bibliography[edit]",
+                    "Further reading[edit]", "Further reading [edit]"]:
         idx = body_text.find(marker)
         if idx > 500:  # only cut if there's enough content before it
             body_text = body_text[:idx].strip()

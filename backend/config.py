@@ -13,43 +13,66 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://searchengine:searchengine
 
 # Crawler settings
 SEED_URLS = [
-    # Wikipedia — football overview pages
-    "https://en.wikipedia.org/wiki/Association_football",
+    # ── Wikipedia super-hubs (300-600 outgoing links each) ──
+    "https://en.wikipedia.org/wiki/List_of_association_football_records",
+    "https://en.wikipedia.org/wiki/List_of_association_football_competitions",
+    "https://en.wikipedia.org/wiki/List_of_top-division_football_clubs_in_UEFA_countries",
+    "https://en.wikipedia.org/wiki/List_of_men%27s_national_association_football_teams",
+    "https://en.wikipedia.org/wiki/FIFA_World_Cup_records_and_statistics",
+    "https://en.wikipedia.org/wiki/List_of_UEFA_Champions_League_records_and_statistics",
+
+    # ── Wikipedia competitions & leagues ──
     "https://en.wikipedia.org/wiki/FIFA_World_Cup",
     "https://en.wikipedia.org/wiki/UEFA_Champions_League",
+    "https://en.wikipedia.org/wiki/UEFA_Europa_League",
+    "https://en.wikipedia.org/wiki/UEFA_European_Championship",
+    "https://en.wikipedia.org/wiki/Copa_Am%C3%A9rica",
+    "https://en.wikipedia.org/wiki/Africa_Cup_of_Nations",
     "https://en.wikipedia.org/wiki/Premier_League",
     "https://en.wikipedia.org/wiki/La_Liga",
+    "https://en.wikipedia.org/wiki/Serie_A",
+    "https://en.wikipedia.org/wiki/Bundesliga",
+    "https://en.wikipedia.org/wiki/Ligue_1",
+
+    # ── Wikipedia players & awards ──
+    "https://en.wikipedia.org/wiki/Ballon_d%27Or",
     "https://en.wikipedia.org/wiki/Lionel_Messi",
     "https://en.wikipedia.org/wiki/Cristiano_Ronaldo",
-    # BBC Sport Football
+    "https://en.wikipedia.org/wiki/Kylian_Mbapp%C3%A9",
+    "https://en.wikipedia.org/wiki/Erling_Haaland",
+
+    # ── Wikipedia fundamentals ──
+    "https://en.wikipedia.org/wiki/Association_football",
+    "https://en.wikipedia.org/wiki/History_of_association_football",
+    "https://en.wikipedia.org/wiki/Association_football_tactics_and_skills",
+    "https://en.wikipedia.org/wiki/List_of_association_football_stadiums_by_capacity",
+
+    # ── News: BBC Sport ──
     "https://www.bbc.com/sport/football",
     "https://www.bbc.com/sport/football/premier-league",
     "https://www.bbc.com/sport/football/champions-league",
-    # ESPN Soccer
+
+    # ── News: ESPN Soccer ──
     "https://www.espn.com/soccer/",
-    # GiveMeSport — football news & lists
-    "https://www.givemesport.com/football/",
-    # Sky Sports — football coverage
+
+    # ── News: Sky Sports ──
     "https://www.skysports.com/football",
-    # Goal.com — football news
-    "https://www.goal.com/en/football",
-    # Transfermarkt — player/team data
-    "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
-    # The Guardian — football section
+
+    # ── News: The Guardian ──
     "https://www.theguardian.com/football",
-    # FourFourTwo — football magazine
-    "https://www.fourfourtwo.com/football",
+
+    # ── Data: Transfermarkt ──
+    "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
 ]
 ALLOWED_DOMAINS = [
     "en.wikipedia.org",
     "www.bbc.com",
     "www.espn.com",
-    "www.givemesport.com",
     "www.skysports.com",
-    "www.goal.com",
-    "www.transfermarkt.com",
     "www.theguardian.com",
-    "www.fourfourtwo.com",
+    "www.transfermarkt.com",
+    # Dropped: www.goal.com (404/JS SPA), www.givemesport.com (bot-blocked),
+    #          www.fourfourtwo.com (broken URL structure)
 ]
 MAX_PAGES = 3000
 MAX_DEPTH = 3
@@ -58,25 +81,32 @@ USER_AGENT = "Mozilla/5.0 (compatible; VietSearchBot/1.0; +https://github.com/hd
 REQUEST_TIMEOUT = 10  # seconds
 
 # URL filtering — only crawl football-related paths
+# Wikipedia is handled separately via WIKIPEDIA_FOOTBALL_KEYWORDS in crawler/manager.py
 ALLOWED_PATH_PATTERNS = [
-    # Wikipedia: any /wiki/ page
-    "/wiki/",
-    # BBC: only football section
-    "/sport/football",
-    # ESPN: only soccer section
-    "/soccer/",
-    # GiveMeSport: football section
-    "/football",
-    # Sky Sports: football section
-    "/football",
-    # Goal.com: football section
-    "/football",
-    # Transfermarkt: any page (all football)
-    "/",
-    # The Guardian: football section
-    "/football",
-    # FourFourTwo: football section
-    "/football",
+    "/sport/football",   # BBC
+    "/soccer/",          # ESPN
+    "/football",         # Sky Sports, Guardian
+    "/",                 # Transfermarkt (all football)
+]
+
+# Wikipedia: only crawl pages whose URL path contains a football-related keyword
+WIKIPEDIA_FOOTBALL_KEYWORDS = [
+    "football", "soccer", "fifa", "uefa", "conmebol", "concacaf", "afc_",
+    "premier_league", "la_liga", "serie_a", "bundesliga", "ligue_1",
+    "eredivisie", "primeira_liga", "mls",
+    "champions_league", "europa_league", "world_cup", "copa_am",
+    "euro_", "european_championship",
+    "ballon_d", "golden_boot", "golden_ball", "golden_glove",
+    # Club patterns
+    "f.c.", "fc_", "a.f.c.", "s.c._", "cf_",
+    "_united_f", "_city_f", "_athletic", "_sporting",
+    "_national_football", "_football_club", "_football_team",
+    "_stadium", "_derby", "_season",
+    "_transfer", "_goalkeeper", "_midfielder", "_striker", "_defender",
+    "_forward_", "_winger", "_manager",
+    # Player/records patterns
+    "_footballer", "_football_career", "_international_goal",
+    "_cap_", "_goal_scorer",
 ]
 
 # Spam/junk domain blocklist
