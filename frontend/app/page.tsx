@@ -246,21 +246,24 @@ function HeroStats() {
       .catch(() => {});
   }, [API]);
 
-  if (!stats) return null;
-
-  const items = [
-    { label: "Pages indexed", value: stats.pages.toLocaleString() },
+  const items = stats ? [
+    { label: "Pages", value: stats.pages.toLocaleString() },
     { label: "Terms", value: stats.terms.toLocaleString() },
-    { label: "Queries served", value: stats.queries.toLocaleString() },
-    { label: "Avg latency", value: `${stats.avg_ms.toFixed(0)}ms` },
+    { label: "Queries", value: stats.queries.toLocaleString() },
+    { label: "Latency", value: `${stats.avg_ms.toFixed(0)}ms` },
+  ] : [
+    { label: "Pages", value: "—" },
+    { label: "Terms", value: "—" },
+    { label: "Queries", value: "—" },
+    { label: "Latency", value: "—" },
   ];
 
   return (
-    <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto" style={{ animation: "fade-in 0.6s ease-out 0.4s both" }}>
+    <div className="flex items-center justify-center gap-6 sm:gap-8">
       {items.map((item, i) => (
         <div key={i} className="text-center">
-          <div className="text-[22px] sm:text-[26px] font-bold text-[var(--text)]">{item.value}</div>
-          <div className="text-[13px] text-[var(--text-dim)]">{item.label}</div>
+          <div className="text-[15px] sm:text-[17px] font-semibold text-[var(--text)] tabular-nums">{item.value}</div>
+          <div className="text-[11px] text-[var(--text-dim)] uppercase tracking-wider mt-0.5">{item.label}</div>
         </div>
       ))}
     </div>
@@ -290,43 +293,51 @@ export default function Home() {
       {/* Header */}
       {!hasResults && !isSearching ? (
         /* ═══════════════════ Hero state ═══════════════════ */
-        <div className="min-h-screen flex flex-col items-center justify-center relative px-3 sm:px-4">
+        <div className="min-h-screen flex flex-col relative">
           <div className="absolute top-4 right-4 z-10">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
-          <div className="max-w-2xl w-full text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
-            <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-[var(--text)] mb-3 sm:mb-5">
-              Football Search
-            </h1>
-            <p className="text-[var(--text-muted)] text-base sm:text-[17px] mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
-              BM25F ranking, PageRank, neural re-ranking, AI Overviews &mdash; built from scratch
-            </p>
+          {/* Main content — vertically centered */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6" style={{ animation: "fade-in 0.5s ease-out" }}>
+            <div className="w-full max-w-xl text-center">
+              {/* Title */}
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-2">
+                Football Search
+              </h1>
+              <p className="text-[var(--text-dim)] text-[14px] mb-8">
+                BM25F &middot; PageRank &middot; Neural Re-ranking &middot; AI Overviews
+              </p>
 
-            {/* Search bar */}
-            <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="relative max-w-xl mx-auto">
-              <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-4 hover:border-[var(--border-hover)] focus-within:border-[var(--accent)]/50 transition-all shadow-lg shadow-black/5">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
-                <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                  className="flex-1 py-4 sm:py-5 px-3 bg-transparent text-[var(--text)] text-base sm:text-lg placeholder:text-[var(--text-dim)] focus:outline-none" />
+              {/* Search bar */}
+              <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}>
+                <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-5 hover:border-[var(--border-hover)] focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all shadow-lg shadow-black/5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
+                    className="flex-1 py-3.5 px-3 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none" />
+                </div>
+              </form>
+
+              {/* Suggestion chips */}
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {SUGGESTIONS.map((q, i) => (
+                  <button key={q} onClick={() => engine.handleSearch(q)}
+                    className="text-[13px] px-3.5 py-1.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
+                    style={{ animation: `fade-in 0.4s ease-out ${0.15 + i * 0.05}s both` }}>
+                    {q}
+                  </button>
+                ))}
               </div>
-            </form>
-
-            {/* Suggestion chips */}
-            <div className="mt-4 sm:mt-5 flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((q, i) => (
-                <button key={q} onClick={() => engine.handleSearch(q)}
-                  className="text-base px-5 py-2.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
-                  style={{ animation: `fade-in 0.4s ease-out ${0.2 + i * 0.06}s both` }}>
-                  {q}
-                </button>
-              ))}
             </div>
+          </div>
 
-            {/* Live dashboard stats */}
-            <HeroStats />
+          {/* Bottom stats bar — always rendered, fixed height, no layout shift */}
+          <div className="pb-8 pt-4 px-4" style={{ animation: "fade-in 0.6s ease-out 0.3s both" }}>
+            <div className="max-w-md mx-auto border-t border-[var(--border)] pt-5">
+              <HeroStats />
+            </div>
           </div>
         </div>
       ) : (
