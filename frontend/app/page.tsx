@@ -144,7 +144,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
         {/* AI Overview / AI Chat Mode — shifts right when pipeline overlays */}
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "" : "max-w-3xl"
+          isExploring ? "" : "max-w-5xl"
         }`}>
           {aiChatActive && engine.overviewText ? (
             <AIChat
@@ -171,15 +171,15 @@ const SerpSidePanel = memo(function SerpSidePanel({
         {/* Sports card — live scores, fixtures, standings */}
         {engine.searchData?.sports && (
           <div className={`px-4 transition-[padding-left] duration-500 ${plExploring} ${
-            isExploring ? "" : "max-w-3xl"
+            isExploring ? "" : "max-w-5xl"
           }`}>
             <MatchCard data={engine.searchData.sports} />
           </div>
         )}
 
         {/* Results — shifts right when pipeline overlays */}
-        <div className={`px-4 py-3 space-y-7 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "max-w-none" : "max-w-3xl"
+        <div className={`px-4 py-4 space-y-8 transition-[padding-left] duration-500 ${plExploring} ${
+          isExploring ? "max-w-none" : "max-w-5xl"
         }`}>
           <div className="text-[14px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
@@ -189,21 +189,21 @@ const SerpSidePanel = memo(function SerpSidePanel({
             return (
               <article key={i} className="group">
                 {/* Site info — favicon + domain + breadcrumb */}
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
-                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={22} height={22} className="rounded-full" />
+                <div className="flex items-center gap-3.5 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
+                    <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt="" width={24} height={24} className="rounded-full" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[15px] font-medium text-[var(--text)] truncate">{domain}</div>
+                    <div className="text-[16px] font-medium text-[var(--text)] truncate">{domain}</div>
                     {breadcrumb && <div className="text-[14px] text-[var(--meta)] truncate">{domain} &rsaquo; {breadcrumb}</div>}
                   </div>
                 </div>
                 {/* Title */}
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                  <h3 className="text-[20px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
+                  <h3 className="text-[22px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
                 </a>
                 {/* Snippet */}
-                <p className="text-[15px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
+                <p className="text-[16px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
                 {/* Score hints on hover */}
                 <div className="hidden @lg:flex items-center gap-3 mt-2 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <span className="text-[11px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
@@ -335,7 +335,7 @@ export default function Home() {
       ) : (
         /* ═══════════════════ Results header — search bar with embedded controls ═══════════════════ */
         <div className="sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="flex items-center gap-3 px-3 sm:px-8 lg:px-16 xl:px-24 max-w-6xl">
+          <div className="flex items-center gap-3 px-3 sm:px-8 lg:px-16 xl:px-24">
             {/* Logo — sits in the lg:pl-40 gutter on desktop */}
             <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
               FS
@@ -373,7 +373,7 @@ export default function Home() {
 
       {/* Loading skeleton */}
       {isSearching && (
-        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6 max-w-3xl">
+        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6 max-w-5xl">
           <div className="space-y-3 mb-8">
             <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
             <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
