@@ -248,30 +248,18 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
     value: (s[key] as number) || 0,
   }));
 
+  // Monochromatic — all use the same muted color
+  const lineColor = "var(--text-dim)";
+
   const charts = [
-    { title: "Pages Crawled", data: toPoints("pages"), current: currentStats?.pages, color: "#5b7bff", suffix: "" },
-    { title: "Index Terms", data: toPoints("terms"), current: currentStats?.terms, color: "#a78bfa", suffix: "" },
-    { title: "Search Queries", data: toPoints("queries"), current: currentStats?.queries, color: "#34d399", suffix: "" },
-    { title: "Avg Latency", data: toPoints("avg_ms"), current: currentStats?.avg_ms ? Math.round(currentStats.avg_ms) : null, color: "#fbbf24", suffix: "ms" },
+    { title: "Pages Crawled", data: toPoints("pages"), current: currentStats?.pages, suffix: "" },
+    { title: "Index Terms", data: toPoints("terms"), current: currentStats?.terms, suffix: "" },
+    { title: "Search Queries", data: toPoints("queries"), current: currentStats?.queries, suffix: "" },
+    { title: "Avg Latency", data: toPoints("avg_ms"), current: currentStats?.avg_ms ? Math.round(currentStats.avg_ms) : null, suffix: "ms" },
   ];
 
   return (
-    <div className="w-full max-w-[720px]" style={{ animation: "fade-in 0.5s ease-out 0.15s both" }}>
-      {/* Heading + suggestion chips */}
-      <div className="text-center mb-5">
-        <h2 className="text-[22px] font-bold text-[var(--text)] mb-1.5">Football Search Engine</h2>
-        <p className="text-[13px] text-[var(--text-dim)] mb-4">Built from scratch &mdash; crawling, indexing, ranking, and AI overviews</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {SUGGESTIONS.map((q) => (
-            <button key={q} onClick={() => onSearch(q)}
-              className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors">
-              {q}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats grid */}
+    <div className="w-full max-w-[640px]" style={{ animation: "fade-in 0.5s ease-out 0.15s both" }}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {charts.map((c, i) => {
           const hasData = c.data.length >= 2;
@@ -283,18 +271,11 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
             const max = Math.max(...values, 1);
             const min = Math.min(...values, 0);
             const range = max - min || 1;
-            const w = 200, h = 40;
+            const w = 200, h = 36;
             const pts = values.map((v, j) => `${(j / (values.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`).join(" ");
             sparkline = (
-              <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[40px] mt-1.5" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id={`hg-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={c.color} stopOpacity="0.2" />
-                    <stop offset="100%" stopColor={c.color} stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#hg-${i})`} />
-                <polyline points={pts} fill="none" stroke={c.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[36px] mt-1.5 opacity-40" preserveAspectRatio="none">
+                <polyline points={pts} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             );
           }
@@ -302,8 +283,8 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
           return (
             <div key={i} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 pt-2.5 pb-1.5">
               <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">{c.title}</div>
-              <div className="text-[18px] font-bold tabular-nums leading-tight" style={{ color: c.color }}>{displayValue}</div>
-              {sparkline || <div className="h-[40px] mt-1.5 rounded bg-[var(--bg-elevated)]" />}
+              <div className="text-[17px] font-semibold text-[var(--text)] tabular-nums leading-tight">{displayValue}</div>
+              {sparkline || <div className="h-[36px] mt-1.5 rounded bg-[var(--bg-elevated)]" />}
             </div>
           );
         })}
@@ -336,33 +317,41 @@ export default function Home() {
     <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "min-h-screen"}`}>
       {/* Header */}
       {isHero ? (
-        /* ═══════════════════ Hero — same header position as results ═══════════════════ */
-        <div className="h-full flex flex-col">
-          {/* Header — identical to results header for seamless transition */}
-          <div className="bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
-            <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
-              <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] tracking-tight shrink-0">FS</a>
-              <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-                className="flex-1 max-w-[600px] flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all px-2.5 sm:px-4"
-              >
-                <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                  className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
-                <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                  </svg>
-                </button>
-                <div className="shrink-0 border-l border-[var(--border)] pl-1.5 sm:pl-3 ml-0.5 sm:ml-1">
-                  <ThemeToggle theme={theme} onToggle={toggleTheme} />
-                </div>
-              </form>
-            </div>
+        /* ═══════════════════ Hero ═══════════════════ */
+        <div className="h-full flex flex-col items-center px-4 pt-[12vh]">
+          {/* Theme toggle — top right */}
+          <div className="fixed top-3 right-4 z-10">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
-          {/* Dashboard — centered in remaining space */}
-          <div className="flex-1 flex items-center justify-center px-4 min-h-0">
-            <HeroDashboard onSearch={engine.handleSearch} />
+          {/* Title */}
+          <h1 className="text-[28px] font-bold text-[var(--text)] tracking-tight mb-5">Football Search</h1>
+
+          {/* Centered search bar */}
+          <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
+            className="w-full max-w-[540px] mb-3"
+          >
+            <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-4 hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+              </svg>
+              <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
+                className="flex-1 py-3 px-3 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none" />
+            </div>
+          </form>
+
+          {/* Suggestion chips — right under search bar */}
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {SUGGESTIONS.map((q) => (
+              <button key={q} onClick={() => engine.handleSearch(q)}
+                className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors">
+                {q}
+              </button>
+            ))}
           </div>
+
+          {/* Dashboard */}
+          <HeroDashboard onSearch={engine.handleSearch} />
         </div>
       ) : (
         /* ═══════════════════ Results header — search bar with embedded controls ═══════════════════ */
