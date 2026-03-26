@@ -120,7 +120,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
   if (!engine.searchData) return null;
 
-  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-4" : "sm:px-8 lg:pl-40 lg:pr-8";
+  const plExploring = isExploring ? "lg:pl-[67%] lg:pr-6" : "sm:px-8 lg:px-16 xl:px-24";
 
   return (
     <div className="@container bg-[var(--bg)]">
@@ -144,7 +144,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
         {/* AI Overview / AI Chat Mode — shifts right when pipeline overlays */}
         <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "" : "max-w-5xl"
+          isExploring ? "" : "max-w-3xl"
         }`}>
           {aiChatActive && engine.overviewText ? (
             <AIChat
@@ -171,7 +171,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
         {/* Sports card — live scores, fixtures, standings */}
         {engine.searchData?.sports && (
           <div className={`px-4 transition-[padding-left] duration-500 ${plExploring} ${
-            isExploring ? "" : "max-w-4xl"
+            isExploring ? "" : "max-w-3xl"
           }`}>
             <MatchCard data={engine.searchData.sports} />
           </div>
@@ -179,7 +179,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
         {/* Results — shifts right when pipeline overlays */}
         <div className={`px-4 py-3 space-y-7 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "max-w-none" : "max-w-4xl"
+          isExploring ? "max-w-none" : "max-w-3xl"
         }`}>
           <div className="text-[14px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
@@ -335,9 +335,9 @@ export default function Home() {
       ) : (
         /* ═══════════════════ Results header — search bar with embedded controls ═══════════════════ */
         <div className="sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md pt-2 sm:pt-3 pb-2 sm:pb-3">
-          <div className="flex items-center gap-3 px-3 sm:px-4 lg:pl-40 lg:pr-8 max-w-5xl">
+          <div className="flex items-center gap-3 px-3 sm:px-8 lg:px-16 xl:px-24 max-w-6xl">
             {/* Logo — sits in the lg:pl-40 gutter on desktop */}
-            <a href="/" className="hidden lg:block fixed left-6 text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight z-40">
+            <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
               FS
             </a>
 
@@ -373,7 +373,7 @@ export default function Home() {
 
       {/* Loading skeleton */}
       {isSearching && (
-        <div className="px-4 lg:pl-40 lg:pr-8 py-6 max-w-3xl">
+        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6 max-w-3xl">
           <div className="space-y-3 mb-8">
             <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
             <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
