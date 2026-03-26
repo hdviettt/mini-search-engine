@@ -107,6 +107,16 @@ def crawl_stop(job_id: str):
     return {"status": "stop_requested"}
 
 
+@router.post("/crawl/refresh")
+def crawl_refresh():
+    """Re-crawl all existing pages with the current parser to clean stale body_text."""
+    try:
+        job_id = job_manager.start_refresh()
+        return {"job_id": job_id, "status": "started"}
+    except RuntimeError as e:
+        return {"error": str(e)}, 409
+
+
 @router.post("/index/rebuild")
 def index_rebuild():
     job_id = job_manager.start_index_rebuild()

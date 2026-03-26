@@ -6,9 +6,11 @@ import time
 
 from db import get_connection
 from crawler.manager import CrawlManager
-from indexer.indexer import build_index
+from crawler.fetcher import Fetcher
+from crawler.parser import parse_page
+from indexer.indexer import build_index, index_page
 from ranker.pagerank import compute_pagerank
-from rag.chunker import chunk_all_pages
+from rag.chunker import chunk_all_pages, chunk_page
 from rag.embedder import embed_all_chunks
 
 
@@ -86,20 +88,11 @@ class JobManager:
                         self.jobs[job_id]["status"] = "completed"
                     return
 
-                # Step 2: Index
-                def on_index_progress(data):
-                    self._emit({"type": "index_progress", "job_id": job_id, "data": data})
-
-                build_index(conn, progress_callback=on_index_progress)
-
-                # Step 3: PageRank
+                # Step 2: PageRank (indexing + chunking already done per-page during crawl)
                 compute_pagerank(conn)
                 self._emit({"type": "index_complete", "job_id": job_id, "data": {"status": "completed"}})
 
-                # Step 4: Chunk
-                chunk_all_pages(conn)
-
-                # Step 5: Embed
+                # Step 3: Embed
                 def on_embed_progress(data):
                     self._emit({"type": "embed_progress", "job_id": job_id, "data": data})
 
@@ -179,6 +172,91 @@ class JobManager:
         thread = threading.Thread(target=run, daemon=True)
         with self.lock:
             self.jobs[job_id] = {"job_id": job_id, "type": "embed", "status": "running", "started_at": time.time()}
+        thread.start()
+        return job_id
+
+    def start_refresh(self) -> str:
+        """Re-crawl all existing pages with the current parser, then re-index and re-chunk."""
+        with self.lock:
+            for j in self.jobs.values():
+                if j["type"] == "refresh" and j["status"] == "running":
+                    raise RuntimeError("A refresh is already running")
+
+        job_id = f"refresh-{uuid.uuid4().hex[:8]}"
+        stop_event = threading.Event()
+        self._stop_events[job_id] = stop_event
+
+        def run():
+            try:
+                conn = get_connection()
+                fetcher = Fetcher()
+
+                # Get all existing page URLs
+                rows = conn.execute("SELECT id, url FROM pages ORDER BY id").fetchall()
+                total = len(rows)
+                refreshed = 0
+                failed = 0
+
+                self._emit({"type": "refresh_progress", "job_id": job_id, "data": {
+                    "refreshed": 0, "failed": 0, "total": total, "status": "starting",
+                }})
+
+                for page_id, url in rows:
+                    if stop_event.is_set():
+                        break
+
+                    response = fetcher.fetch(url)
+                    if response is None or response.status_code >= 400:
+                        failed += 1
+                        self._emit({"type": "refresh_progress", "job_id": job_id, "data": {
+                            "refreshed": refreshed, "failed": failed, "total": total,
+                            "current_url": url, "status": "failed",
+                        }})
+                        continue
+
+                    parsed = parse_page(url, response.text)
+
+                    # Update page content
+                    conn.execute(
+                        """UPDATE pages SET title = %s, body_text = %s, content_hash = %s, crawled_at = NOW()
+                           WHERE id = %s""",
+                        (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
+                    )
+                    conn.commit()
+
+                    # Re-index and re-chunk with new content
+                    index_page(conn, page_id, parsed["title"], parsed["body_text"])
+                    chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
+
+                    refreshed += 1
+                    self._emit({"type": "refresh_progress", "job_id": job_id, "data": {
+                        "refreshed": refreshed, "failed": failed, "total": total,
+                        "current_url": url, "title": (parsed["title"] or "")[:80],
+                        "status": "ok",
+                    }})
+
+                fetcher.close()
+
+                # Recompute PageRank after refresh
+                compute_pagerank(conn)
+
+                conn.close()
+
+                with self.lock:
+                    self.jobs[job_id]["status"] = "completed"
+                self._emit({"type": "refresh_complete", "job_id": job_id, "data": {
+                    "refreshed": refreshed, "failed": failed, "total": total, "status": "completed",
+                }})
+            except Exception as e:
+                with self.lock:
+                    self.jobs[job_id]["status"] = "failed"
+                self._emit({"type": "refresh_complete", "job_id": job_id, "data": {
+                    "status": "failed", "error": str(e),
+                }})
+
+        thread = threading.Thread(target=run, daemon=True)
+        with self.lock:
+            self.jobs[job_id] = {"job_id": job_id, "type": "refresh", "status": "running", "started_at": time.time()}
         thread.start()
         return job_id
 
