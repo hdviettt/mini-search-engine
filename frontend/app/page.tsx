@@ -333,7 +333,7 @@ export default function Home() {
   const isHero = !hasResults && !isSearching;
 
   return (
-    <div className={`bg-[var(--bg)] ${isHero ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
+    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "min-h-screen"}`}>
       {/* Header */}
       {isHero ? (
         /* ═══════════════════ Hero — same header position as results ═══════════════════ */

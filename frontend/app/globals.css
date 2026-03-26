@@ -76,6 +76,10 @@ body {
   html { zoom: 1.3; }
 }
 
+/* Lock viewport when hero is showing — prevents zoom-induced scroll */
+html:has(.hero-lock) { overflow: hidden; height: 100vh; }
+html:has(.hero-lock) body { overflow: hidden; height: 100vh; }
+
 
 ::selection {
   background: var(--accent);
