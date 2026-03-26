@@ -17,6 +17,7 @@ QUERY_ALIASES: dict[str, str] = {
     "football goat": "Cristiano Ronaldo",
     "goat of football": "Cristiano Ronaldo",
     "cr7": "Cristiano Ronaldo",
+    "ronaldo": "Cristiano Ronaldo",
     "leo": "Lionel Messi",
     "the goat": "Cristiano Ronaldo",
 }

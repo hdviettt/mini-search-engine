@@ -46,23 +46,26 @@ function RichText({ text, sources, streaming }: { text: string; sources: Source[
         const isBullet = /^[-•*]\s/.test(trimmed);
         const content = isBullet ? trimmed.replace(/^[-•*]\s/, "") : trimmed;
 
-        const parts = content.split(/(\*\*[^*]+\*\*|\[\d+\])/).map((part, pi) => {
+        const parts = content.split(/(\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\])/).flatMap((part, pi) => {
           if (part.startsWith("**") && part.endsWith("**")) {
             return <strong key={pi}>{part.slice(2, -2)}</strong>;
           }
-          const citMatch = part.match(/^\[(\d+)\]$/);
+          const citMatch = part.match(/^\[(\d+(?:\s*,\s*\d+)*)\]$/);
           if (citMatch) {
-            const idx = parseInt(citMatch[1]);
-            const src = sources.find(s => s.index === idx);
-            if (src) {
-              return (
-                <a key={pi} href={src.url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-medium mx-0.5 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--accent)] cursor-pointer transition-colors align-top"
-                  title={src.title}>
-                  {idx}
-                </a>
-              );
-            }
+            return citMatch[1].split(",").map((s, ci) => {
+              const idx = parseInt(s.trim());
+              const src = sources.find(s => s.index === idx);
+              if (src) {
+                return (
+                  <a key={`${pi}-${ci}`} href={src.url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-medium mx-0.5 rounded-full bg-[var(--chip-bg)] hover:bg-[var(--chip-hover)] text-[var(--accent)] cursor-pointer transition-colors align-top"
+                    title={src.title}>
+                    {idx}
+                  </a>
+                );
+              }
+              return null;
+            });
           }
           return <span key={pi}>{part}</span>;
         });
