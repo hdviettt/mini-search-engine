@@ -241,18 +241,18 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
       .catch(() => {});
   }, [API]);
 
-  const pagesData = history?.pages_over_time || [];
-  const queriesData = history?.queries_per_day || [];
-  let cumulative = 0;
-  const cumulativePages = pagesData.map(d => { cumulative += d.count; return { day: d.day.slice(5), value: cumulative }; });
-  const queriesChart = queriesData.map(d => ({ day: d.day.slice(5), value: d.count }));
-  const latencyChart = queriesData.map(d => ({ day: d.day.slice(5), value: Math.round(d.avg_ms) }));
+  // Use snapshots for all charts (they have actual multi-point data)
+  const snaps = history?.snapshots || [];
+  const toPoints = (key: string) => snaps.map((s: Record<string, unknown>) => ({
+    day: (s.time as string)?.slice(11, 16) || "", // "HH:MM"
+    value: (s[key] as number) || 0,
+  }));
 
   const charts = [
-    { title: "Pages Crawled", data: cumulativePages, current: currentStats?.pages, color: "#5b7bff", suffix: "" },
-    { title: "Index Terms", data: [] as { day: string; value: number }[], current: currentStats?.terms, color: "#a78bfa", suffix: "" },
-    { title: "Search Queries", data: queriesChart, current: currentStats?.queries, color: "#34d399", suffix: "" },
-    { title: "Avg Latency", data: latencyChart, current: currentStats?.avg_ms ? Math.round(currentStats.avg_ms) : null, color: "#fbbf24", suffix: "ms" },
+    { title: "Pages Crawled", data: toPoints("pages"), current: currentStats?.pages, color: "#5b7bff", suffix: "" },
+    { title: "Index Terms", data: toPoints("terms"), current: currentStats?.terms, color: "#a78bfa", suffix: "" },
+    { title: "Search Queries", data: toPoints("queries"), current: currentStats?.queries, color: "#34d399", suffix: "" },
+    { title: "Avg Latency", data: toPoints("avg_ms"), current: currentStats?.avg_ms ? Math.round(currentStats.avg_ms) : null, color: "#fbbf24", suffix: "ms" },
   ];
 
   return (
@@ -274,7 +274,7 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {charts.map((c, i) => {
-          const hasData = c.data.length > 1;
+          const hasData = c.data.length >= 2;
           const values = c.data.map(d => d.value);
           const displayValue = c.current != null ? c.current.toLocaleString() + c.suffix : "—";
 
