@@ -94,6 +94,95 @@ def stats():
     }
 
 
+def capture_stats_snapshot():
+    """Capture current aggregate stats into stats_snapshots table."""
+    conn = get_connection()
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS stats_snapshots (
+            id SERIAL PRIMARY KEY, snapshot_at TIMESTAMPTZ DEFAULT NOW(),
+            pages_crawled INTEGER, terms_indexed INTEGER, postings_count INTEGER,
+            chunks_count INTEGER, chunks_embedded INTEGER, avg_doc_length REAL,
+            queries_total INTEGER, avg_latency_ms REAL
+        )""")
+        conn.commit()
+
+        pages = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
+        terms = conn.execute("SELECT COUNT(*) FROM terms").fetchone()[0]
+        postings = conn.execute("SELECT COUNT(*) FROM postings").fetchone()[0]
+        chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        embedded = conn.execute("SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL").fetchone()[0]
+        avg_doc = conn.execute("SELECT value FROM corpus_stats WHERE key = 'avg_doc_length'").fetchone()
+        avg_dl = round(avg_doc[0], 1) if avg_doc else 0
+        queries = conn.execute("SELECT COUNT(*) FROM query_log").fetchone()[0]
+        avg_lat = conn.execute("SELECT AVG(time_ms) FROM query_log WHERE created_at > NOW() - INTERVAL '24 hours'").fetchone()[0] or 0
+
+        conn.execute(
+            """INSERT INTO stats_snapshots
+               (pages_crawled, terms_indexed, postings_count, chunks_count, chunks_embedded, avg_doc_length, queries_total, avg_latency_ms)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (pages, terms, postings, chunks, embedded, avg_dl, queries, round(avg_lat, 1)),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Stats snapshot error: {e}")
+    finally:
+        conn.close()
+
+
+@router.get("/stats/history")
+def stats_history(days: int = 30):
+    """Return time-series stats for dashboard charts."""
+    conn = get_connection()
+
+    # 1. Pages crawled over time (derived from pages.crawled_at)
+    pages_over_time = conn.execute(
+        """SELECT DATE(crawled_at) as day, COUNT(*) as cumulative
+           FROM pages WHERE crawled_at > NOW() - INTERVAL '%s days'
+           GROUP BY DATE(crawled_at) ORDER BY day""",
+        (days,),
+    ).fetchall()
+
+    # 2. Queries per day (derived from query_log)
+    queries_per_day = conn.execute(
+        """SELECT DATE(created_at) as day, COUNT(*) as count, ROUND(AVG(time_ms)::numeric, 1) as avg_ms
+           FROM query_log WHERE created_at > NOW() - INTERVAL '%s days'
+           GROUP BY DATE(created_at) ORDER BY day""",
+        (days,),
+    ).fetchall()
+
+    # 3. Index size over time (from snapshots)
+    snapshots = conn.execute(
+        """SELECT snapshot_at, pages_crawled, terms_indexed, postings_count,
+                  chunks_count, chunks_embedded, queries_total, avg_latency_ms
+           FROM stats_snapshots
+           WHERE snapshot_at > NOW() - INTERVAL '%s days'
+           ORDER BY snapshot_at""",
+        (days,),
+    ).fetchall()
+
+    conn.close()
+
+    return {
+        "pages_over_time": [{"day": str(r[0]), "count": r[1]} for r in pages_over_time],
+        "queries_per_day": [{"day": str(r[0]), "count": r[1], "avg_ms": float(r[2]) if r[2] else 0} for r in queries_per_day],
+        "snapshots": [
+            {
+                "time": str(r[0]), "pages": r[1], "terms": r[2], "postings": r[3],
+                "chunks": r[4], "embedded": r[5], "queries": r[6], "avg_ms": r[7],
+            }
+            for r in snapshots
+        ],
+    }
+
+
+@router.post("/stats/snapshot")
+def take_snapshot():
+    """Manually trigger a stats snapshot."""
+    capture_stats_snapshot()
+    return {"status": "captured"}
+
+
 @router.post("/crawl/start")
 def crawl_start(req: CrawlRequest):
     try:

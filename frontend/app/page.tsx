@@ -6,7 +6,7 @@ import AIOverview from "@/components/AIOverview";
 import AIChat from "@/components/AIChat";
 import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
-import { getStats } from "@/lib/api";
+import { getStats, getStatsHistory, type StatsHistory } from "@/lib/api";
 
 type View = "search" | "explore";
 type Theme = "light" | "dark";
@@ -226,16 +226,18 @@ const SerpSidePanel = memo(function SerpSidePanel({
   );
 });
 
-function HeroStats() {
-  const [stats, setStats] = useState<{ pages: number; terms: number; queries: number; avg_ms: number } | null>(null);
+function HeroDashboard() {
+  const [history, setHistory] = useState<StatsHistory | null>(null);
+  const [currentStats, setCurrentStats] = useState<{ pages: number; terms: number; queries: number; avg_ms: number } | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   useEffect(() => {
+    getStatsHistory(30).then(setHistory).catch(() => {});
     fetch(`${API}/api/dashboard`)
       .then(r => r.json())
       .then(d => {
         if (!d.error) {
-          setStats({
+          setCurrentStats({
             pages: d.corpus?.pages || 0,
             terms: d.corpus?.terms || 0,
             queries: d.search?.total_queries || 0,
@@ -246,26 +248,98 @@ function HeroStats() {
       .catch(() => {});
   }, [API]);
 
-  const items = stats ? [
-    { label: "Pages", value: stats.pages.toLocaleString() },
-    { label: "Terms", value: stats.terms.toLocaleString() },
-    { label: "Queries", value: stats.queries.toLocaleString() },
-    { label: "Latency", value: `${stats.avg_ms.toFixed(0)}ms` },
+  const statCards = currentStats ? [
+    { label: "Pages Indexed", value: currentStats.pages.toLocaleString(), color: "var(--accent)" },
+    { label: "Terms in Index", value: currentStats.terms.toLocaleString(), color: "var(--accent-secondary)" },
+    { label: "Queries Served", value: currentStats.queries.toLocaleString(), color: "#34d399" },
+    { label: "Avg Latency", value: `${currentStats.avg_ms.toFixed(0)}ms`, color: "#fbbf24" },
   ] : [
-    { label: "Pages", value: "—" },
-    { label: "Terms", value: "—" },
-    { label: "Queries", value: "—" },
-    { label: "Latency", value: "—" },
+    { label: "Pages Indexed", value: "—", color: "var(--accent)" },
+    { label: "Terms in Index", value: "—", color: "var(--accent-secondary)" },
+    { label: "Queries Served", value: "—", color: "#34d399" },
+    { label: "Avg Latency", value: "—", color: "#fbbf24" },
   ];
 
+  // Build mini sparkline data from pages_over_time
+  const pagesData = history?.pages_over_time || [];
+  const queriesData = history?.queries_per_day || [];
+
+  // Cumulative pages chart
+  let cumulative = 0;
+  const cumulativePages = pagesData.map(d => {
+    cumulative += d.count;
+    return { day: d.day.slice(5), pages: cumulative }; // "03-15" format
+  });
+
   return (
-    <div className="flex items-center justify-center gap-6 sm:gap-8">
-      {items.map((item, i) => (
-        <div key={i} className="text-center">
-          <div className="text-[15px] sm:text-[17px] font-semibold text-[var(--text)] tabular-nums">{item.value}</div>
-          <div className="text-[11px] text-[var(--text-dim)] uppercase tracking-wider mt-0.5">{item.label}</div>
+    <div className="w-full max-w-2xl mx-auto" style={{ animation: "fade-in 0.5s ease-out 0.2s both" }}>
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {statCards.map((s, i) => (
+          <div key={i} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-center">
+            <div className="text-[18px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mini charts */}
+      {(cumulativePages.length > 1 || queriesData.length > 1) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {cumulativePages.length > 1 && (
+            <MiniChart
+              title="Pages Crawled"
+              data={cumulativePages}
+              dataKey="pages"
+              color="var(--accent)"
+            />
+          )}
+          {queriesData.length > 1 && (
+            <MiniChart
+              title="Queries / Day"
+              data={queriesData.map(d => ({ day: d.day.slice(5), count: d.count }))}
+              dataKey="count"
+              color="#34d399"
+            />
+          )}
         </div>
-      ))}
+      )}
+    </div>
+  );
+}
+
+function MiniChart({ title, data, dataKey, color }: { title: string; data: { day: string; [k: string]: unknown }[]; dataKey: string; color: string }) {
+  // Lightweight SVG sparkline — no recharts dependency for hero load speed
+  const values = data.map(d => (d[dataKey] as number) || 0);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const w = 240;
+  const h = 48;
+  const points = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  }).join(" ");
+  // Area fill
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
+
+  return (
+    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3">
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="text-[11px] text-[var(--text-dim)]">{title}</span>
+        <span className="text-[13px] font-semibold tabular-nums" style={{ color }}>{values[values.length - 1]?.toLocaleString()}</span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[48px]" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={areaPoints} fill={`url(#grad-${dataKey})`} />
+        <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </div>
   );
 }
@@ -292,47 +366,42 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults && !isSearching ? (
-        /* ═══════════════════ Hero state ═══════════════════ */
-        <div className="h-screen flex items-center justify-center relative px-4 sm:px-6 overflow-hidden">
-          <div className="absolute top-4 right-4 z-10">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          </div>
-
-          <div className="w-full max-w-xl text-center" style={{ animation: "fade-in 0.5s ease-out" }}>
-            {/* Title */}
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[var(--text)] mb-2">
-              Football Search
-            </h1>
-            <p className="text-[var(--text-dim)] text-[14px] mb-8">
-              BM25F &middot; PageRank &middot; Neural Re-ranking &middot; AI Overviews
-            </p>
-
-            {/* Search bar */}
-            <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}>
-              <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-5 hover:border-[var(--border-hover)] focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all shadow-lg shadow-black/5">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
-                <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                  className="flex-1 py-3.5 px-3 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none" />
-              </div>
-            </form>
-
+        /* ═══════════════════ Hero state — DuckDuckGo-style ═══════════════════ */
+        <div className="h-screen flex flex-col overflow-hidden">
+          {/* Top bar — search + branding */}
+          <div className="shrink-0 px-4 sm:px-6 pt-4 pb-3" style={{ animation: "fade-in 0.4s ease-out" }}>
+            <div className="max-w-2xl mx-auto flex items-center gap-3">
+              <span className="text-[18px] font-bold text-[var(--text)] tracking-tight shrink-0">Football Search</span>
+              <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="flex-1">
+                <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-4 hover:border-[var(--border-hover)] focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
+                    className="flex-1 py-2.5 px-3 bg-transparent text-[var(--text)] text-[14px] placeholder:text-[var(--text-dim)] focus:outline-none" />
+                </div>
+              </form>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
             {/* Suggestion chips */}
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="max-w-2xl mx-auto mt-3 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((q, i) => (
                 <button key={q} onClick={() => engine.handleSearch(q)}
-                  className="text-[13px] px-3.5 py-1.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
+                  className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
                   style={{ animation: `fade-in 0.4s ease-out ${0.15 + i * 0.05}s both` }}>
                   {q}
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Stats — inline, no layout shift */}
-            <div className="mt-8 pt-5 border-t border-[var(--border)]">
-              <HeroStats />
+          {/* Center — dashboard with stats and charts */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6">
+            <div className="text-center mb-6">
+              <h2 className="text-[22px] sm:text-[26px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
+              <p className="text-[13px] text-[var(--text-dim)]">BM25F ranking &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews &mdash; built from scratch</p>
             </div>
+            <HeroDashboard />
           </div>
         </div>
       ) : (

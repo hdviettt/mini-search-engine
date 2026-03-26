@@ -107,6 +107,21 @@ CREATE TABLE IF NOT EXISTS crawl_schedules (
     created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Stats snapshots: periodic capture of aggregate metrics for time-series charts
+CREATE TABLE IF NOT EXISTS stats_snapshots (
+    id              SERIAL PRIMARY KEY,
+    snapshot_at     TIMESTAMPTZ DEFAULT NOW(),
+    pages_crawled   INTEGER,
+    terms_indexed   INTEGER,
+    postings_count  INTEGER,
+    chunks_count    INTEGER,
+    chunks_embedded INTEGER,
+    avg_doc_length  REAL,
+    queries_total   INTEGER,
+    avg_latency_ms  REAL
+);
+CREATE INDEX IF NOT EXISTS idx_stats_snapshots_at ON stats_snapshots(snapshot_at);
+
 -- Performance indexes added in Phase 1
 CREATE INDEX IF NOT EXISTS idx_pages_domain ON pages(domain);
 CREATE INDEX IF NOT EXISTS idx_pages_crawled_at ON pages(crawled_at);

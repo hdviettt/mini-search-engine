@@ -165,3 +165,20 @@ export async function exploreEmbed(q: string): Promise<{ query: string; embeddin
   if (!res.ok) return { query: q, embedding: null, dimensions: 0 };
   return res.json();
 }
+
+
+// Stats history for time-series charts
+export interface StatsHistory {
+  pages_over_time: { day: string; count: number }[];
+  queries_per_day: { day: string; count: number; avg_ms: number }[];
+  snapshots: {
+    time: string; pages: number; terms: number; postings: number;
+    chunks: number; embedded: number; queries: number; avg_ms: number;
+  }[];
+}
+
+export async function getStatsHistory(days = 30): Promise<StatsHistory> {
+  const res = await fetch(`${API_BASE}/api/stats/history?days=${days}`);
+  if (!res.ok) return { pages_over_time: [], queries_per_day: [], snapshots: [] };
+  return res.json();
+}

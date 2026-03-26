@@ -39,6 +39,25 @@ def startup_prewarm():
     except Exception as e:
         print(f"Failed to load crawl schedules: {e}")
 
+    # Periodic stats snapshot (every 6 hours)
+    import time as _time
+    def _snapshot_loop():
+        from api.playground import capture_stats_snapshot
+        # Capture one immediately on startup
+        try:
+            capture_stats_snapshot()
+            print("Initial stats snapshot captured.")
+        except Exception as e:
+            print(f"Stats snapshot error: {e}")
+        while True:
+            _time.sleep(6 * 3600)  # 6 hours
+            try:
+                capture_stats_snapshot()
+                print("Stats snapshot captured.")
+            except Exception as e:
+                print(f"Stats snapshot error: {e}")
+    threading.Thread(target=_snapshot_loop, daemon=True).start()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://search.hoangducviet.work"],
