@@ -248,98 +248,83 @@ function HeroDashboard() {
       .catch(() => {});
   }, [API]);
 
-  const statCards = currentStats ? [
-    { label: "Pages Indexed", value: currentStats.pages.toLocaleString(), color: "var(--accent)" },
-    { label: "Terms in Index", value: currentStats.terms.toLocaleString(), color: "var(--accent-secondary)" },
-    { label: "Queries Served", value: currentStats.queries.toLocaleString(), color: "#34d399" },
-    { label: "Avg Latency", value: `${currentStats.avg_ms.toFixed(0)}ms`, color: "#fbbf24" },
-  ] : [
-    { label: "Pages Indexed", value: "—", color: "var(--accent)" },
-    { label: "Terms in Index", value: "—", color: "var(--accent-secondary)" },
-    { label: "Queries Served", value: "—", color: "#34d399" },
-    { label: "Avg Latency", value: "—", color: "#fbbf24" },
-  ];
-
-  // Build mini sparkline data from pages_over_time
+  // Build chart data
   const pagesData = history?.pages_over_time || [];
   const queriesData = history?.queries_per_day || [];
 
-  // Cumulative pages chart
+  // Cumulative pages
   let cumulative = 0;
   const cumulativePages = pagesData.map(d => {
     cumulative += d.count;
-    return { day: d.day.slice(5), pages: cumulative }; // "03-15" format
+    return { day: d.day.slice(5), value: cumulative };
   });
 
+  const queriesChart = queriesData.map(d => ({ day: d.day.slice(5), value: d.count }));
+  const latencyChart = queriesData.map(d => ({ day: d.day.slice(5), value: Math.round(d.avg_ms) }));
+
+  const charts = [
+    { title: "Pages Crawled", data: cumulativePages, current: currentStats?.pages, color: "#5b7bff", suffix: "" },
+    { title: "Index Terms", data: [] as { day: string; value: number }[], current: currentStats?.terms, color: "#a78bfa", suffix: "" },
+    { title: "Search Queries", data: queriesChart, current: currentStats?.queries, color: "#34d399", suffix: "" },
+    { title: "Avg Latency", data: latencyChart, current: currentStats?.avg_ms ? Math.round(currentStats.avg_ms) : null, color: "#fbbf24", suffix: "ms" },
+  ];
+
   return (
-    <div className="w-full max-w-2xl mx-auto" style={{ animation: "fade-in 0.5s ease-out 0.2s both" }}>
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {statCards.map((s, i) => (
-          <div key={i} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-center">
-            <div className="text-[18px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{s.label}</div>
-          </div>
+    <div className="w-full max-w-3xl mx-auto" style={{ animation: "fade-in 0.5s ease-out 0.2s both" }}>
+      <div className="text-center mb-6">
+        <h2 className="text-[20px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
+        <p className="text-[12px] text-[var(--text-dim)]">BM25F &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {charts.map((c, i) => (
+          <StatsChart key={i} title={c.title} data={c.data} current={c.current} color={c.color} suffix={c.suffix} />
         ))}
       </div>
-
-      {/* Mini charts */}
-      {(cumulativePages.length > 1 || queriesData.length > 1) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {cumulativePages.length > 1 && (
-            <MiniChart
-              title="Pages Crawled"
-              data={cumulativePages}
-              dataKey="pages"
-              color="var(--accent)"
-            />
-          )}
-          {queriesData.length > 1 && (
-            <MiniChart
-              title="Queries / Day"
-              data={queriesData.map(d => ({ day: d.day.slice(5), count: d.count }))}
-              dataKey="count"
-              color="#34d399"
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-function MiniChart({ title, data, dataKey, color }: { title: string; data: { day: string; [k: string]: unknown }[]; dataKey: string; color: string }) {
-  // Lightweight SVG sparkline — no recharts dependency for hero load speed
-  const values = data.map(d => (d[dataKey] as number) || 0);
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  const w = 240;
-  const h = 48;
-  const points = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 4) - 2;
-    return `${x},${y}`;
-  }).join(" ");
-  // Area fill
-  const areaPoints = `0,${h} ${points} ${w},${h}`;
+function StatsChart({ title, data, current, color, suffix }: {
+  title: string; data: { day: string; value: number }[];
+  current: number | null | undefined; color: string; suffix: string;
+}) {
+  const hasData = data.length > 1;
+  const values = data.map(d => d.value);
+  const displayValue = current != null ? current.toLocaleString() + suffix : "—";
 
-  return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3">
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="text-[11px] text-[var(--text-dim)]">{title}</span>
-        <span className="text-[13px] font-semibold tabular-nums" style={{ color }}>{values[values.length - 1]?.toLocaleString()}</span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[48px]" preserveAspectRatio="none">
+  // SVG area chart
+  let svgContent = null;
+  if (hasData) {
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = max - min || 1;
+    const w = 200;
+    const h = 60;
+    const pts = values.map((v, i) => {
+      const x = (i / (values.length - 1)) * w;
+      const y = h - ((v - min) / range) * (h - 6) - 3;
+      return `${x},${y}`;
+    }).join(" ");
+
+    svgContent = (
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[60px] mt-2" preserveAspectRatio="none">
         <defs>
-          <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <linearGradient id={`g-${title.replace(/\s/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
           </linearGradient>
         </defs>
-        <polygon points={areaPoints} fill={`url(#grad-${dataKey})`} />
-        <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#g-${title.replace(/\s/g, "")})`} />
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
+    );
+  }
+
+  return (
+    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 pt-3 pb-2 flex flex-col">
+      <div className="text-[11px] text-[var(--text-dim)] mb-0.5">{title}</div>
+      <div className="text-[20px] font-bold tabular-nums" style={{ color }}>{displayValue}</div>
+      {svgContent || <div className="h-[60px] mt-2 flex items-center justify-center text-[11px] text-[var(--text-dim)]">Collecting data...</div>}
     </div>
   );
 }
@@ -366,25 +351,34 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       {!hasResults && !isSearching ? (
-        /* ═══════════════════ Hero state — DuckDuckGo-style ═══════════════════ */
+        /* ═══════════════════ Hero — same header as results for seamless transition ═══════════════════ */
         <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh / var(--zoom, 1))" }}>
-          {/* Top bar — search + branding */}
-          <div className="shrink-0 px-4 sm:px-6 pt-4 pb-3" style={{ animation: "fade-in 0.4s ease-out" }}>
-            <div className="max-w-2xl mx-auto flex items-center gap-3">
-              <span className="text-[18px] font-bold text-[var(--text)] tracking-tight shrink-0">Football Search</span>
-              <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }} className="flex-1">
-                <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-4 hover:border-[var(--border-hover)] focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+          {/* Header — identical position/padding to results header */}
+          <div className="shrink-0 bg-[var(--bg)] pt-2 sm:pt-3 pb-2 sm:pb-3">
+            <div className="flex items-center gap-3 px-4 sm:pl-8 lg:pl-[180px] pr-4">
+              <a href="/" className="hidden sm:block text-[20px] font-bold text-[var(--text)] tracking-tight shrink-0">
+                FS
+              </a>
+              <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
+                className="flex-1 max-w-[600px] flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md focus-within:border-[var(--accent)]/50 focus-within:shadow-[0_0_0_4px_var(--accent-muted)] transition-all px-2.5 sm:px-4"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                </svg>
+                <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
+                  className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
+                <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                   </svg>
-                  <input name="q" type="text" placeholder={PLACEHOLDERS[placeholderIdx]}
-                    className="flex-1 py-2.5 px-3 bg-transparent text-[var(--text)] text-[14px] placeholder:text-[var(--text-dim)] focus:outline-none" />
+                </button>
+                <div className="shrink-0 border-l border-[var(--border)] pl-1.5 sm:pl-3 ml-0.5 sm:ml-1 flex items-center gap-0.5 sm:gap-1">
+                  <ThemeToggle theme={theme} onToggle={toggleTheme} />
                 </div>
               </form>
-              <ThemeToggle theme={theme} onToggle={toggleTheme} />
             </div>
-            {/* Suggestion chips */}
-            <div className="max-w-2xl mx-auto mt-3 flex flex-wrap justify-center gap-2">
+            {/* Suggestion chips — aligned to content column */}
+            <div className="flex flex-wrap gap-2 px-4 sm:pl-8 lg:pl-[180px] mt-2">
               {SUGGESTIONS.map((q, i) => (
                 <button key={q} onClick={() => engine.handleSearch(q)}
                   className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors"
@@ -395,12 +389,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Center — dashboard with stats and charts */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 min-h-0">
-            <div className="text-center mb-5">
-              <h2 className="text-[20px] sm:text-[24px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
-              <p className="text-[12px] text-[var(--text-dim)]">BM25F &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews &mdash; built from scratch</p>
-            </div>
+          {/* Dashboard — fills remaining space */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 min-h-0">
             <HeroDashboard />
           </div>
         </div>
