@@ -143,9 +143,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
         )}
 
         {/* AI Overview / AI Chat Mode — shifts right when pipeline overlays */}
-        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "" : "max-w-5xl"
-        }`}>
+        <div className={`pt-2 px-4 transition-[padding-left] duration-500 ${plExploring}`}>
           {aiChatActive && engine.overviewText ? (
             <AIChat
               initialQuery={engine.query}
@@ -170,17 +168,13 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
         {/* Sports card — live scores, fixtures, standings */}
         {engine.searchData?.sports && (
-          <div className={`px-4 transition-[padding-left] duration-500 ${plExploring} ${
-            isExploring ? "" : "max-w-5xl"
-          }`}>
+          <div className={`px-4 transition-[padding-left] duration-500 ${plExploring}`}>
             <MatchCard data={engine.searchData.sports} />
           </div>
         )}
 
         {/* Results — shifts right when pipeline overlays */}
-        <div className={`px-4 py-4 space-y-8 transition-[padding-left] duration-500 ${plExploring} ${
-          isExploring ? "max-w-none" : "max-w-5xl"
-        }`}>
+        <div className={`px-4 py-4 space-y-8 transition-[padding-left] duration-500 ${plExploring}`}>
           <div className="text-[14px] text-[var(--meta)]">
             {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
           </div>
@@ -342,7 +336,7 @@ export default function Home() {
             </a>
 
             <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-              className="flex-1 flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
+              className="flex-1 max-w-2xl flex items-center gap-1.5 sm:gap-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow px-2.5 sm:px-4"
             >
               <input name="q" type="text" defaultValue={engine.query} key={engine.query}
                 className="flex-1 py-3 bg-transparent text-[var(--text)] text-base placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
@@ -373,7 +367,7 @@ export default function Home() {
 
       {/* Loading skeleton */}
       {isSearching && (
-        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6 max-w-5xl">
+        <div className="px-4 sm:px-8 lg:px-16 xl:px-24 py-6">
           <div className="space-y-3 mb-8">
             <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
             <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
