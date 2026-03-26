@@ -46,7 +46,7 @@ def _get_sources_and_context(conn, query):
     context = ""
     sources = []
     for i, chunk in enumerate(chunks[:5], 1):
-        context += f"\n\n[Source {i}: {chunk['title']}]\n{chunk['content'][:500]}"
+        context += f"\n\n[{i}] {chunk['title']}:\n{chunk['content'][:500]}"
         sources.append({
             "index": i,
             "title": chunk["title"],
@@ -61,12 +61,6 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     """Generate an AI Overview (non-streaming, for backward compat)."""
     if not GROQ_API_KEY:
         return None
-
-    # Expand query aliases
-    from search.engine import QUERY_ALIASES
-    expanded = QUERY_ALIASES.get(query.lower().strip())
-    if expanded:
-        query = expanded
 
     trace = {}
     total_start = time.time()
@@ -115,7 +109,7 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     context = ""
     sources = []
     for i, chunk in enumerate(chunks[:5], 1):
-        context += f"\n\n[Source {i}: {chunk['title']}]\n{chunk['content'][:500]}"
+        context += f"\n\n[{i}] {chunk['title']}:\n{chunk['content'][:500]}"
         sources.append({
             "index": i, "title": chunk["title"], "url": chunk["url"],
             "vector_score": round(chunk.get("vector_score", 0), 4),
@@ -130,7 +124,7 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
             json={
                 "model": GROQ_MODEL,
                 "messages": [
-                    {"role": "system", "content": "You summarize search results concisely. Cite sources as [1], [2], etc. Use 2-3 sentences. Be factual."},
+                    {"role": "system", "content": "You summarize search results concisely. Cite sources ONLY as [1], [2], etc. (never write 'Source 1' or '[Source 1]'). Use 2-3 sentences. Be factual."},
                     {"role": "user", "content": f"Summarize these search results for \"{query}\":\n{context}"},
                 ],
                 "max_tokens": AI_OVERVIEW_MAX_TOKENS,
@@ -157,12 +151,6 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     """Stream AI Overview as Server-Sent Events."""
     if not GROQ_API_KEY:
         return
-
-    # Expand query aliases (goat → Cristiano Ronaldo, cr7 → Cristiano Ronaldo)
-    from search.engine import QUERY_ALIASES
-    expanded = QUERY_ALIASES.get(query.lower().strip())
-    if expanded:
-        query = expanded
 
     # Check cache — still run retrieval for trace data
     cached = _get_cached(conn, query)
@@ -263,7 +251,7 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     context = ""
     sources = []
     for i, chunk in enumerate(chunks[:5], 1):
-        context += f"\n\n[Source {i}: {chunk['title']}]\n{chunk['content'][:500]}"
+        context += f"\n\n[{i}] {chunk['title']}:\n{chunk['content'][:500]}"
         sources.append({
             "index": i, "title": chunk["title"], "url": chunk["url"],
             "vector_score": round(chunk.get("vector_score", 0), 4),
@@ -283,7 +271,7 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
             json={
                 "model": GROQ_MODEL,
                 "messages": [
-                    {"role": "system", "content": "You summarize search results concisely. Cite sources as [1], [2], etc. Use 2-3 sentences. Be factual."},
+                    {"role": "system", "content": "You summarize search results concisely. Cite sources ONLY as [1], [2], etc. (never write 'Source 1' or '[Source 1]'). Use 2-3 sentences. Be factual."},
                     {"role": "user", "content": f"Summarize these search results for \"{query}\":\n{context}"},
                 ],
                 "max_tokens": AI_OVERVIEW_MAX_TOKENS,

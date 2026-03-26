@@ -10,17 +10,6 @@ from ranker.bm25 import search_bm25
 from ranker.reranker import rerank
 from models import SearchResult
 
-# Query aliases — expand slang/nicknames to their real search terms
-QUERY_ALIASES: dict[str, str] = {
-    "goat": "Cristiano Ronaldo",
-    "goat football": "Cristiano Ronaldo",
-    "football goat": "Cristiano Ronaldo",
-    "goat of football": "Cristiano Ronaldo",
-    "cr7": "Cristiano Ronaldo",
-    "ronaldo": "Cristiano Ronaldo",
-    "leo": "Lionel Messi",
-    "the goat": "Cristiano Ronaldo",
-}
 
 
 def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 250) -> str:
@@ -103,10 +92,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     """Run a search query. Returns results with BM25 + PageRank combined scores."""
     start_time = time.time()
 
-    # Expand query aliases (goat → Cristiano Ronaldo, cr7 → Cristiano Ronaldo)
-    expanded = QUERY_ALIASES.get(query.lower().strip())
-    search_query = expanded if expanded else query
-
+    search_query = query
     query_terms = tokenize(search_query)
 
     # Get BM25 scores

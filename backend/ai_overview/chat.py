@@ -34,7 +34,7 @@ def _search_index(query: str) -> tuple[str, list[dict]]:
             title = chunk.get("title", "")
             url = chunk.get("url", "")
             content = chunk.get("content", "")[:500]
-            context_parts.append(f"[Source {i}: {title}]\n{content}")
+            context_parts.append(f"[{i}] {title}:\n{content}")
             sources.append({"index": i, "title": title, "url": url})
 
         return "\n\n".join(context_parts), sources
@@ -46,7 +46,7 @@ def _search_index(query: str) -> tuple[str, list[dict]]:
 SYSTEM_PROMPT = """You are an expert football analyst embedded in a search engine. You provide insightful analysis grounded in the search results provided.
 
 Rules:
-- Use the SOURCE DATA below to answer questions. Cite sources as [1], [2], etc.
+- Use the SOURCE DATA below to answer questions. Cite sources ONLY as [1], [2], etc. (never write "Source 1" or "[Source 1]")
 - Be conversational but authoritative
 - Keep responses concise (2-4 paragraphs) unless the user asks for detail
 - If the sources don't contain relevant information, say so honestly
