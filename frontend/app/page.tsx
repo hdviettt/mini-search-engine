@@ -367,7 +367,7 @@ export default function Home() {
       {/* Header */}
       {!hasResults && !isSearching ? (
         /* ═══════════════════ Hero state — DuckDuckGo-style ═══════════════════ */
-        <div className="h-screen flex flex-col overflow-hidden">
+        <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh / var(--zoom, 1))" }}>
           {/* Top bar — search + branding */}
           <div className="shrink-0 px-4 sm:px-6 pt-4 pb-3" style={{ animation: "fade-in 0.4s ease-out" }}>
             <div className="max-w-2xl mx-auto flex items-center gap-3">
@@ -396,10 +396,10 @@ export default function Home() {
           </div>
 
           {/* Center — dashboard with stats and charts */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6">
-            <div className="text-center mb-6">
-              <h2 className="text-[22px] sm:text-[26px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
-              <p className="text-[13px] text-[var(--text-dim)]">BM25F ranking &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews &mdash; built from scratch</p>
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 min-h-0">
+            <div className="text-center mb-5">
+              <h2 className="text-[20px] sm:text-[24px] font-bold text-[var(--text)] mb-1">Engine Dashboard</h2>
+              <p className="text-[12px] text-[var(--text-dim)]">BM25F &middot; PageRank &middot; Neural re-ranking &middot; AI Overviews &mdash; built from scratch</p>
             </div>
             <HeroDashboard />
           </div>
