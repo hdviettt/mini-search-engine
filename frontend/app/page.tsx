@@ -401,13 +401,13 @@ export default function Home() {
       {hasResults && (
         <div className="relative lg:h-[calc(100vh-60px)]" style={{ animation: "content-in 0.3s ease-out" }}>
           {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
-          <div className={`lg:h-full lg:overflow-y-auto ${view === "explore" ? "hidden lg:block" : ""}`}>
+          <div className={`lg:h-full lg:overflow-y-auto lg:overscroll-contain ${view === "explore" ? "hidden lg:block" : ""}`}>
             <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
           </div>
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}
           <div
-            className={`lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:z-10 ${
+            className={`lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:overscroll-contain lg:z-10 ${
               view === "explore"
                 ? "block lg:translate-x-0 lg:transition-transform lg:duration-500 lg:ease-in-out"
                 : "hidden lg:block lg:-translate-x-full lg:pointer-events-none lg:invisible lg:transition-[transform,visibility] lg:duration-500 lg:ease-in-out"
