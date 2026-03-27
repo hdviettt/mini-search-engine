@@ -52,14 +52,21 @@ Step 7: APPLY freshness boost
     → combined[page_id] *= boost
     |
     v
-Step 8: SORT by final score, PAGINATE (top 10)
+Step 8: NEURAL RE-RANK top 5 candidates
+    → Cross-encoder (ms-marco-MiniLM-L-6-v2, ONNX) reads [query] + [doc] together
+    → Jointly encodes both texts — captures semantic interaction, not just term overlap
+    → Scores all 5 pairs in one batched forward pass (~600ms on CPU)
+    → Results with score < -8 filtered; remaining slots filled from original BM25 order
     |
     v
-Step 9: GENERATE snippets for each result
+Step 9: SORT by final score, PAGINATE (top 10)
+    |
+    v
+Step 10: GENERATE snippets for each result
     → Find the best text window containing query terms
     |
     v
-Step 10: RETURN results (105ms total)
+Step 11: RETURN results (~700ms total including reranking)
 ```
 
 ## Timing Breakdown
@@ -73,8 +80,9 @@ From our test queries on 1,000+ pages:
 | BM25 scoring | 20-40ms | Math on postings + doc_stats |
 | PageRank lookup | 5-10ms | Single SQL query |
 | Normalization + combining | <1ms | Pure math in memory |
+| Neural re-ranking (ONNX) | ~600ms | Cross-encoder, 5 candidates, CPU |
 | Snippet generation | 10-20ms | String scanning per result |
-| **Total** | **65-120ms** | |
+| **Total** | **~700ms** | Dominated by ONNX inference |
 
 At our scale (1,000+ pages, ~100K+ terms), this is fast. At Google's scale (100B+ pages), the same operations happen across thousands of machines in parallel and still return in under 500ms.
 
@@ -126,10 +134,10 @@ Our approach does a full scan of all postings for each query term. Google uses:
 
 After the initial retrieval, Google applies a second pass:
 
-1. **BERT/Neural re-ranking** — deep learning models that understand semantic meaning, not just keyword matching
-2. **Freshness boost** — for time-sensitive queries, newer content ranks higher
-3. **Diversity** — avoid showing 10 results from the same domain
-4. **Personalization** — adjust rankings based on user history and preferences
+1. **BERT/Neural re-ranking** ✓ — we do this with `ms-marco-MiniLM-L-6-v2` ONNX on the top 5 candidates
+2. **Freshness boost** ✓ — exponential decay with 7-day recency bonus
+3. **Diversity** — avoid showing 10 results from the same domain (not yet implemented)
+4. **Personalization** — adjust rankings based on user history and preferences (not implemented)
 
 ## The Speed Challenge
 
