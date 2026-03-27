@@ -44,6 +44,14 @@ class SpellChecker:
                 word = re.sub(r"[^a-z]", "", raw.lower())
                 if 3 <= len(word) <= 20:
                     words.add(word)
+
+        # Add all indexed stems — these are known-valid words (player names, entities, etc.)
+        # Any word whose stem appears in the index is treated as valid and won't be over-corrected.
+        term_rows = conn.execute("SELECT term FROM terms").fetchall()
+        for (term,) in term_rows:
+            if 3 <= len(term) <= 20:
+                words.add(term)
+
         by_len: dict[int, list[str]] = {}
         for w in words:
             by_len.setdefault(len(w), []).append(w)
