@@ -177,11 +177,6 @@ export default memo(function AIOverview({ text, sources, loading, streaming, una
             </p>
           )}
 
-          {/* Follow-up suggestions removed — the follow-up input is the entry point to AI Mode */}
-          {false && (
-            <div></div>
-          )}
-
           {/* Action bar + source avatars */}
           {isDone && (
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--separator)]">
