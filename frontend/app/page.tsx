@@ -66,13 +66,19 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
           key={t.id}
           type="button"
           onClick={() => onChange(t.id)}
-          className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
+          className={`relative px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
             view === t.id
               ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
               : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
           }`}
         >
           {t.label}
+          {t.id === "explore" && view === "search" && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--link-blue)] opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--link-blue)]" />
+            </span>
+          )}
         </button>
       ))}
     </div>
