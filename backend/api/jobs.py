@@ -64,9 +64,8 @@ class JobManager:
         self._stop_events[job_id] = stop_event
 
         def run():
+            conn = get_connection()
             try:
-                conn = get_connection()
-
                 # Step 1: Crawl
                 manager = CrawlManager(conn, extra_domains=extra_domains, restrict_domains=restrict_domains)
                 if seed_urls:
@@ -84,7 +83,6 @@ class JobManager:
                 self._emit({"type": "crawl_complete", "job_id": job_id, "data": {"status": "completed"}})
 
                 if stop_event and stop_event.is_set():
-                    conn.close()
                     with self.lock:
                         self.jobs[job_id]["status"] = "completed"
                     return
@@ -100,8 +98,6 @@ class JobManager:
                 embed_all_chunks(conn, progress_callback=on_embed_progress)
                 self._emit({"type": "embed_complete", "job_id": job_id, "data": {"status": "completed"}})
 
-                conn.close()
-
                 with self.lock:
                     self.jobs[job_id]["status"] = "completed"
                 self._emit({"type": "build_complete", "job_id": job_id, "data": {"status": "completed"}})
@@ -109,6 +105,8 @@ class JobManager:
                 with self.lock:
                     self.jobs[job_id]["status"] = "failed"
                 self._emit({"type": "crawl_complete", "job_id": job_id, "data": {"status": "failed", "error": str(e)}})
+            finally:
+                conn.close()
 
         thread = threading.Thread(target=run, daemon=True)
         with self.lock:
@@ -125,10 +123,8 @@ class JobManager:
         job_id = f"index-{uuid.uuid4().hex[:8]}"
 
         def run():
+            conn = get_connection()
             try:
-                conn = get_connection()
-
-                # Only index live pages; dead pages have already been deindexed
                 pages = conn.execute(
                     "SELECT id, title, body_text FROM pages WHERE is_dead = false ORDER BY id"
                 ).fetchall()
@@ -146,7 +142,6 @@ class JobManager:
                         }})
 
                 compute_pagerank(conn)
-                conn.close()
 
                 with self.lock:
                     self.jobs[job_id]["status"] = "completed"
@@ -157,6 +152,8 @@ class JobManager:
                 with self.lock:
                     self.jobs[job_id]["status"] = "failed"
                 self._emit({"type": "index_complete", "job_id": job_id, "data": {"status": "failed", "error": str(e)}})
+            finally:
+                conn.close()
 
         thread = threading.Thread(target=run, daemon=True)
         with self.lock:
@@ -168,15 +165,13 @@ class JobManager:
         job_id = f"embed-{uuid.uuid4().hex[:8]}"
 
         def run():
+            conn = get_connection()
             try:
-                conn = get_connection()
-
                 def on_progress(data):
                     self._emit({"type": "embed_progress", "job_id": job_id, "data": data})
 
                 chunk_all_pages(conn)
                 embed_all_chunks(conn, progress_callback=on_progress)
-                conn.close()
 
                 with self.lock:
                     self.jobs[job_id]["status"] = "completed"
@@ -185,6 +180,8 @@ class JobManager:
                 with self.lock:
                     self.jobs[job_id]["status"] = "failed"
                 self._emit({"type": "embed_complete", "job_id": job_id, "data": {"status": "failed", "error": str(e)}})
+            finally:
+                conn.close()
 
         thread = threading.Thread(target=run, daemon=True)
         with self.lock:
@@ -204,11 +201,9 @@ class JobManager:
         self._stop_events[job_id] = stop_event
 
         def run():
+            conn = get_connection()
+            fetcher = Fetcher()
             try:
-                conn = get_connection()
-                fetcher = Fetcher()
-
-                # Only refresh live pages — dead pages stay dead
                 rows = conn.execute(
                     "SELECT id, url FROM pages WHERE is_dead = false ORDER BY id"
                 ).fetchall()
@@ -227,7 +222,6 @@ class JobManager:
 
                     response = fetcher.fetch(url)
                     if response is None or response.status_code >= 400:
-                        # Track consecutive failures; mark dead and deindex after 3
                         failed += 1
                         conn.execute(
                             """UPDATE pages
@@ -250,7 +244,6 @@ class JobManager:
                         }})
                         continue
 
-                    # Successful fetch — reset failure counter, record check time
                     parsed = parse_page(url, response.text)
                     conn.execute(
                         """UPDATE pages SET title = %s, body_text = %s, content_hash = %s,
@@ -260,7 +253,6 @@ class JobManager:
                     )
                     conn.commit()
 
-                    # Re-index and re-chunk only quality pages
                     if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
                         index_page(conn, page_id, parsed["title"], parsed["body_text"])
                         conn.execute("UPDATE pages SET indexed_at = NOW() WHERE id = %s", (page_id,))
@@ -274,9 +266,7 @@ class JobManager:
                         "title": (parsed["title"] or "")[:80], "status": "ok",
                     }})
 
-                fetcher.close()
                 compute_pagerank(conn)
-                conn.close()
 
                 with self.lock:
                     self.jobs[job_id]["status"] = "completed"
@@ -290,6 +280,9 @@ class JobManager:
                 self._emit({"type": "refresh_complete", "job_id": job_id, "data": {
                     "status": "failed", "error": str(e),
                 }})
+            finally:
+                fetcher.close()
+                conn.close()
 
         thread = threading.Thread(target=run, daemon=True)
         with self.lock:
@@ -348,8 +341,10 @@ class CrawlScheduler:
     def ensure_default_schedules(self):
         """Create default schedules if none exist. Called once on startup."""
         conn = get_connection()
-        existing = conn.execute("SELECT COUNT(*) FROM crawl_schedules").fetchone()[0]
-        conn.close()
+        try:
+            existing = conn.execute("SELECT COUNT(*) FROM crawl_schedules").fetchone()[0]
+        finally:
+            conn.close()
 
         if existing > 0:
             return  # User has configured their own schedules
@@ -383,13 +378,15 @@ class CrawlScheduler:
         next_run = time.time() + interval_hours * 3600
 
         conn = get_connection()
-        conn.execute(
-            """INSERT INTO crawl_schedules (id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run_at)
-               VALUES (%s, %s, %s, %s, %s, %s, to_timestamp(%s))""",
-            (schedule_id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run),
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                """INSERT INTO crawl_schedules (id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, to_timestamp(%s))""",
+                (schedule_id, strategy, seed_urls, max_pages, max_depth, interval_hours, next_run),
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
         self._start_timer(schedule_id)
         return schedule_id
@@ -401,15 +398,19 @@ class CrawlScheduler:
             timer.cancel()
 
         conn = get_connection()
-        conn.execute("DELETE FROM crawl_schedules WHERE id = %s", (schedule_id,))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("DELETE FROM crawl_schedules WHERE id = %s", (schedule_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
     def toggle(self, schedule_id: str, enabled: bool):
         conn = get_connection()
-        conn.execute("UPDATE crawl_schedules SET enabled = %s WHERE id = %s", (enabled, schedule_id))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("UPDATE crawl_schedules SET enabled = %s WHERE id = %s", (enabled, schedule_id))
+            conn.commit()
+        finally:
+            conn.close()
 
         if enabled:
             self._start_timer(schedule_id)
@@ -421,11 +422,13 @@ class CrawlScheduler:
 
     def list_schedules(self) -> list[dict]:
         conn = get_connection()
-        rows = conn.execute(
-            """SELECT id, strategy, seed_urls, max_pages, max_depth, interval_hours,
-                      enabled, last_run_at, next_run_at FROM crawl_schedules ORDER BY created_at"""
-        ).fetchall()
-        conn.close()
+        try:
+            rows = conn.execute(
+                """SELECT id, strategy, seed_urls, max_pages, max_depth, interval_hours,
+                          enabled, last_run_at, next_run_at FROM crawl_schedules ORDER BY created_at"""
+            ).fetchall()
+        finally:
+            conn.close()
         return [
             {
                 "id": r[0], "strategy": r[1], "seed_urls": r[2], "max_pages": r[3],
@@ -443,119 +446,117 @@ class CrawlScheduler:
             old.cancel()
 
         conn = get_connection()
-        row = conn.execute(
-            "SELECT interval_hours, enabled FROM crawl_schedules WHERE id = %s", (schedule_id,)
-        ).fetchone()
+        try:
+            row = conn.execute(
+                "SELECT interval_hours, enabled FROM crawl_schedules WHERE id = %s", (schedule_id,)
+            ).fetchone()
 
-        if not row or not row[1]:
+            if not row or not row[1]:
+                return
+
+            interval_seconds = row[0] * 3600
+            actual_delay = max(1.0, delay_seconds if delay_seconds is not None else interval_seconds)
+
+            timer = threading.Timer(actual_delay, self._run_scheduled, args=[schedule_id])
+            timer.daemon = True
+            timer.start()
+
+            with self.lock:
+                self._timers[schedule_id] = timer
+
+            if delay_seconds is None:
+                conn.execute(
+                    "UPDATE crawl_schedules SET next_run_at = to_timestamp(%s) WHERE id = %s",
+                    (time.time() + actual_delay, schedule_id),
+                )
+                conn.commit()
+        finally:
             conn.close()
-            return
-
-        interval_seconds = row[0] * 3600
-        actual_delay = max(1.0, delay_seconds if delay_seconds is not None else interval_seconds)
-
-        timer = threading.Timer(actual_delay, self._run_scheduled, args=[schedule_id])
-        timer.daemon = True
-        timer.start()
-
-        with self.lock:
-            self._timers[schedule_id] = timer
-
-        # Only write next_run_at when scheduling fresh (not resuming from saved next_run_at)
-        if delay_seconds is None:
-            conn.execute(
-                "UPDATE crawl_schedules SET next_run_at = to_timestamp(%s) WHERE id = %s",
-                (time.time() + actual_delay, schedule_id),
-            )
-            conn.commit()
-        conn.close()
 
     def _run_scheduled(self, schedule_id: str):
         conn = get_connection()
-        row = conn.execute(
-            "SELECT strategy, seed_urls, max_pages, max_depth, enabled FROM crawl_schedules WHERE id = %s",
-            (schedule_id,),
-        ).fetchone()
-        if not row or not row[4]:
-            conn.close()
-            return
-
-        strategy, seed_urls, max_pages, max_depth, _ = row
-        print(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
-
         try:
-            if strategy == "top_pagerank":
-                # Re-crawl top pages by PageRank — uses the refresh mechanism
-                from crawler.fetcher import Fetcher
-                from crawler.parser import parse_page
-                from crawler.manager import is_quality_page
+            row = conn.execute(
+                "SELECT strategy, seed_urls, max_pages, max_depth, enabled FROM crawl_schedules WHERE id = %s",
+                (schedule_id,),
+            ).fetchone()
+            if not row or not row[4]:
+                return
 
-                top_rows = conn.execute(
-                    """SELECT p.id, p.url FROM pagerank pr
-                       JOIN pages p ON pr.page_id = p.id
-                       ORDER BY pr.score DESC LIMIT %s""",
-                    (max_pages,),
-                ).fetchall()
+            strategy, seed_urls, max_pages, max_depth, _ = row
+            print(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
 
-                fetcher = Fetcher()
-                refreshed = 0
-                for page_id, url in top_rows:
-                    response = fetcher.fetch(url)
-                    if response is None or response.status_code >= 400:
-                        conn.execute(
-                            """UPDATE pages
-                               SET consecutive_failures = consecutive_failures + 1,
-                                   last_checked_at = NOW(),
-                                   is_dead = (consecutive_failures + 1 >= 3)
-                               WHERE id = %s""",
-                            (page_id,),
-                        )
-                        conn.commit()
-                        dead_row = conn.execute(
-                            "SELECT is_dead FROM pages WHERE id = %s", (page_id,)
-                        ).fetchone()
-                        if dead_row and dead_row[0]:
-                            deindex_page(conn, page_id)
-                        continue
-                    parsed = parse_page(url, response.text)
-                    conn.execute(
-                        """UPDATE pages SET title=%s, body_text=%s, content_hash=%s,
-                                  last_checked_at=NOW(), consecutive_failures=0
-                           WHERE id=%s""",
-                        (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
-                    )
-                    conn.commit()
-                    if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
-                        index_page(conn, page_id, parsed["title"], parsed["body_text"])
-                        conn.execute("UPDATE pages SET indexed_at = NOW() WHERE id = %s", (page_id,))
-                        conn.commit()
-                        chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
-                    refreshed += 1
-                fetcher.close()
-                print(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
+            try:
+                if strategy == "top_pagerank":
+                    from crawler.fetcher import Fetcher
+                    from crawler.parser import parse_page
+                    from crawler.manager import is_quality_page
 
-            else:
-                # 'seed' strategy — crawl seed URLs to discover new content
-                manager = CrawlManager(conn)
-                if seed_urls:
-                    manager.seed(seed_urls)
-                stop_event = threading.Event()
-                manager.crawl(stop_event=stop_event, max_pages_override=max_pages, max_depth_override=max_depth)
+                    top_rows = conn.execute(
+                        """SELECT p.id, p.url FROM pagerank pr
+                           JOIN pages p ON pr.page_id = p.id
+                           ORDER BY pr.score DESC LIMIT %s""",
+                        (max_pages,),
+                    ).fetchall()
 
-            # Recompute PageRank after any crawl
-            compute_pagerank(conn)
+                    fetcher = Fetcher()
+                    refreshed = 0
+                    try:
+                        for page_id, url in top_rows:
+                            response = fetcher.fetch(url)
+                            if response is None or response.status_code >= 400:
+                                conn.execute(
+                                    """UPDATE pages
+                                       SET consecutive_failures = consecutive_failures + 1,
+                                           last_checked_at = NOW(),
+                                           is_dead = (consecutive_failures + 1 >= 3)
+                                       WHERE id = %s""",
+                                    (page_id,),
+                                )
+                                conn.commit()
+                                dead_row = conn.execute(
+                                    "SELECT is_dead FROM pages WHERE id = %s", (page_id,)
+                                ).fetchone()
+                                if dead_row and dead_row[0]:
+                                    deindex_page(conn, page_id)
+                                continue
+                            parsed = parse_page(url, response.text)
+                            conn.execute(
+                                """UPDATE pages SET title=%s, body_text=%s, content_hash=%s,
+                                          last_checked_at=NOW(), consecutive_failures=0
+                                   WHERE id=%s""",
+                                (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
+                            )
+                            conn.commit()
+                            if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
+                                index_page(conn, page_id, parsed["title"], parsed["body_text"])
+                                conn.execute("UPDATE pages SET indexed_at = NOW() WHERE id = %s", (page_id,))
+                                conn.commit()
+                                chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
+                            refreshed += 1
+                    finally:
+                        fetcher.close()
+                    print(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
 
-        except Exception as e:
-            print(f"[scheduler] Schedule {schedule_id} failed: {e}")
+                else:
+                    manager = CrawlManager(conn)
+                    if seed_urls:
+                        manager.seed(seed_urls)
+                    stop_event = threading.Event()
+                    manager.crawl(stop_event=stop_event, max_pages_override=max_pages, max_depth_override=max_depth)
 
-        # Update last_run_at
-        conn.execute(
-            "UPDATE crawl_schedules SET last_run_at = NOW() WHERE id = %s", (schedule_id,)
-        )
-        conn.commit()
-        conn.close()
+                compute_pagerank(conn)
 
-        # Reschedule
+            except Exception as e:
+                print(f"[scheduler] Schedule {schedule_id} failed: {e}")
+
+            conn.execute(
+                "UPDATE crawl_schedules SET last_run_at = NOW() WHERE id = %s", (schedule_id,)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
         self._start_timer(schedule_id)
 
 
