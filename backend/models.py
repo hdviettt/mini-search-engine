@@ -8,6 +8,7 @@ class SearchResult(BaseModel):
     bm25_score: float
     pagerank_score: float
     final_score: float
+    rerank_score: float | None = None
 
 
 class SearchResponse(BaseModel):

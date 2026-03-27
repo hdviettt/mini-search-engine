@@ -231,7 +231,10 @@ const SerpSidePanel = memo(function SerpSidePanel({
                   <div className="hidden @lg:flex items-center gap-3 mt-2 h-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <span className="text-[11px] text-[var(--meta)] font-mono">BM25 {(r.bm25_score ?? 0).toFixed(1)}</span>
                     <span className="text-[11px] text-[var(--meta)] font-mono">PageRank {(r.pagerank_score ?? 0).toFixed(4)}</span>
-                    <span className="text-[11px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                    {r.rerank_score != null
+                      ? <span className="text-[11px] text-[var(--accent)] font-mono">Rerank {r.rerank_score.toFixed(2)}</span>
+                      : <span className="text-[11px] text-[var(--accent)] font-mono">Score {(r.final_score ?? 0).toFixed(2)}</span>
+                    }
                   </div>
                 </article>
               );

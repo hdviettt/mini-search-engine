@@ -163,6 +163,7 @@ export interface SearchResult {
   bm25_score: number;
   pagerank_score: number;
   final_score: number;
+  rerank_score?: number | null;
 }
 
 export interface Stats {

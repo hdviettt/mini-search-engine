@@ -166,7 +166,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     domain_counts: dict[str, int] = {}
     MAX_PER_DOMAIN = 2
 
-    def _add_result(url: str, title: str, body_text: str, bm25: float, pr: float, score: float) -> bool:
+    def _add_result(url: str, title: str, body_text: str, bm25: float, pr: float, score: float, rerank: float | None = None) -> bool:
         domain = urlparse(url).hostname or ""
         domain = domain.replace("www.", "")
         if domain_counts.get(domain, 0) >= MAX_PER_DOMAIN:
@@ -177,14 +177,17 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
             bm25_score=round(bm25, 4),
             pagerank_score=round(pr, 6),
             final_score=round(score, 4),
+            rerank_score=round(rerank, 4) if rerank is not None else None,
         ))
         domain_counts[domain] = domain_counts.get(domain, 0) + 1
         return True
 
     for c in reranked:
+        rs = c.get("rerank_score")
         _add_result(c["url"], c.get("title") or c["url"], c.get("body_text", ""),
                     bm25_scores.get(c["page_id"], 0), pagerank_scores.get(c["page_id"], 0),
-                    c.get("rerank_score") or c["combined_score"])
+                    rs if rs is not None else c["combined_score"],
+                    rerank=rs)
 
     # Fill remaining slots from the original ranking (not already reranked)
     for page_id, final_score in ranked:
