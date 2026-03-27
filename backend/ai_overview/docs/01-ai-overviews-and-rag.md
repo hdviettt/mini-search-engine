@@ -65,19 +65,19 @@ We could skip the search engine entirely and just ask the LLM "who are the Premi
 3. **Source attribution** — we can cite exactly which pages the answer came from. Pure LLM answers have no sources.
 4. **Transparency** — the user can click through to verify the answer.
 
-### Our Model: Qwen3 4B via Ollama
+### Our Model: Llama 3.3 70B via Groq API
 
-We run a local model instead of a cloud API:
+We use Groq's hosted inference API (`llama-3.3-70b-versatile`), which delivers near-instant responses on dedicated LPU hardware:
 
-| Aspect | Cloud API (Claude/GPT) | Local model (Qwen3 via Ollama) |
-|--------|----------------------|-------------------------------|
-| Cost | Pay per query | Free after download |
-| Speed | Fast (powerful GPUs) | Slower on CPU (1-3 seconds) |
-| Privacy | Data leaves your machine | Everything stays local |
-| Quality | Higher (larger models) | Good enough for 2-4 sentence summaries |
-| Availability | Needs internet | Works offline |
+| Aspect | OpenAI/Claude API | Groq API (our choice) | Local (Ollama) |
+|--------|------------------|-----------------------|---------------|
+| Cost | Pay per query | Free tier, then pay | Free |
+| Speed | ~1-3s | ~200ms (LPU hardware) | 20-30s (CPU) |
+| Quality | High | High (70B model) | Lower (small models) |
+| Availability | Needs internet | Needs internet | Works offline |
+| Rate limits | High | 100 req/day free | None |
 
-For a portfolio project generating short summaries, the local model is the right choice.
+For a project serving real users, Groq gives us cloud-quality responses at near-zero latency — far better than running a small model locally. The free tier is sufficient for demo traffic.
 
 ## How Google Does AI Overviews
 

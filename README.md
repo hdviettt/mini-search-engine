@@ -47,13 +47,14 @@ This is what Google does every time you search something. I built each piece.
 
 | Stage | What it does | How | Numbers |
 |-------|-------------|-----|---------|
-| **Crawler** | Downloads web pages | BFS traversal, robots.txt compliance, 1.5s rate limiting | 1,000 pages from Wikipedia, BBC Sport, ESPN |
-| **Indexer** | Maps every word to the pages containing it | Tokenization → stopword removal → inverted index via PostgreSQL COPY | 145,736 terms, 1,057,023 postings |
-| **PageRank** | Scores page authority from link structure | Iterative algorithm (d=0.85, 20 iterations), handles dangling nodes | Scores for all 1,000 pages |
-| **Chunker + Embedder** | Prepares pages for semantic search | Split into ~300-token chunks, embed with Voyage AI, store as pgvector | ~15,000 chunks |
+| **Crawler** | Downloads web pages | BFS traversal, robots.txt compliance, 1.5s rate limiting | ~1,000+ pages from Wikipedia, BBC Sport, ESPN, FBref, Transfermarkt |
+| **Indexer** | Maps every word to the pages containing it | Tokenization (Porter stemmer) → stopword removal → inverted index via PostgreSQL COPY | 100K+ terms, 1M+ postings |
+| **PageRank** | Scores page authority from link structure | Iterative algorithm (d=0.85, 20 iterations), handles dangling nodes | Scores for all live pages |
+| **Chunker + Embedder** | Prepares pages for semantic search | Split into ~300-token chunks, embed with Voyage AI voyage-3-lite, store as pgvector | ~15,000+ chunks (512d vectors) |
 | **BM25** | Scores text relevance | Term frequency × inverse document frequency × length normalization | k1=1.2, b=0.75 |
-| **Ranking** | Combines signals | 70% BM25 + 30% PageRank, min-max normalized | Tunable live in the UI |
-| **AI Overview** | Generates a summary with citations | Query fan-out → hybrid retrieval (vector + keyword) → Groq streaming | Llama 3.3 70B, cached 24h |
+| **Ranking** | Combines signals | 80% BM25 + 20% PageRank, exponential freshness decay, 7-day recency bonus | min-max normalized, tunable live in the UI |
+| **Spell correction** | Fixes typos before searching | Levenshtein edit-distance ≤ 2, vocabulary from page titles + indexed stems | Proper nouns protected via terms table |
+| **AI Overview** | Generates a summary with citations | Co-occurrence fan-out → hybrid retrieval (vector + keyword) → Groq streaming with retry | Llama 3.3 70B, cached 24h |
 
 ## The UI
 
@@ -72,8 +73,8 @@ The frontend is a **React Flow canvas** that visualizes the entire pipeline as a
 | Frontend | Next.js 16, React 19, React Flow, Tailwind v4, TypeScript |
 | Backend | FastAPI, Python 3.12+ |
 | Database | PostgreSQL 16 + pgvector |
-| LLM | Groq (Llama 3.3 70B) |
-| Embeddings | Voyage AI (voyage-3-lite, 768d) |
+| LLM | Groq API (Llama 3.3 70B via `llama-3.3-70b-versatile`) |
+| Embeddings | Voyage AI API (voyage-3-lite, 512d) |
 | Hosting | Railway |
 
 ## Project Structure
@@ -146,20 +147,27 @@ Open [localhost:3000](http://localhost:3000).
 
 ## Roadmap
 
-### In Progress
-- [ ] Canvas UX polish — clickable data previews, detail panel layout, distinct node shapes
+### Done
+- [x] BFS crawler with robots.txt, rate limiting, dead page tracking
+- [x] Inverted index with Porter stemmer, stopwords, bulk COPY ingestion
+- [x] BM25 + PageRank hybrid ranking with min-max normalization
+- [x] Scheduled auto-crawling — daily seed discovery + weekly top-PageRank refresh, resumes after restart
+- [x] Query fan-out via index co-occurrence (no LLM needed, ~2ms)
+- [x] Hybrid semantic retrieval — pgvector + BM25 chunks
+- [x] AI Overviews with Groq streaming, inline citations, 24h cache
+- [x] AI Overview retry logic (2× with 1s backoff) + "unavailable" UI state
+- [x] Sports OneBox — live match cards, standings, live scores above results
+- [x] Spell correction + "Did you mean?" — Levenshtein edit-distance, proper noun protection via terms table
+- [x] Autocomplete — debounced suggestions from query log, keyboard nav
+- [x] Tokenizer: season strings ("2024/25" → "2024"), 4-digit year support
+- [x] Ranking tuning — 80/20 BM25/PageRank, exponential freshness decay, 7-day recency bonus
+- [x] Full error states — API failure banners, ErrorBoundary, AI Overview unavailable chip
+- [x] DB connection leak fixes — all `get_connection()` wrapped in `try/finally`
 
 ### Planned
-- [ ] **Sports OneBox** — live football match cards (Champions League, World Cup) displayed above search results, like Google's Game Spotlight ([#15](https://github.com/hdviettt/mini-search-engine/issues/15))
-- [ ] **Auto-crawling** — scheduled re-crawls, freshness tracking, auto-unindex dead pages ([#23](https://github.com/hdviettt/mini-search-engine/issues/23), [#24](https://github.com/hdviettt/mini-search-engine/issues/24))
-- [ ] **Query intent detection** — classify sports vs general queries to trigger structured results ([#16](https://github.com/hdviettt/mini-search-engine/issues/16))
-
-### Future
-- [ ] Incremental indexing (no full rebuild) ([#18](https://github.com/hdviettt/mini-search-engine/issues/18))
-- [ ] Stemming support ([#19](https://github.com/hdviettt/mini-search-engine/issues/19))
-- [ ] Knowledge Graph — entity understanding beyond text matching ([#20](https://github.com/hdviettt/mini-search-engine/issues/20))
-- [ ] Spell correction + "Did you mean?" ([#22](https://github.com/hdviettt/mini-search-engine/issues/22))
-- [ ] Freshness signal in ranking ([#25](https://github.com/hdviettt/mini-search-engine/issues/25))
+- [ ] **Query intent detection** — classify sports vs general queries to trigger structured results
+- [ ] Incremental indexing (no full rebuild)
+- [ ] Knowledge Graph — entity understanding beyond text matching
 
 ## Blog Series
 

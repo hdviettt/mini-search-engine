@@ -64,7 +64,7 @@ From 1,000 football pages:
 An embedding is a vector (list of numbers) that represents the meaning of a text. Similar texts have similar vectors.
 
 ```
-"Messi scored a goal"     → [0.12, -0.34, 0.56, 0.78, ...] (768 numbers)
+"Messi scored a goal"     → [0.12, -0.34, 0.56, 0.78, ...] (512 numbers)
 "Lionel netted one"       → [0.11, -0.33, 0.55, 0.79, ...] (very similar!)
 "The weather is sunny"    → [0.89, 0.12, -0.67, 0.23, ...] (very different)
 ```
@@ -79,15 +79,15 @@ BM25 (keyword search) only matches exact words. Embeddings match meaning:
 | "football" | Pages with "football" | Pages with "soccer", "the beautiful game", "association football" |
 | "World Cup winner" | Pages with "World Cup" AND "winner" | Pages about Argentina's 2022 triumph, even if they don't use the word "winner" |
 
-### Our Embedding Model: nomic-embed-text
+### Our Embedding Model: voyage-3-lite
 
 | Attribute | Value |
 |-----------|-------|
-| Model | nomic-embed-text |
-| Dimensions | 768 |
-| Runs via | Ollama (local, free) |
-| Speed | ~50 embeddings per batch in 2.8 seconds |
-| Total time | ~15 minutes for 15,719 chunks (batched) |
+| Model | voyage-3-lite |
+| Dimensions | 512 |
+| Runs via | Voyage AI API |
+| Speed | ~128 embeddings per batch in ~1 second |
+| Total time | ~5 minutes for 15,000+ chunks (batched) |
 
 ### The Batching Lesson
 
@@ -113,7 +113,7 @@ CREATE TABLE chunks (
     page_id   INTEGER REFERENCES pages(id),
     chunk_idx INTEGER,
     content   TEXT,
-    embedding vector(768)    -- pgvector column type
+    embedding vector(512)    -- pgvector column type
 );
 ```
 
@@ -152,4 +152,4 @@ Google's embedding pipeline is orders of magnitude more sophisticated:
 5. **Distributed vector search** — sharded across thousands of machines
 6. **Real-time updating** — new content gets embedded and indexed within minutes
 
-Our system uses a general-purpose embedding model (nomic-embed-text) on all content uniformly. Google's system understands that a player statistics table should be embedded differently than a match report narrative.
+Our system uses a general-purpose embedding model (voyage-3-lite) on all content uniformly. Google's system understands that a player statistics table should be embedded differently than a match report narrative.

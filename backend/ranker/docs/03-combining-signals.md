@@ -2,11 +2,22 @@
 
 No single signal can rank pages well. BM25 knows about relevance but not authority. PageRank knows about authority but not relevance. The magic is in combining them.
 
-## Our Approach: Linear Combination
+## Our Approach: Linear Combination + Freshness
 
 ```
-final_score = 0.7 × normalized_BM25 + 0.3 × normalized_PageRank
+final_score = (0.8 × normalized_BM25 + 0.2 × normalized_PageRank) × freshness_boost
 ```
+
+**Freshness boost** uses exponential decay so stale content actually loses rank:
+
+```
+freshness = 0.5 + 0.5 × exp(-days_old × 0.02)
+```
+
+- Page crawled today: boost = 1.0 (× 1.15 if < 7 days old, capped at 1.2)
+- 30 days old:        boost ≈ 0.77
+- 90 days old:        boost ≈ 0.58
+- 1 year old:         boost ≈ 0.50 (floor)
 
 ### Why Normalize First?
 
@@ -20,18 +31,19 @@ normalized = (score - min) / (max - min)
 
 Now both signals contribute proportionally to the final score.
 
-### Why 70/30?
+### Why 80/20?
 
-- **Text relevance should dominate** — when someone searches "robots.txt", they want pages about robots.txt, not the most authoritative page in general
-- **Authority breaks ties** — when multiple pages are equally relevant, the more authoritative one should rank higher
-- **0.7/0.3 is a starting point** — you can experiment with different weights
+- **Text relevance must dominate for sports queries** — Wikipedia has massive link graphs (high PageRank) but a recent BBC match report answers "Arsenal vs Chelsea result" better than an encyclopedia entry. 80/20 keeps relevance in charge.
+- **Authority still breaks ties** — when multiple pages are equally relevant, the more authoritative one should rank higher.
+- **Started at 70/30, tuned to 80/20** — original 70/30 caused Wikipedia to crowd out news content for recency-sensitive football queries.
 
 ### What Different Weights Would Do
 
 | Alpha | Behavior |
 |-------|----------|
 | 1.0 | Pure BM25 — best text match wins, ignores authority |
-| 0.7 | Our default — relevance-first with authority tiebreaker |
+| **0.8** | **Our current — relevance-first, authority tiebreaker, less Wikipedia bias** |
+| 0.7 | Previous default — relevance-first but Wikipedia dominated sports results |
 | 0.5 | Equal weight — balanced relevance and authority |
 | 0.3 | Authority-first — popular pages dominate |
 | 0.0 | Pure PageRank — most linked page wins regardless of query |

@@ -8,44 +8,64 @@ When a user searches "Messi Champions League goals", they want comprehensive inf
 - "Lionel's Champions League career statistics"
 - "Barcelona's top scorer in European competition"
 
-A single embedding of "Messi Champions League goals" won't catch all of these.
+A single embedding won't catch all of these.
 
-## The Solution: Query Expansion
+## The Solution: Co-Occurrence Expansion
 
-Before searching, we use the LLM to generate 2-3 alternative queries:
+Instead of asking an LLM to generate alternative queries (which adds latency and can hallucinate), we mine the index itself. When BM25 returns the top 10 pages for a query, we look at which terms appear frequently alongside the query terms in those pages — and build sub-queries from them.
 
 ```
 Original: "Messi Champions League goals"
-    ↓ LLM expansion
+    ↓ BM25 top-10 pages → co-occurring terms: ["ucl", "scorer", "record", "barcelona", "career"]
 Fan-out queries:
-  1. "Messi Champions League goals"          (original)
-  2. "Messi UCL scoring record"              (generated)
-  3. "Lionel Messi Champions League career"  (generated)
+  1. "Messi Champions League goals"           (original)
+  2. "Messi Champions League goals ucl scorer" (original + top 2 co-occurring)
+  3. "ucl scorer record barcelona"             (top 4 co-occurring — different angle)
 ```
 
-Each query gets embedded separately and searched against the vector database. The results are merged, giving us broader coverage.
+Each query is embedded separately and searched against the vector database. The results are merged, giving broader coverage.
 
 ## Our Implementation
 
 ```python
-def expand_query(query: str) -> list[str]:
-    prompt = f'Generate 2 alternative search queries for: "{query}"'
-    # Send to Qwen3 → parse response → return [original, alt1, alt2]
+def expand_query(query: str, conn) -> tuple[list[str], dict]:
+    # BM25 top-10 pages for the query
+    top_pages = search_bm25(conn, query, limit=10)
+
+    # Count co-occurring terms across those pages
+    # (excluding the original query tokens)
+    co_occurring = most_common_terms(conn, top_page_ids, exclude=query_tokens)
+
+    related = [term for term, _ in co_occurring[:4]]
+    sub1 = " ".join(query_tokens + related[:2])   # original + 2 related
+    sub2 = " ".join(related[:4])                   # pure related angle
+
+    return [query, sub1, sub2], trace_metadata
 ```
 
-### Why Only 2 Extra Queries?
+### Why Co-Occurrence, Not LLM?
+
+| Approach | Latency | Quality | Risk |
+|----------|---------|---------|------|
+| LLM-generated (Qwen3 local) | 20–30s | Good | Hallucination, model dependency |
+| LLM-generated (Groq API) | ~200ms | Good | Rate limits, cost, hallucination |
+| **Co-occurrence (our current)** | **~2ms** | **Good for domain-specific** | Can miss abstract synonyms |
+
+For a football-specific corpus, co-occurrence is excellent — the vocabulary is consistent and "ucl", "scorer", "record" appear reliably alongside "Messi Champions League" in the pages we've indexed.
+
+### Why 2 Extra Queries?
 
 | Count | Pros | Cons |
 |-------|------|------|
 | 0 (no fan-out) | Fast | Misses relevant content with different wording |
-| 2 extras | Good coverage, manageable latency | Adds ~20-30s for LLM generation on CPU |
-| 5+ extras | Maximum coverage | Diminishing returns, slow, more noise |
+| 2 extras | Good coverage, <3ms total | May miss very abstract synonyms |
+| 5+ extras | Maximum coverage | Diminishing returns, more noise |
 
-2 extra queries is the sweet spot — enough to catch synonyms and related phrasings without overwhelming the retrieval step.
+2 extra queries is the sweet spot — enough to catch related terms and alternative framings without overwhelming the retrieval step.
 
 ## How Google Does Query Expansion
 
-Google's query understanding is far more sophisticated than LLM-based fan-out:
+Google's query understanding is far more sophisticated:
 
 ### 1. Synonym Expansion
 ```
@@ -88,11 +108,7 @@ These appear as "People also ask" and "Related searches" — a form of fan-out s
 
 Query fan-out improves **recall** (finding more relevant content) at the cost of **latency** (slower response) and potentially **precision** (more noise in results).
 
-In our system, the fan-out adds ~20-30 seconds because we're running Qwen3 on CPU. In production:
-- Google pre-computes expansions for common queries (cached)
-- Synonym expansion uses lookup tables, not LLMs (instant)
-- Entity resolution uses the Knowledge Graph (pre-built)
-- LLM-based reformulation only runs for novel or ambiguous queries
+Our co-occurrence approach keeps the fan-out cost under 2ms — negligible compared to the embedding step (~50–150ms). Google pre-computes expansions for common queries and uses lookup tables for synonyms, keeping query-time cost near zero.
 
 ## SEO Implication
 

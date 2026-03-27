@@ -39,25 +39,32 @@ Step 5: NORMALIZE both score sets to [0, 1]
     |
     v
 Step 6: COMBINE scores
-    → final = 0.7 × norm_BM25 + 0.3 × norm_PageRank
-    → Page 12: 0.7 × 1.0 + 0.3 × 0.35 = 0.805
-    → Page 67: 0.7 × 0.5 + 0.3 × 1.0 = 0.650
-    → Page 89: 0.7 × 0.69 + 0.3 × 0.12 = 0.519
+    → combined = 0.8 × norm_BM25 + 0.2 × norm_PageRank
+    → Page 12: 0.8 × 1.0 + 0.2 × 0.35 = 0.870
+    → Page 67: 0.8 × 0.5 + 0.2 × 1.0 = 0.600
+    → Page 89: 0.8 × 0.69 + 0.2 × 0.12 = 0.576
     |
     v
-Step 7: SORT by final score, PAGINATE (top 10)
+Step 7: APPLY freshness boost
+    → boost = 0.5 + 0.5 × exp(-days_old × 0.02)
+    → Pages < 7 days old: extra ×1.15 bonus (capped at 1.2)
+    → 30 days old: boost ≈ 0.77  |  90 days old: boost ≈ 0.58
+    → combined[page_id] *= boost
     |
     v
-Step 8: GENERATE snippets for each result
+Step 8: SORT by final score, PAGINATE (top 10)
+    |
+    v
+Step 9: GENERATE snippets for each result
     → Find the best text window containing query terms
     |
     v
-Step 9: RETURN results (105ms total)
+Step 10: RETURN results (105ms total)
 ```
 
 ## Timing Breakdown
 
-From our test queries on 750 pages:
+From our test queries on 1,000+ pages:
 
 | Step | Time | Why |
 |------|------|-----|
@@ -69,20 +76,42 @@ From our test queries on 750 pages:
 | Snippet generation | 10-20ms | String scanning per result |
 | **Total** | **65-120ms** | |
 
-At our scale (750 pages, ~150K terms), this is fast. At Google's scale (100B+ pages), the same operations happen across thousands of machines in parallel and still return in under 500ms.
+At our scale (1,000+ pages, ~100K+ terms), this is fast. At Google's scale (100B+ pages), the same operations happen across thousands of machines in parallel and still return in under 500ms.
+
+## What We Do (That Google Also Does)
+
+### Spell Correction
+
+Before hitting the index, queries go through Levenshtein-based spell correction:
+
+```
+"mesii goals" → "messi goals"  (edit distance 1)
+"chamions league" → "champions league"
+```
+
+Proper nouns are protected — any word that exists as an indexed term (player names, club names) skips correction. This prevents "Haaland" from being corrected to a dictionary word.
+
+### Query Fan-Out
+
+After tokenization, we expand the query using index co-occurrence:
+
+```
+"Messi Champions League goals"
+  → also search: "messi champions league goals ucl scorer"
+  → also search: "ucl scorer record barcelona"
+```
+
+All three queries run in parallel. Results are merged before ranking. This takes ~2ms and gives broader recall without an LLM.
 
 ## What We Don't Do (But Google Does)
 
-### Query Understanding
+### Advanced Query Understanding
 
-Before even hitting the index, Google processes the query itself:
-
-1. **Spelling correction** — "mesii goals" → "messi goals"
-2. **Query expansion** — "CR7" → also search for "Cristiano Ronaldo"
-3. **Intent classification** — is this informational ("what is offside"), navigational ("espn football"), or transactional ("buy football tickets")?
-4. **Entity recognition** — "Messi" = Person entity, "Champions League" = Competition entity
-5. **Language detection** — serve results in the user's language
-6. **Location awareness** — "football scores" in the UK shows Premier League; in the US shows NFL
+1. **Query expansion via synonym graphs** — "CR7" → also search for "Cristiano Ronaldo"
+2. **Intent classification** — is this informational ("what is offside"), navigational ("espn football"), or transactional ("buy football tickets")?
+3. **Entity recognition** — "Messi" = Person entity, "Champions League" = Competition entity
+4. **Language detection** — serve results in the user's language
+5. **Location awareness** — "football scores" in the UK shows Premier League; in the US shows NFL
 
 ### Retrieval Optimization
 
@@ -104,7 +133,7 @@ After the initial retrieval, Google applies a second pass:
 
 ## The Speed Challenge
 
-Our search takes ~100ms for 750 pages. How does Google search 100 billion pages in the same time?
+Our search takes ~100ms for 1,000+ pages. How does Google search 100 billion pages in the same time?
 
 1. **Distributed index** — the index is split across thousands of machines. Each machine handles a portion. Queries are sent to all machines in parallel.
 2. **Pre-computed scores** — many signals (PageRank, domain authority) are computed offline, not at query time.
