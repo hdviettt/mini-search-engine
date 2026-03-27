@@ -40,12 +40,14 @@ function parseOverviewWithCitations(text: string) {
 function SparkleIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <path d="M12 2L13.5 8.5L18 6L14.5 11L21 12L14.5 13L18 18L13.5 15.5L12 22L10.5 15.5L6 18L9.5 13L3 12L9.5 11L6 6L10.5 8.5L12 2Z" fill="url(#brave-sparkle)" />
+      {/* Gemini-style 4-pointed star — curved concave sides */}
+      <path d="M12 2C12 6 16 8 22 12C16 16 12 18 12 22C12 18 8 16 2 12C8 8 12 6 12 2Z" fill="url(#ai-overview-grad)" />
+      {/* Small accent star */}
+      <path d="M20 2C20 3.2 20.9 3.8 22 4.5C20.9 5.2 20 5.8 20 7C20 5.8 19.1 5.2 18 4.5C19.1 3.8 20 3.2 20 2Z" fill="url(#ai-overview-grad)" opacity="0.75" />
       <defs>
-        <linearGradient id="brave-sparkle" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#5b7bff" />
-          <stop offset="0.5" stopColor="#a78bfa" />
-          <stop offset="1" stopColor="#f472b6" />
+        <linearGradient id="ai-overview-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#3b82f6" />
+          <stop offset="1" stopColor="#8b5cf6" />
         </linearGradient>
       </defs>
     </svg>
@@ -55,7 +57,7 @@ function SparkleIcon() {
 function SparkleSmall() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 text-[var(--text-dim)]">
-      <path d="M12 2L13.5 8.5L18 6L14.5 11L21 12L14.5 13L18 18L13.5 15.5L12 22L10.5 15.5L6 18L9.5 13L3 12L9.5 11L6 6L10.5 8.5L12 2Z" fill="currentColor" opacity="0.5" />
+      <path d="M12 2C12 6 16 8 22 12C16 16 12 18 12 22C12 18 8 16 2 12C8 8 12 6 12 2Z" fill="currentColor" opacity="0.5" />
     </svg>
   );
 }
