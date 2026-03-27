@@ -387,58 +387,59 @@ export default function Home() {
         </div>
       )}
 
-      {/* ═══════════════════ Loading skeleton ═══════════════════ */}
-      {isSearching && (
-        <div className="max-w-[692px] mx-auto px-4 py-6" style={{ animation: "content-in 0.3s ease-out" }}>
-          <div className="space-y-3 mb-8">
-            <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
-            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
-            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[95%]" />
-            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[85%]" />
-            <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[70%]" />
-          </div>
-          <div className="border-b border-[var(--separator)] mb-6" />
-          {[1, 2, 3].map(i => (
-            <div key={i} className="mb-6">
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-8 h-8 rounded-full bg-[var(--skeleton)] animate-pulse" />
-                <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
-              </div>
-              <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-3/4 mb-2" />
-              <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full mb-1" />
-              <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[90%]" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Content */}
-      {hasResults && (
+      {/* Content — shown for both loading skeleton and actual results */}
+      {(hasResults || isSearching) && (
         <div className="relative lg:flex-1 lg:min-h-0" style={{ animation: "content-in 0.3s ease-out" }}>
-          {/* SERP — always rendered on desktop; hidden on mobile when exploring */}
+          {/* SERP / skeleton — always rendered on desktop; hidden on mobile when exploring */}
           <div className={`lg:h-full lg:overflow-y-auto lg:overscroll-contain ${view === "explore" ? "hidden lg:block" : ""}`}>
-            <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
+            {isSearching ? (
+              <div className="max-w-[692px] mx-auto px-4 py-6">
+                <div className="space-y-3 mb-8">
+                  <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
+                  <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full" />
+                  <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[95%]" />
+                  <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[85%]" />
+                  <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[70%]" />
+                </div>
+                <div className="border-b border-[var(--separator)] mb-6" />
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="mb-6">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-[var(--skeleton)] animate-pulse" />
+                      <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-32" />
+                    </div>
+                    <div className="h-4 bg-[var(--skeleton)] animate-pulse rounded-full w-3/4 mb-2" />
+                    <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-full mb-1" />
+                    <div className="h-3 bg-[var(--skeleton)] animate-pulse rounded-full w-[90%]" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <SerpSidePanel engine={engine} onToggleView={toggleView} isExploring={view === "explore"} selectedNode={selectedNode} onCloseNode={() => setSelectedNode(null)} />
+            )}
           </div>
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}
-          <div
-            className={`lg:absolute lg:top-0 lg:bottom-0 lg:left-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:overscroll-contain lg:z-10 ${
-              view === "explore"
-                ? "block lg:translate-x-0 lg:transition-transform lg:duration-500 lg:ease-in-out"
-                : "hidden lg:block lg:-translate-x-full lg:pointer-events-none lg:invisible lg:transition-[transform,visibility] lg:duration-500 lg:ease-in-out"
-            }`}
-          >
-            <PipelineExplorer
-              data={engine.searchData}
-              stats={engine.stats}
-              overviewText={engine.overviewText}
-              overviewSources={engine.overviewSources}
-              overviewLoading={engine.overviewLoading || engine.overviewStreaming}
-              overviewTrace={engine.overviewTrace}
-              selectedNode={selectedNode}
-              onNodeSelect={setSelectedNode}
-            />
-          </div>
+          {hasResults && (
+            <div
+              className={`lg:absolute lg:top-0 lg:bottom-0 lg:left-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:overscroll-contain lg:z-10 ${
+                view === "explore"
+                  ? "block lg:translate-x-0 lg:transition-transform lg:duration-500 lg:ease-in-out"
+                  : "hidden lg:block lg:-translate-x-full lg:pointer-events-none lg:invisible lg:transition-[transform,visibility] lg:duration-500 lg:ease-in-out"
+              }`}
+            >
+              <PipelineExplorer
+                data={engine.searchData}
+                stats={engine.stats}
+                overviewText={engine.overviewText}
+                overviewSources={engine.overviewSources}
+                overviewLoading={engine.overviewLoading || engine.overviewStreaming}
+                overviewTrace={engine.overviewTrace}
+                selectedNode={selectedNode}
+                onNodeSelect={setSelectedNode}
+              />
+            </div>
+          )}
         </div>
       )}
 
