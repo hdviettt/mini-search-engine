@@ -462,7 +462,7 @@ function DetailPanel({ nodeId, data, stats, onClose, onRefreshStats, overviewTex
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       </div>
-      <div className="px-3 sm:px-4 py-2.5 sm:py-3 space-y-2.5 sm:space-y-3 text-sm max-h-[50vh] lg:max-h-[60vh] overflow-y-auto">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 space-y-2.5 sm:space-y-3 text-sm">
         {actionMsg && <div className="text-xs text-[var(--accent)] font-medium animate-pulse">{actionMsg}</div>}
 
         {nodeId === "crawler" && (
@@ -1279,7 +1279,7 @@ function MobileSheet({ nodeId, onClose, data, stats, overviewText, overviewSourc
       <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={onClose} />
       <div
         ref={sheetRef}
-        className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto"
+        className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto overscroll-contain"
         style={{ animation: "slide-up 0.2s ease-out" }}
       >
         {/* Drag handle — swipe down to dismiss */}

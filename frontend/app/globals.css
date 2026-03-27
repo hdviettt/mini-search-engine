@@ -80,6 +80,12 @@ body {
 html:has(.hero-lock) { overflow: hidden; height: 100vh; }
 html:has(.hero-lock) body { overflow: hidden; height: 100vh; }
 
+/* Lock page scroll for results view on desktop — same zoom-induced scroll prevention */
+@media (min-width: 1024px) {
+  html:has(.results-lock) { overflow: hidden; }
+  html:has(.results-lock) body { overflow: hidden; }
+}
+
 
 ::selection {
   background: var(--accent);

@@ -314,7 +314,7 @@ export default function Home() {
   const isHero = !hasResults && !isSearching;
 
   return (
-    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:h-screen lg:flex lg:flex-col lg:overflow-hidden min-h-screen"}`}>
+    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "results-lock lg:h-screen lg:flex lg:flex-col lg:overflow-hidden min-h-screen"}`}>
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
       <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
         <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
