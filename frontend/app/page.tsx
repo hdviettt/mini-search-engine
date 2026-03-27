@@ -63,37 +63,32 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
     <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-sm">
       {tabs.map((t) => {
         const isExploreHint = t.id === "explore" && view === "search";
-        const btn = (
+        return (
           <button
             key={t.id}
             type="button"
             onClick={() => onChange(t.id)}
-            className={`relative px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
+            className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
               view === t.id
                 ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
-                : isExploreHint
-                  ? "text-[var(--text-muted)] bg-[var(--bg-elevated)]"
-                  : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
+                : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
             }`}
           >
-            {t.label}
+            {isExploreHint ? (
+              <span
+                style={{
+                  backgroundImage: "linear-gradient(90deg, var(--text-muted) 0%, var(--text-muted) 20%, #3b82f6 40%, #8b5cf6 55%, #c084fc 65%, var(--text-muted) 80%, var(--text-muted) 100%)",
+                  backgroundSize: "300% 100%",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  animation: "text-shine 2.5s linear infinite",
+                }}
+              >
+                {t.label}
+              </span>
+            ) : t.label}
           </button>
-        );
-
-        if (!isExploreHint) return btn;
-
-        // Spinning conic-gradient border traces around the Explore tab
-        return (
-          <span key={t.id} className="relative inline-flex rounded-full p-[1.5px] overflow-hidden">
-            <span
-              className="absolute animate-[spin_2.5s_linear_infinite] pointer-events-none"
-              style={{
-                inset: "-100%",
-                background: "conic-gradient(from 0deg, transparent 0%, transparent 40%, #3b82f6 55%, #8b5cf6 65%, #c084fc 72%, transparent 80%, transparent 100%)",
-              }}
-            />
-            {btn}
-          </span>
         );
       })}
     </div>
