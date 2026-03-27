@@ -407,7 +407,7 @@ export default function Home() {
 
           {/* Pipeline — full-width on mobile when exploring; slide overlay on desktop */}
           <div
-            className={`lg:absolute lg:top-0 lg:left-0 lg:h-full lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:overscroll-contain lg:z-10 ${
+            className={`lg:absolute lg:top-0 lg:bottom-0 lg:left-0 lg:w-[65%] lg:bg-[var(--bg)] lg:border-r lg:border-[var(--border)] lg:overflow-y-auto lg:overscroll-contain lg:z-10 ${
               view === "explore"
                 ? "block lg:translate-x-0 lg:transition-transform lg:duration-500 lg:ease-in-out"
                 : "hidden lg:block lg:-translate-x-full lg:pointer-events-none lg:invisible lg:transition-[transform,visibility] lg:duration-500 lg:ease-in-out"
