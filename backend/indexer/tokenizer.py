@@ -41,16 +41,18 @@ STOPWORDS = _ENGLISH_STOPWORDS | _WIKI_WEB_STOPWORDS
 def tokenize(text: str) -> list[str]:
     """Convert text into a list of normalized, stemmed tokens.
 
-    Pipeline: lowercase → keep alphanumeric → split → filter → stem
-    Filters: stopwords, pure numbers, length bounds (2-30 chars).
+    Pipeline: lowercase → normalize seasons → keep alphanumeric → split → filter → stem
+    Filters: stopwords, pure numbers (except 4-digit years), length bounds (2-30 chars).
     Stemming ensures "running", "runs", "ran" all reduce to "run".
     """
     text = text.lower()
+    # Normalize season strings: "2024/25" or "2024-25" → "2024" (keep the base year)
+    text = re.sub(r"\b(\d{4})[/\-]\d{2}\b", r"\1", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     tokens = text.split()
     return [
         stem(t) for t in tokens
         if t not in STOPWORDS
         and 2 <= len(t) <= 30
-        and not t.isdigit()
+        and not (t.isdigit() and not (len(t) == 4 and t[:2] in ("19", "20")))
     ]
