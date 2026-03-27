@@ -311,10 +311,25 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fix: CSS zoom (1.2/1.3x on large screens) makes 100vh render larger than the viewport,
+  // clipping the bottom of the layout. Compute the correct height and expose as --vph.
+  useEffect(() => {
+    const update = () => {
+      const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+      document.documentElement.style.setProperty('--vph', `${window.innerHeight / zoom}px`);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   const isHero = !hasResults && !isSearching;
 
   return (
-    <div className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:fixed lg:inset-0 lg:flex lg:flex-col min-h-screen"}`}>
+    <div
+      className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:fixed lg:top-0 lg:left-0 lg:right-0 lg:flex lg:flex-col min-h-screen lg:min-h-0"}`}
+      style={!isHero ? { height: 'var(--vph, 100vh)' } : undefined}
+    >
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
       <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
         <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
