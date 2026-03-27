@@ -1,47 +1,69 @@
-"""Query fan-out: expand a user query into multiple sub-queries for better retrieval."""
-import httpx
+"""Query fan-out: expand a user query into sub-queries grounded in the index.
 
-from config import GROQ_API_KEY, GROQ_MODEL
+Co-occurrence expansion: finds terms that appear alongside query terms in the
+top BM25 results, then builds sub-queries from those terms.
+
+No LLM calls — all expanded terms are guaranteed to exist in the index.
+"""
+import psycopg
+
+from indexer.tokenizer import tokenize
+from ranker.bm25 import search_bm25
 
 
-def expand_query(query: str) -> list[str]:
-    """Expand a user query into 2-3 sub-queries using Groq.
+def expand_query(query: str, conn: psycopg.Connection | None = None) -> tuple[list[str], dict]:
+    """Expand a user query into 2-3 sub-queries using co-occurrence from the index.
 
-    Returns the original query plus generated variants.
-    Falls back to just the original query if API fails.
+    Returns (queries, trace) where queries[0] is always the original and
+    trace contains diagnostic info for the Explore panel.
+
+    Falls back to [query] if the index has no results for the query.
     """
-    if not GROQ_API_KEY:
-        return [query]
+    trace = {"method": "co_occurrence", "related_terms": [], "time_ms": 0}
 
-    try:
-        response = httpx.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            json={
-                "model": GROQ_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "Generate exactly 2 alternative search queries. One per line. No numbering, no explanation, just the queries.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Alternative search queries for: {query}",
-                    },
-                ],
-                "max_tokens": 100,
-                "temperature": 0.5,
-            },
-            timeout=5,
-        )
-        response.raise_for_status()
-        raw = response.json()["choices"][0]["message"]["content"].strip()
+    if conn is None:
+        return [query], trace
 
-        lines = [line.strip().strip("-•*123.)") .strip() for line in raw.split("\n")]
-        sub_queries = [line for line in lines if line and len(line) > 3 and len(line) < 200]
+    import time
+    t0 = time.time()
 
-        return [query] + sub_queries[:2]
+    query_tokens = set(tokenize(query))
+    if not query_tokens:
+        trace["time_ms"] = round((time.time() - t0) * 1000, 1)
+        return [query], trace
 
-    except Exception as e:
-        print(f"  Fan-out error: {e}")
-        return [query]
+    bm25_scores = search_bm25(conn, query)
+    if not bm25_scores:
+        trace["time_ms"] = round((time.time() - t0) * 1000, 1)
+        return [query], trace
+
+    top_page_ids = sorted(bm25_scores, key=bm25_scores.get, reverse=True)[:10]
+    placeholders = ",".join(["%s"] * len(top_page_ids))
+
+    rows = conn.execute(
+        f"""SELECT t.term, SUM(p.term_freq) AS total_freq
+            FROM postings p
+            JOIN terms t ON p.term_id = t.id
+            WHERE p.page_id IN ({placeholders})
+            GROUP BY t.term
+            ORDER BY total_freq DESC
+            LIMIT 50""",
+        top_page_ids,
+    ).fetchall()
+
+    # Co-occurring terms not already in the query
+    related = [term for term, _ in rows if term not in query_tokens][:8]
+    trace["related_terms"] = related
+    trace["time_ms"] = round((time.time() - t0) * 1000, 1)
+
+    if not related:
+        return [query], trace
+
+    query_list = list(query_tokens)
+
+    # Sub-query 1: original terms + top 2 co-occurring terms (broader context)
+    sub1 = " ".join(query_list + related[:2])
+    # Sub-query 2: top 4 co-occurring terms (different angle on same topic)
+    sub2 = " ".join(related[:4])
+
+    return [query, sub1, sub2], trace

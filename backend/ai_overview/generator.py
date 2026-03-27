@@ -70,9 +70,8 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
         chunks, _, sources = _get_sources_and_context(conn, query)
         return {"overview": cached, "sources": sources, "trace": {}, "from_cache": True}
 
-    t0 = time.time()
-    queries = expand_query(query)
-    trace["fanout"] = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
+    queries, fanout_meta = expand_query(query, conn)
+    trace["fanout"] = {"original": query, "expanded": queries, **fanout_meta}
 
     t0 = time.time()
     embeddings = embed_queries(queries)
@@ -158,9 +157,8 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
         total_start = time.time()
 
         # Fan-out
-        t0 = time.time()
-        queries = expand_query(query)
-        fanout_trace = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
+        queries, fanout_meta = expand_query(query, conn)
+        fanout_trace = {"original": query, "expanded": queries, **fanout_meta}
         yield f"data: {json.dumps({'type': 'trace', 'step': 'fanout', 'data': fanout_trace})}\n\n"
 
         # Embed expanded queries
@@ -211,9 +209,8 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
     total_start = time.time()
 
     # Fan-out
-    t0 = time.time()
-    queries = expand_query(query)
-    fanout_trace = {"original": query, "expanded": queries, "time_ms": round((time.time() - t0) * 1000, 1)}
+    queries, fanout_meta = expand_query(query, conn)
+    fanout_trace = {"original": query, "expanded": queries, **fanout_meta}
     yield f"data: {json.dumps({'type': 'trace', 'step': 'fanout', 'data': fanout_trace})}\n\n"
 
     # Embed expanded queries
