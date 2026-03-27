@@ -143,9 +143,9 @@ html:has(.hero-lock) body { overflow: hidden; height: 100vh; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes text-shine {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
+@keyframes text-trace {
+  0%   { background-position: 150% center; }
+  100% { background-position: -150% center; }
 }
 
 /* Dark mode SVG fix */
