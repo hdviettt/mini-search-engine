@@ -132,12 +132,14 @@ BLOCKED_DOMAINS = [
 BM25_K1 = 1.2
 BM25_B = 0.75
 
-# Ranking combination weight (0.7 = 70% BM25, 30% PageRank)
-RANK_ALPHA = 0.7
+# Ranking combination weight (0.8 = 80% BM25, 20% PageRank)
+# Higher BM25 weight reduces Wikipedia link-graph bias for sports queries
+RANK_ALPHA = 0.8
 
-# Freshness signal — decay rate per day, floor minimum
-FRESHNESS_DECAY = 0.01   # 1% per day (10 days old = 0.9 multiplier)
-FRESHNESS_FLOOR = 0.8    # minimum freshness multiplier
+# Freshness signal — exponential decay: floor + (1-floor)*exp(-days*decay)
+# Pages < 7 days old receive a 1.15x bonus to surface recent news
+FRESHNESS_DECAY = 0.02   # decay constant (90 days old ≈ 0.58 multiplier)
+FRESHNESS_FLOOR = 0.5    # minimum multiplier for very stale content
 
 # PageRank
 PAGERANK_DAMPING = 0.85

@@ -1,6 +1,7 @@
 """Search engine — combines BM25 and PageRank into final ranked results."""
 import time
 from datetime import datetime, timezone
+from math import exp
 
 import psycopg
 
@@ -125,7 +126,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
         pr_norm = norm_pr.get(page_id, 0)
         combined[page_id] = RANK_ALPHA * bm25_norm + (1 - RANK_ALPHA) * pr_norm
 
-    # Freshness boost — recently crawled pages rank higher
+    # Freshness boost — exponential decay; pages < 7 days old get a 1.15x bonus
     now = datetime.now(timezone.utc)
     freshness_rows = conn.execute(
         f"SELECT id, COALESCE(last_checked_at, crawled_at) FROM pages WHERE id IN ({placeholders})",
@@ -133,8 +134,10 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     ).fetchall()
     for page_id, crawled_at in freshness_rows:
         if page_id in combined and crawled_at:
-            days_old = (now - crawled_at).days
-            boost = max(FRESHNESS_FLOOR, 1.0 - days_old * FRESHNESS_DECAY)
+            days_old = max(0, (now - crawled_at).days)
+            boost = FRESHNESS_FLOOR + (1 - FRESHNESS_FLOOR) * exp(-days_old * FRESHNESS_DECAY)
+            if days_old < 7:
+                boost = min(boost * 1.15, 1.2)  # cap to avoid over-ranking new-but-low-quality pages
             combined[page_id] *= boost
 
     # Sort by combined score
