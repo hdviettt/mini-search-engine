@@ -1,62 +1,62 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Brave Search–inspired theme
+   Neutral monochrome theme — aligned with hoangducviet.work
    ================================================================ */
 
 :root,
 [data-theme="light"] {
-  --bg: #f8f8fb;
-  --bg-card: #ffffff;
-  --bg-elevated: #eff0f6;
-  --border: #dddde8;
-  --border-hover: #c8c8d6;
-  --text: #1b1b2f;
-  --text-muted: #555570;
-  --text-dim: #9a9ab2;
-  --accent: #4a6cf7;
-  --accent-secondary: #7c3aed;
-  --accent-muted: rgba(74, 108, 247, 0.08);
+  --bg: #ffffff;
+  --bg-card: #fafafa;
+  --bg-elevated: #f5f5f5;
+  --border: #e8e8e8;
+  --border-hover: #d0d0d0;
+  --text: #171717;
+  --text-muted: #666666;
+  --text-dim: #a3a3a3;
+  --accent: #171717;
+  --accent-secondary: #444444;
+  --accent-muted: rgba(0, 0, 0, 0.06);
   --portugal-red: #c0392b;
   --portugal-green: #1a6b3c;
-  --portugal-gold: #d4a843;
-  --score-bar-bg: #eff0f6;
-  --link-blue: #3850d0;
-  --snippet: #505068;
-  --meta: #707088;
-  --chip-bg: #eeeef6;
-  --chip-hover: #e2e2ef;
-  --badge-bg: #e5e8f8;
-  --source-border: #d8d8e5;
-  --skeleton: #e8e8f0;
-  --separator: #e8e8f0;
+  --portugal-gold: #b8860b;
+  --score-bar-bg: #f0f0f0;
+  --link-blue: #1a73e8;
+  --snippet: #555555;
+  --meta: #888888;
+  --chip-bg: #f0f0f0;
+  --chip-hover: #e5e5e5;
+  --badge-bg: #efefef;
+  --source-border: #e0e0e0;
+  --skeleton: #ebebeb;
+  --separator: #e8e8e8;
 }
 
 [data-theme="dark"] {
-  --bg: #1b1b2f;
-  --bg-card: #242440;
-  --bg-elevated: #2d2d4a;
-  --border: #353558;
-  --border-hover: #454575;
-  --text: #e5e5f0;
-  --text-muted: #a0a0b8;
-  --text-dim: #6a6a88;
-  --accent: #5b7bff;
-  --accent-secondary: #a78bfa;
-  --accent-muted: rgba(91, 123, 255, 0.12);
+  --bg: #0f0f0f;
+  --bg-card: #1a1a1a;
+  --bg-elevated: #242424;
+  --border: #2a2a2a;
+  --border-hover: #3a3a3a;
+  --text: #e0e0e0;
+  --text-muted: #888888;
+  --text-dim: #555555;
+  --accent: #e0e0e0;
+  --accent-secondary: #a0a0a0;
+  --accent-muted: rgba(255, 255, 255, 0.06);
   --portugal-red: #e74c3c;
   --portugal-green: #2ecc71;
   --portugal-gold: #f1c40f;
-  --score-bar-bg: #242440;
+  --score-bar-bg: #1a1a1a;
   --link-blue: #8ab4f8;
-  --snippet: #b0b0c8;
-  --meta: #7a7a9a;
-  --chip-bg: #2d2d4a;
-  --chip-hover: #383862;
-  --badge-bg: #1e2850;
-  --source-border: #353558;
-  --skeleton: #2d2d4a;
-  --separator: #2d2d4a;
+  --snippet: #aaaaaa;
+  --meta: #666666;
+  --chip-bg: #222222;
+  --chip-hover: #2e2e2e;
+  --badge-bg: #1e1e1e;
+  --source-border: #2a2a2a;
+  --skeleton: #222222;
+  --separator: #222222;
 }
 
 body {

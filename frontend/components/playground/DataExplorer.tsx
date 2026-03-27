@@ -36,8 +36,8 @@ export default function DataExplorer() {
   ];
 
   return (
-    <div className="border border-[#1a1a3a] rounded-lg bg-[#0a0a18] overflow-hidden">
-      <div className="flex items-center border-b border-[#1a1a3a]">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--bg)] overflow-hidden">
+      <div className="flex items-center border-b border-[var(--border)]">
         <span className="text-[10px] text-gray-600 px-2 shrink-0">DATA</span>
         {views.map((v) => (
           <button
@@ -58,7 +58,7 @@ export default function DataExplorer() {
         {!loading && view === "pages" && data && (
           <div className="space-y-1">
             {((data as { pages: { id: number; title: string; domain: string; text_length: number; outlinks: number; status_code: number }[] }).pages || []).map((p) => (
-              <div key={p.id} className="flex items-center gap-1.5 text-[10px] py-0.5 hover:bg-[#111128] px-1 rounded">
+              <div key={p.id} className="flex items-center gap-1.5 text-[10px] py-0.5 hover:bg-[var(--bg-elevated)] px-1 rounded">
                 <span className="text-gray-700 w-5">#{p.id}</span>
                 <span className={`w-1.5 h-1.5 rounded-full ${p.status_code === 200 ? "bg-emerald-500" : "bg-rose-500"}`} />
                 <span className="text-gray-400 truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 30)}</span>
@@ -76,7 +76,7 @@ export default function DataExplorer() {
               return (
                 <div key={i} className="flex items-center gap-1.5 text-[10px] py-0.5 px-1">
                   <span className="font-mono text-rose-400/80 w-20 truncate">{t.term}</span>
-                  <div className="flex-1 h-1 bg-[#1a1a3a] rounded-full overflow-hidden">
+                  <div className="flex-1 h-1 bg-[var(--border)] rounded-full overflow-hidden">
                     <div className="h-full bg-rose-500/30 rounded-full" style={{ width: `${(t.doc_freq / maxDf) * 100}%` }} />
                   </div>
                   <span className="text-gray-600 w-8 text-right">{t.doc_freq}</span>
@@ -94,7 +94,7 @@ export default function DataExplorer() {
                 <div key={i} className="flex items-center gap-1.5 text-[10px] py-0.5 px-1">
                   <span className="text-gray-700 w-3">#{i + 1}</span>
                   <span className="text-gray-400 truncate flex-1">{(p.title || "").replace(" - Wikipedia", "").slice(0, 25)}</span>
-                  <div className="w-12 h-1 bg-[#1a1a3a] rounded-full overflow-hidden">
+                  <div className="w-12 h-1 bg-[var(--border)] rounded-full overflow-hidden">
                     <div className="h-full bg-indigo-500/50 rounded-full" style={{ width: `${(p.score / maxScore) * 100}%` }} />
                   </div>
                   <span className="text-indigo-400/60 w-8 text-right">{p.inlinks}↙</span>
@@ -107,7 +107,7 @@ export default function DataExplorer() {
         {!loading && view === "chunks" && data && (
           <div className="space-y-1">
             {((data as { chunks: { id: number; page_id: number; chunk_idx: number; content: string; has_embedding: boolean; title: string }[] }).chunks || []).map((c) => (
-              <div key={c.id} className="p-1.5 bg-[#050510] rounded text-[10px]">
+              <div key={c.id} className="p-1.5 bg-[var(--bg-card)] rounded text-[10px]">
                 <div className="flex items-center gap-1 mb-0.5">
                   <span className="text-gray-600">p{c.page_id}:c{c.chunk_idx}</span>
                   <span className={`w-1.5 h-1.5 rounded-full ${c.has_embedding ? "bg-purple-500" : "bg-gray-700"}`} />

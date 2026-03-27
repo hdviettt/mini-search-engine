@@ -17,13 +17,13 @@ export default function AIOverviewFlow({ trace, loading, activeStep, onHoverStep
 
   if (loading && !hasData) {
     return (
-      <div className="border border-[#1a1a3a] rounded-lg overflow-hidden bg-[#0a0a18] mb-2">
-        <div className="px-3 py-1.5 border-b border-[#1a1a3a]">
+      <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg)] mb-2">
+        <div className="px-3 py-1.5 border-b border-[var(--border)]">
           <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">AI Overview Pipeline</span>
         </div>
         <div className="p-2 space-y-1.5">
-          <div className="h-3 bg-[#1a1a3a] rounded animate-pulse w-3/4" />
-          <div className="h-3 bg-[#1a1a3a] rounded animate-pulse w-1/2" />
+          <div className="h-3 bg-[var(--border)] rounded animate-pulse w-3/4" />
+          <div className="h-3 bg-[var(--border)] rounded animate-pulse w-1/2" />
         </div>
       </div>
     );
@@ -42,8 +42,8 @@ export default function AIOverviewFlow({ trace, loading, activeStep, onHoverStep
   const steps = allSteps.filter((s) => s.show);
 
   return (
-    <div className="border border-[#1a1a3a] rounded-lg overflow-hidden bg-[#0a0a18] mb-2">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1a1a3a]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg)] mb-2">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)]">
         <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">AI Overview Pipeline</span>
         {trace?.total_ms && <span className="text-[10px] text-gray-700">{trace.total_ms}ms</span>}
       </div>
@@ -59,7 +59,7 @@ export default function AIOverviewFlow({ trace, loading, activeStep, onHoverStep
             >
               <div className="flex flex-col items-center shrink-0 w-4">
                 <div className={`w-2.5 h-2.5 rounded-full ${step.color} ${isActive ? "ring-2 ring-white/10" : ""} ${!step.time && loading ? "animate-pulse" : ""}`} />
-                {i < steps.length - 1 && <div className="w-px flex-1 bg-[#2a2a4a] mt-0.5" />}
+                {i < steps.length - 1 && <div className="w-px flex-1 bg-[var(--border)] mt-0.5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
