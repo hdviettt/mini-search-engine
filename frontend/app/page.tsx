@@ -61,26 +61,41 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
   ];
   return (
     <div className="flex bg-[var(--bg-elevated)] rounded-full p-0.5 text-sm">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onChange(t.id)}
-          className={`relative px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
-            view === t.id
-              ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
-              : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
-          }`}
-        >
-          {t.label}
-          {t.id === "explore" && view === "search" && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--link-blue)] opacity-60" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--link-blue)]" />
-            </span>
-          )}
-        </button>
-      ))}
+      {tabs.map((t) => {
+        const isExploreHint = t.id === "explore" && view === "search";
+        const btn = (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.id)}
+            className={`relative px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
+              view === t.id
+                ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
+                : isExploreHint
+                  ? "text-[var(--text-muted)] bg-[var(--bg-elevated)]"
+                  : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
+            }`}
+          >
+            {t.label}
+          </button>
+        );
+
+        if (!isExploreHint) return btn;
+
+        // Spinning conic-gradient border traces around the Explore tab
+        return (
+          <span key={t.id} className="relative inline-flex rounded-full p-[1.5px] overflow-hidden">
+            <span
+              className="absolute animate-[spin_2.5s_linear_infinite] pointer-events-none"
+              style={{
+                inset: "-100%",
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 40%, #3b82f6 55%, #8b5cf6 65%, #c084fc 72%, transparent 80%, transparent 100%)",
+              }}
+            />
+            {btn}
+          </span>
+        );
+      })}
     </div>
   );
 }
