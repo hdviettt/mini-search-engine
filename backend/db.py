@@ -5,14 +5,18 @@ SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS pages (
-    id           SERIAL PRIMARY KEY,
-    url          TEXT UNIQUE NOT NULL,
-    domain       TEXT NOT NULL,
-    title        TEXT,
-    body_text    TEXT,
-    status_code  INTEGER,
-    content_hash TEXT,
-    crawled_at   TIMESTAMPTZ DEFAULT NOW()
+    id                   SERIAL PRIMARY KEY,
+    url                  TEXT UNIQUE NOT NULL,
+    domain               TEXT NOT NULL,
+    title                TEXT,
+    body_text            TEXT,
+    status_code          INTEGER,
+    content_hash         TEXT,
+    crawled_at           TIMESTAMPTZ DEFAULT NOW(),
+    last_checked_at      TIMESTAMPTZ,
+    indexed_at           TIMESTAMPTZ,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    is_dead              BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS links (
@@ -81,6 +85,9 @@ CREATE INDEX IF NOT EXISTS idx_postings_page ON postings(page_id);
 CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_id);
 CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_queue_status ON crawl_queue(status);
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_status_depth ON crawl_queue(status, depth);
+CREATE INDEX IF NOT EXISTS idx_pages_last_checked_at ON pages(last_checked_at);
+CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = true;
 CREATE INDEX IF NOT EXISTS idx_chunks_page ON chunks(page_id);
 
 -- Query log: track every search for analytics and quality measurement
@@ -139,6 +146,15 @@ MIGRATIONS_SQL = """
 -- Phase 1 migrations: add columns to existing tables
 ALTER TABLE postings ADD COLUMN IF NOT EXISTS title_freq INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE postings ADD COLUMN IF NOT EXISTS body_freq INTEGER NOT NULL DEFAULT 0;
+
+-- Phase 2 migrations: page health tracking and performance indexes
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMPTZ;
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS indexed_at TIMESTAMPTZ;
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS consecutive_failures INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS is_dead BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_status_depth ON crawl_queue(status, depth);
+CREATE INDEX IF NOT EXISTS idx_pages_last_checked_at ON pages(last_checked_at);
+CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = true;
 """
 
 

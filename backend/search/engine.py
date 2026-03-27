@@ -128,7 +128,7 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     # Freshness boost — recently crawled pages rank higher
     now = datetime.now(timezone.utc)
     freshness_rows = conn.execute(
-        f"SELECT id, crawled_at FROM pages WHERE id IN ({placeholders})",
+        f"SELECT id, COALESCE(last_checked_at, crawled_at) FROM pages WHERE id IN ({placeholders})",
         matching_ids,
     ).fetchall()
     for page_id, crawled_at in freshness_rows:

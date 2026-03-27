@@ -63,6 +63,16 @@ SEED_URLS = [
 
     # ── Data: Transfermarkt ──
     "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
+    "https://www.transfermarkt.com/laliga/startseite/wettbewerb/ES1",
+    "https://www.transfermarkt.com/serie-a/startseite/wettbewerb/IT1",
+
+    # ── Stats: FBref (clean HTML, no JS, all football data) ──
+    "https://fbref.com/en/comps/9/Premier-League-Stats",
+    "https://fbref.com/en/comps/12/La-Liga-Stats",
+    "https://fbref.com/en/comps/11/Serie-A-Stats",
+    "https://fbref.com/en/comps/20/Bundesliga-Stats",
+    "https://fbref.com/en/comps/13/Ligue-1-Stats",
+    "https://fbref.com/en/comps/8/Champions-League-Stats",
 ]
 ALLOWED_DOMAINS = [
     "en.wikipedia.org",
@@ -71,6 +81,7 @@ ALLOWED_DOMAINS = [
     "www.skysports.com",
     "www.theguardian.com",
     "www.transfermarkt.com",
+    "fbref.com",
     # Dropped: www.goal.com (404/JS SPA), www.givemesport.com (bot-blocked),
     #          www.fourfourtwo.com (broken URL structure)
 ]
@@ -86,6 +97,7 @@ ALLOWED_PATH_PATTERNS = [
     "/sport/football",   # BBC
     "/soccer/",          # ESPN
     "/football",         # Sky Sports, Guardian
+    "/en/",              # FBref (all stats pages under /en/)
     "/",                 # Transfermarkt (all football)
 ]
 

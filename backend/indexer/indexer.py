@@ -130,6 +130,27 @@ def _update_corpus_stats_remove(conn, old_doc_length: int):
     )
 
 
+def deindex_page(conn: psycopg.Connection, page_id: int):
+    """Remove a page from the index entirely (called when a page is confirmed dead).
+
+    Deletes postings, doc_stats, and chunks for the page, then updates
+    corpus_stats accordingly. The pages row is kept as a tombstone so the
+    URL is not re-crawled.
+    """
+    old_doc = conn.execute(
+        "SELECT doc_length FROM doc_stats WHERE page_id = %s", (page_id,)
+    ).fetchone()
+
+    conn.execute("DELETE FROM postings WHERE page_id = %s", (page_id,))
+    conn.execute("DELETE FROM doc_stats WHERE page_id = %s", (page_id,))
+    conn.execute("DELETE FROM chunks WHERE page_id = %s", (page_id,))
+
+    if old_doc:
+        _update_corpus_stats_remove(conn, old_doc[0])
+
+    conn.commit()
+
+
 def build_index(conn: psycopg.Connection, progress_callback=None):
     """Build inverted index from all pages in the database.
 
