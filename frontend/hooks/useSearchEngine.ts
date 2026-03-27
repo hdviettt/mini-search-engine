@@ -29,6 +29,7 @@ const SEARCH_PHASES: { phase: FlowPhase; delay: number }[] = [
 export interface SearchEngineState {
   query: string;
   searchData: ExplainResponse | null;
+  searchError: string | null;
   phase: FlowPhase;
   overviewText: string;
   overviewSources: OverviewSource[];
@@ -51,6 +52,7 @@ export interface SearchEngineState {
 export function useSearchEngine(): SearchEngineState {
   const [query, setQuery] = useState("");
   const [searchData, setSearchData] = useState<ExplainResponse | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [phase, setPhase] = useState<FlowPhase>("idle");
 
   // AI Overview
@@ -222,6 +224,7 @@ export function useSearchEngine(): SearchEngineState {
       setQuery(q);
       setPhase("idle");
       setSearchData(null);  // clear immediately — triggers skeleton UI
+      setSearchError(null);
 
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
@@ -247,7 +250,7 @@ export function useSearchEngine(): SearchEngineState {
           timersRef.current.push(timer);
         }
       } catch {
-        /* */
+        setSearchError("Search temporarily unavailable. Please try again shortly.");
       }
     },
     [streamOverview],
@@ -261,6 +264,7 @@ export function useSearchEngine(): SearchEngineState {
   return {
     query,
     searchData,
+    searchError,
     phase,
     overviewText,
     overviewSources,

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect, memo } from "react";
+import { useState, useCallback, useEffect, useRef, memo } from "react";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import AIChat from "@/components/AIChat";
 import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
-import { getStats, getStatsHistory, type StatsHistory } from "@/lib/api";
+import { getStats, getStatsHistory, getSuggestions, type StatsHistory } from "@/lib/api";
 
 type View = "search" | "explore";
 type Theme = "light" | "dark";
@@ -332,6 +332,52 @@ export default function Home() {
   const isSearching = engine.query !== "" && !hasResults;  // loading state: query set but no results yet
   const toggleView = useCallback(() => setView(v => v === "search" ? "explore" : "search"), []);
 
+  // Autocomplete state
+  const [headerInput, setHeaderInput] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionIdx, setSuggestionIdx] = useState(-1);
+  const suggestDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchFormRef = useRef<HTMLDivElement>(null);
+
+  // Sync input field when engine commits a query (correction click, suggestion click, etc.)
+  useEffect(() => {
+    if (engine.query) setHeaderInput(engine.query);
+  }, [engine.query]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchFormRef.current && !searchFormRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+        setSuggestionIdx(-1);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleHeaderInput = useCallback((val: string) => {
+    setHeaderInput(val);
+    setSuggestionIdx(-1);
+    if (suggestDebounce.current) clearTimeout(suggestDebounce.current);
+    if (val.length >= 2) {
+      suggestDebounce.current = setTimeout(() => {
+        getSuggestions(val).then(s => { setSuggestions(s); setShowSuggestions(s.length > 0); }).catch(() => {});
+      }, 220);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, []);
+
+  const commitSearch = useCallback((q: string) => {
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSuggestionIdx(-1);
+    engine.handleSearch(q);
+  }, [engine]);
+
   useEffect(() => {
     const timer = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 3000);
     return () => clearInterval(timer);
@@ -363,33 +409,57 @@ export default function Home() {
             FS
           </a>
 
-          <form onSubmit={(e) => { e.preventDefault(); const q = new FormData(e.currentTarget).get("q") as string; if (q.trim()) engine.handleSearch(q.trim()); }}
-            className="flex-1 flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all px-3 sm:px-4"
-          >
-            <input name="q" type="text"
-              defaultValue={hasResults || isSearching ? engine.query : undefined}
-              key={hasResults || isSearching ? engine.query : "hero"}
-              placeholder={isHero ? PLACEHOLDERS[placeholderIdx] : "Search..."}
-              className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
-            {(hasResults || isSearching) && (
-              <button type="button" onClick={() => { window.location.href = "/"; }}
-                className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+          <div ref={searchFormRef} className="flex-1 relative">
+            <form onSubmit={(e) => { e.preventDefault(); if (headerInput.trim()) commitSearch(headerInput.trim()); }}
+              className="flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all px-3 sm:px-4"
+            >
+              <input type="text"
+                value={headerInput}
+                onChange={(e) => handleHeaderInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (!showSuggestions || suggestions.length === 0) return;
+                  if (e.key === "ArrowDown") { e.preventDefault(); setSuggestionIdx(i => Math.min(i + 1, suggestions.length - 1)); }
+                  else if (e.key === "ArrowUp") { e.preventDefault(); setSuggestionIdx(i => Math.max(i - 1, -1)); }
+                  else if (e.key === "Enter" && suggestionIdx >= 0) { e.preventDefault(); commitSearch(suggestions[suggestionIdx]); setHeaderInput(suggestions[suggestionIdx]); }
+                  else if (e.key === "Escape") { setShowSuggestions(false); setSuggestionIdx(-1); }
+                }}
+                placeholder={isHero ? PLACEHOLDERS[placeholderIdx] : "Search..."}
+                autoFocus={isHero}
+                className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
+              {(hasResults || isSearching) && (
+                <button type="button" onClick={() => { window.location.href = "/"; }}
+                  className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              )}
+              <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                 </svg>
               </button>
+              {(hasResults || isSearching) && (
+                <div className="shrink-0 border-l border-[var(--border)] pl-2 ml-1 flex items-center gap-1">
+                  <ViewToggle view={view} onChange={setView} />
+                </div>
+              )}
+            </form>
+            {/* Autocomplete dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute top-full mt-1 left-0 right-0 z-50 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-lg overflow-hidden">
+                {suggestions.map((s, i) => (
+                  <li key={s} onMouseDown={() => { setHeaderInput(s); commitSearch(s); }}
+                    className={`px-4 py-2.5 text-sm cursor-pointer flex items-center gap-2 ${i === suggestionIdx ? "bg-[var(--accent-muted)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]"}`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-40">
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                    </svg>
+                    {s}
+                  </li>
+                ))}
+              </ul>
             )}
-            <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-              </svg>
-            </button>
-            {(hasResults || isSearching) && (
-              <div className="shrink-0 border-l border-[var(--border)] pl-2 ml-1 flex items-center gap-1">
-                <ViewToggle view={view} onChange={setView} />
-              </div>
-            )}
-          </form>
+          </div>
 
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
@@ -410,6 +480,18 @@ export default function Home() {
 
           {/* Dashboard */}
           <HeroDashboard onSearch={engine.handleSearch} />
+        </div>
+      )}
+
+      {/* Error banner — shown when search API fails */}
+      {engine.searchError && !hasResults && !isSearching && (
+        <div className="max-w-[692px] mx-auto px-4 py-10 text-center" style={{ animation: "content-in 0.3s ease-out" }}>
+          <div className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] text-[14px]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-dim)] shrink-0">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {engine.searchError}
+          </div>
         </div>
       )}
 
