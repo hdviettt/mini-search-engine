@@ -160,6 +160,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
                 sources={engine.overviewSources}
                 loading={engine.overviewLoading}
                 streaming={engine.overviewStreaming}
+                unavailable={engine.overviewUnavailable}
                 compact={isExploring}
                 onSearch={engine.handleSearch}
                 query={engine.query}

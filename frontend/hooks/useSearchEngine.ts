@@ -36,6 +36,7 @@ export interface SearchEngineState {
   overviewTrace: OverviewTrace | null;
   overviewLoading: boolean;
   overviewStreaming: boolean;
+  overviewUnavailable: boolean;
   stats: Stats | null;
   crawlProgress: CrawlProgressData | null;
   indexProgress: IndexProgressData | null;
@@ -61,6 +62,7 @@ export function useSearchEngine(): SearchEngineState {
   const [overviewTrace, setOverviewTrace] = useState<OverviewTrace | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewStreaming, setOverviewStreaming] = useState(false);
+  const [overviewUnavailable, setOverviewUnavailable] = useState(false);
 
   // System
   const [stats, setStats] = useState<Stats | null>(null);
@@ -136,6 +138,7 @@ export function useSearchEngine(): SearchEngineState {
     setOverviewTrace(null);
     setOverviewLoading(true);
     setOverviewStreaming(false);
+    setOverviewUnavailable(false);
 
     try {
       const response = await fetch(getOverviewStreamUrl(q), { signal: controller.signal });
@@ -204,6 +207,10 @@ export function useSearchEngine(): SearchEngineState {
                 traceData.total_ms = msg.total_ms;
                 setOverviewTrace({ ...traceData });
               }
+            } else if (msg.type === "unavailable") {
+              setOverviewLoading(false);
+              setOverviewStreaming(false);
+              setOverviewUnavailable(true);
             }
           } catch {
             /* */
@@ -234,6 +241,7 @@ export function useSearchEngine(): SearchEngineState {
       setOverviewTrace(null);
       setOverviewLoading(false);
       setOverviewStreaming(false);
+      setOverviewUnavailable(false);
 
       try {
         const data = await searchExplain(q, DEFAULT_PARAMS);
@@ -271,6 +279,7 @@ export function useSearchEngine(): SearchEngineState {
     overviewTrace,
     overviewLoading,
     overviewStreaming,
+    overviewUnavailable,
     stats,
     crawlProgress,
     indexProgress,

@@ -8,6 +8,7 @@ interface AIOverviewProps {
   sources: OverviewSource[];
   loading: boolean;
   streaming: boolean;
+  unavailable?: boolean;
   compact?: boolean;
   onSearch?: (q: string) => void;
   query?: string;
@@ -102,7 +103,7 @@ function getFollowUpSuggestions(query: string): string[] {
   ];
 }
 
-export default memo(function AIOverview({ text, sources, loading, streaming, compact, onSearch, query, onEnterChat }: AIOverviewProps) {
+export default memo(function AIOverview({ text, sources, loading, streaming, unavailable, compact, onSearch, query, onEnterChat }: AIOverviewProps) {
   const [copied, setCopied] = useState(false);
 
   const copyText = useCallback(() => {
@@ -112,7 +113,20 @@ export default memo(function AIOverview({ text, sources, loading, streaming, com
     setTimeout(() => setCopied(false), 2000);
   }, [text]);
 
-  if (!loading && !streaming && !text && sources.length === 0) return null;
+  if (!loading && !streaming && !text && !unavailable && sources.length === 0) return null;
+
+  if (unavailable) {
+    return (
+      <div className="pt-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <SparkleIcon />
+          <span className="text-[15px] font-medium text-[var(--text)]">AI Overview</span>
+        </div>
+        <p className="text-[13px] text-[var(--text-dim)]">AI Overview temporarily unavailable.</p>
+        <div className="mt-6 border-b border-[var(--separator)]" />
+      </div>
+    );
+  }
 
   const parts = text ? parseOverviewWithCitations(text) : [];
   const isDone = !loading && !streaming && !!text;

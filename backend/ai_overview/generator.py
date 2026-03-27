@@ -257,43 +257,55 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
 
     yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
-    # Stream LLM synthesis
+    # Stream LLM synthesis (with 2 retries on failure)
     yield f"data: {json.dumps({'type': 'trace', 'step': 'synthesis', 'data': {'model': GROQ_MODEL, 'status': 'generating'}})}\n\n"
 
-    try:
-        with httpx.stream(
-            "POST",
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            json={
-                "model": GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You summarize search results concisely. Cite sources ONLY as [1], [2], etc. (never write 'Source 1' or '[Source 1]'). Use 2-3 sentences. Be factual."},
-                    {"role": "user", "content": f"Summarize these search results for \"{query}\":\n{context}"},
-                ],
-                "max_tokens": AI_OVERVIEW_MAX_TOKENS,
-                "temperature": 0.3,
-                "stream": True,
-            },
-            timeout=15,
-        ) as response:
-            full_text = ""
-            for line in response.iter_lines():
-                if line.startswith("data: ") and line != "data: [DONE]":
-                    try:
-                        chunk_data = json.loads(line[6:])
-                        delta = chunk_data["choices"][0].get("delta", {}).get("content", "")
-                        if delta:
-                            full_text += delta
-                            yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        pass
+    MAX_RETRIES = 2
+    for attempt in range(MAX_RETRIES + 1):
+        full_text = ""
+        try:
+            with httpx.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": "You summarize search results concisely. Cite sources ONLY as [1], [2], etc. (never write 'Source 1' or '[Source 1]'). Use 2-3 sentences. Be factual."},
+                        {"role": "user", "content": f"Summarize these search results for \"{query}\":\n{context}"},
+                    ],
+                    "max_tokens": AI_OVERVIEW_MAX_TOKENS,
+                    "temperature": 0.3,
+                    "stream": True,
+                },
+                timeout=15,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line.startswith("data: ") and line != "data: [DONE]":
+                        try:
+                            chunk_data = json.loads(line[6:])
+                            delta = chunk_data["choices"][0].get("delta", {}).get("content", "")
+                            if delta:
+                                full_text += delta
+                                yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            pass
 
             if full_text:
                 _set_cache(conn, query, full_text)
-
             total_ms = round((time.time() - total_start) * 1000, 1)
             yield f"data: {json.dumps({'type': 'done', 'total_ms': total_ms, 'from_cache': False})}\n\n"
+            return  # success
 
-    except Exception as e:
-        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        except Exception as e:
+            if full_text:
+                # Already sent tokens — end gracefully without retry
+                total_ms = round((time.time() - total_start) * 1000, 1)
+                yield f"data: {json.dumps({'type': 'done', 'total_ms': total_ms, 'from_cache': False})}\n\n"
+                return
+            if attempt < MAX_RETRIES:
+                time.sleep(1)
+            else:
+                print(f"AI Overview unavailable after {MAX_RETRIES + 1} attempts: {e}")
+                yield f"data: {json.dumps({'type': 'unavailable'})}\n\n"
