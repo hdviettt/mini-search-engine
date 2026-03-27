@@ -44,39 +44,50 @@ interface ArrowDef {
 // ─── Layout ─────────────────────────────────────────────────────
 
 const LANES = [
-  { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f0fdf4" },
-  { label: "Stores", sub: "", y: 268, h: 62, bg: "#fffbeb" },
-  { label: "Query", sub: "(per search)", y: 338, h: 520, bg: "#eff6ff" },
+  { label: "Build", sub: "(offline)", y: 0, h: 260, bg: "#f5f5f5" },
+  { label: "Stores", sub: "", y: 268, h: 62, bg: "#efefef" },
+  { label: "Query", sub: "(per search)", y: 338, h: 520, bg: "#f5f5f5" },
 ];
+
+// Palette — 4 muted tones: sage (build), sand (stores), slate (query), mist (AI)
+const C = {
+  sage:   { fill: "#ccd8cc", stroke: "#8ca88c", active: "#a0bca0" },  // build/crawl
+  slate:  { fill: "#ccd0dc", stroke: "#8898b0", active: "#9aaac4" },  // process/compute
+  sand:   { fill: "#ddd8c4", stroke: "#b0a880", active: "#c8c090" },  // stores/data
+  warm:   { fill: "#d8cfc8", stroke: "#a89890", active: "#c0a898" },  // query process
+  mist:   { fill: "#ccccd8", stroke: "#8888a8", active: "#9898c0" },  // AI path
+  rose:   { fill: "#d8cccc", stroke: "#a88888", active: "#c09898" },  // neural rerank
+  io:     { fill: "#d0d8d4", stroke: "#88a8a0", active: "#98c0b8" },  // IO nodes
+};
 
 const NODES: NodeDef[] = [
   // ── BUILD ──
-  { id: "crawler",    label: "Crawler",         cx: 390, cy: 42,  w: 120, h: 40, fill: "#a7f3d0", stroke: "#6ee7b7", activeFill: "#6ee7b7", kind: "process" },
-  { id: "pages_db",   label: "Pages DB",        cx: 390, cy: 112, w: 115, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
-  { id: "indexer",    label: "Indexer",          cx: 150, cy: 192, w: 110, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "process" },
-  { id: "pr_compute", label: "PageRank Compute", cx: 390, cy: 192, w: 155, h: 40, fill: "#c7d2fe", stroke: "#a5b4fc", activeFill: "#a5b4fc", kind: "process" },
-  { id: "chunker",    label: "Chunker",          cx: 630, cy: 192, w: 110, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "embedder",   label: "Embedder",         cx: 630, cy: 245, w: 110, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "process" },
+  { id: "crawler",    label: "Crawler",         cx: 390, cy: 42,  w: 120, h: 40, fill: C.sage.fill,  stroke: C.sage.stroke,  activeFill: C.sage.active,  kind: "process" },
+  { id: "pages_db",   label: "Pages DB",        cx: 390, cy: 112, w: 115, h: 40, fill: C.sand.fill,  stroke: C.sand.stroke,  activeFill: C.sand.active,  kind: "store" },
+  { id: "indexer",    label: "Indexer",          cx: 150, cy: 192, w: 110, h: 40, fill: C.slate.fill, stroke: C.slate.stroke, activeFill: C.slate.active, kind: "process" },
+  { id: "pr_compute", label: "PageRank Compute", cx: 390, cy: 192, w: 155, h: 40, fill: C.slate.fill, stroke: C.slate.stroke, activeFill: C.slate.active, kind: "process" },
+  { id: "chunker",    label: "Chunker",          cx: 630, cy: 192, w: 110, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
+  { id: "embedder",   label: "Embedder",         cx: 630, cy: 245, w: 110, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
   // ── STORES ──
-  { id: "inv_index",    label: "Inverted Index", cx: 150, cy: 300, w: 125, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
-  { id: "pr_scores",    label: "PR Scores",      cx: 390, cy: 300, w: 115, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
-  { id: "vector_store", label: "Vector Store",   cx: 630, cy: 300, w: 120, h: 40, fill: "#fef3c7", stroke: "#fcd34d", activeFill: "#fde68a", kind: "store" },
+  { id: "inv_index",    label: "Inverted Index", cx: 150, cy: 300, w: 125, h: 40, fill: C.sand.fill,  stroke: C.sand.stroke,  activeFill: C.sand.active,  kind: "store" },
+  { id: "pr_scores",    label: "PR Scores",      cx: 390, cy: 300, w: 115, h: 40, fill: C.sand.fill,  stroke: C.sand.stroke,  activeFill: C.sand.active,  kind: "store" },
+  { id: "vector_store", label: "Vector Store",   cx: 630, cy: 300, w: 120, h: 40, fill: C.sand.fill,  stroke: C.sand.stroke,  activeFill: C.sand.active,  kind: "store" },
   // ── QUERY — shared ──
-  { id: "query_input", label: "Search Query",    cx: 390, cy: 385, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "io" },
+  { id: "query_input", label: "Search Query",    cx: 390, cy: 385, w: 135, h: 40, fill: C.io.fill,    stroke: C.io.stroke,    activeFill: C.io.active,    kind: "io" },
   // ── QUERY — search path ──
-  { id: "tokenize",     label: "Tokenize",       cx: 195, cy: 460, w: 115, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "index_lookup", label: "Index Lookup",   cx: 195, cy: 530, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "bm25",         label: "BM25 Scoring",   cx: 195, cy: 603, w: 125, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "pr_lookup",    label: "PR Lookup",      cx: 345, cy: 603, w: 110, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "combine",      label: "Combine Scores", cx: 265, cy: 678, w: 135, h: 40, fill: "#fed7aa", stroke: "#fdba74", activeFill: "#fdba74", kind: "process" },
-  { id: "reranker",     label: "Neural Rerank",  cx: 265, cy: 748, w: 130, h: 40, fill: "#fecdd3", stroke: "#fda4af", activeFill: "#fda4af", kind: "process" },
-  { id: "results",      label: "Ranked Results",  cx: 265, cy: 818, w: 135, h: 40, fill: "#bfdbfe", stroke: "#93c5fd", activeFill: "#93c5fd", kind: "io" },
+  { id: "tokenize",     label: "Tokenize",       cx: 195, cy: 460, w: 115, h: 40, fill: C.warm.fill,  stroke: C.warm.stroke,  activeFill: C.warm.active,  kind: "process" },
+  { id: "index_lookup", label: "Index Lookup",   cx: 195, cy: 530, w: 125, h: 40, fill: C.warm.fill,  stroke: C.warm.stroke,  activeFill: C.warm.active,  kind: "process" },
+  { id: "bm25",         label: "BM25 Scoring",   cx: 195, cy: 603, w: 125, h: 40, fill: C.warm.fill,  stroke: C.warm.stroke,  activeFill: C.warm.active,  kind: "process" },
+  { id: "pr_lookup",    label: "PR Lookup",      cx: 345, cy: 603, w: 110, h: 40, fill: C.warm.fill,  stroke: C.warm.stroke,  activeFill: C.warm.active,  kind: "process" },
+  { id: "combine",      label: "Combine Scores", cx: 265, cy: 678, w: 135, h: 40, fill: C.warm.fill,  stroke: C.warm.stroke,  activeFill: C.warm.active,  kind: "process" },
+  { id: "reranker",     label: "Neural Rerank",  cx: 265, cy: 748, w: 130, h: 40, fill: C.rose.fill,  stroke: C.rose.stroke,  activeFill: C.rose.active,  kind: "process" },
+  { id: "results",      label: "Ranked Results",  cx: 265, cy: 818, w: 135, h: 40, fill: C.io.fill,    stroke: C.io.stroke,    activeFill: C.io.active,    kind: "io" },
   // ── QUERY — AI path (sequential: fan-out → embed → vector search → LLM → overview) ──
-  { id: "fanout",        label: "Fan-out",          cx: 600, cy: 460, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "embed_query",   label: "Embed Query",     cx: 600, cy: 530, w: 115, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "vector_search", label: "Vector Search",   cx: 600, cy: 600, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 670, w: 125, h: 40, fill: "#ddd6fe", stroke: "#c4b5fd", activeFill: "#c4b5fd", kind: "process" },
-  { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 740, w: 125, h: 40, fill: "#e9d5ff", stroke: "#c084fc", activeFill: "#c084fc", kind: "io" },
+  { id: "fanout",        label: "Fan-out",          cx: 600, cy: 460, w: 115, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
+  { id: "embed_query",   label: "Embed Query",     cx: 600, cy: 530, w: 115, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
+  { id: "vector_search", label: "Vector Search",   cx: 600, cy: 600, w: 125, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
+  { id: "llm",           label: "LLM Synthesis",   cx: 600, cy: 670, w: 125, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "process" },
+  { id: "ai_overview",   label: "AI Overview",     cx: 600, cy: 740, w: 125, h: 40, fill: C.mist.fill,  stroke: C.mist.stroke,  activeFill: C.mist.active,  kind: "io" },
 ];
 
 const ARROWS: ArrowDef[] = [
@@ -237,7 +248,7 @@ function Flowchart({
               key={i}
               d={a.path}
               fill="none"
-              stroke={a.dim ? "#cbd5e1" : "#94a3b8"}
+              stroke={a.dim ? "#c8c8c8" : "#888888"}
               strokeWidth={a.dim ? "1" : "1.5"}
               strokeDasharray={a.dashed ? "5,4" : undefined}
               strokeLinejoin="round"
@@ -257,12 +268,12 @@ function Flowchart({
             const isIO = node.kind === "io";
             const ry = 7; // ellipse ry for cylinder caps
 
-            let fill = "#f5f5f5";
-            let strokeColor = "#d4d4d4";
+            let fill = "#e8e8e8";
+            let strokeColor = "#c8c8c8";
             let sw = 1.5;
             if (status === "active") { fill = node.activeFill; strokeColor = node.stroke; }
             else if (status === "done" || status === "ready") { fill = node.fill; strokeColor = node.stroke; }
-            if (selected) { fill = node.activeFill; strokeColor = "#2563eb"; sw = isStore ? 1.5 : 2.5; }
+            if (selected) { fill = node.activeFill; strokeColor = "#555555"; sw = isStore ? 1.5 : 2.5; }
 
             return (
               <g
