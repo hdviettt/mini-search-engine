@@ -77,30 +77,12 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
             {isExploreHint ? (
               <span
                 style={{
-                  backgroundImage: [
-                    "linear-gradient(100deg,",
-                    "var(--text-dim) 0%,",
-                    "var(--text-dim) 28%,",
-                    "transparent 31%,",
-                    "#bfdbfe 33%,",      /* line 1 — soft blue edge */
-                    "#e0f2fe 34.5%,",   /* line 1 — bright white-blue core */
-                    "#bfdbfe 36%,",     /* line 1 — soft blue edge */
-                    "transparent 38%,",
-                    "var(--text-dim) 41%,",
-                    "var(--text-dim) 46%,",
-                    "transparent 49%,",
-                    "#c4b5fd 51%,",     /* line 2 — soft violet edge */
-                    "#ede9fe 52.5%,",   /* line 2 — bright white-violet core */
-                    "#c4b5fd 54%,",     /* line 2 — soft violet edge */
-                    "transparent 56%,",
-                    "var(--text-dim) 59%,",
-                    "var(--text-dim) 100%)",
-                  ].join(" "),
-                  backgroundSize: "400% 100%",
+                  backgroundImage: "linear-gradient(105deg, var(--text-dim) 0%, var(--text-dim) 35%, var(--text-muted) 45%, #93c5fd 52%, var(--text-muted) 59%, var(--text-dim) 68%, var(--text-dim) 100%)",
+                  backgroundSize: "300% 100%",
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   WebkitTextFillColor: "transparent",
-                  animation: "text-trace 4s ease-in-out infinite",
+                  animation: "text-trace 6s linear infinite",
                 }}
               >
                 {t.label}
