@@ -2,11 +2,12 @@
 import asyncio
 import queue
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from db import get_connection
 from search.explainer import search_explain
+from search.spellcheck import spell_checker
 from ranker.pagerank import compute_pagerank
 from api.jobs import job_manager, crawl_scheduler
 
@@ -47,6 +48,23 @@ class ScheduleRequest(BaseModel):
 def explain(req: ExplainRequest):
     conn = get_connection()
     result = search_explain(conn, req.q, req.params)
+
+    # Spell correction: if 0 results, try correcting the query
+    result["correction"] = None
+    result["original_query"] = None
+    if result.get("total_results", 0) == 0 and req.q.strip():
+        correction = spell_checker.correct_query(req.q, conn)
+        if correction and correction.lower() != req.q.lower():
+            corrected_result = search_explain(conn, correction, req.params)
+            if corrected_result.get("total_results", 0) > 0:
+                # Auto-retry succeeded — serve corrected results
+                corrected_result["correction"] = correction
+                corrected_result["original_query"] = req.q
+                result = corrected_result
+            else:
+                # Still suggest the correction even though it also has 0 results
+                result["correction"] = correction
+
     # Log query for analytics
     try:
         conn.execute(
@@ -58,6 +76,25 @@ def explain(req: ExplainRequest):
         conn.rollback()
     conn.close()
     return result
+
+
+@router.get("/suggest")
+def suggest(q: str = Query("")):
+    """Return popular past queries matching a prefix, for autocomplete."""
+    if len(q) < 2:
+        return {"popular": []}
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT query, COUNT(*) AS freq
+           FROM query_log
+           WHERE query ILIKE %s AND lower(query) != lower(%s)
+           GROUP BY query
+           ORDER BY freq DESC
+           LIMIT 6""",
+        (f"{q}%", q),
+    ).fetchall()
+    conn.close()
+    return {"popular": [r[0] for r in rows]}
 
 
 @router.get("/stats")

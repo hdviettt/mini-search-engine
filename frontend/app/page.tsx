@@ -177,6 +177,32 @@ const SerpSidePanel = memo(function SerpSidePanel({
 
           {/* Results */}
           <div className="py-4 space-y-8">
+            {/* Correction banner */}
+            {engine.searchData.original_query && engine.searchData.correction && (
+              <div className="text-[14px] text-[var(--text-muted)]">
+                Showing results for{" "}
+                <span className="font-medium text-[var(--text)] italic">{engine.searchData.correction}</span>
+                {" · "}
+                <button
+                  onClick={() => engine.handleSearch(engine.searchData!.original_query!)}
+                  className="text-[var(--accent)] hover:underline cursor-pointer"
+                >
+                  Search instead for &ldquo;{engine.searchData.original_query}&rdquo;
+                </button>
+              </div>
+            )}
+            {engine.searchData.total_results === 0 && engine.searchData.correction && !engine.searchData.original_query && (
+              <div className="text-[14px] text-[var(--text-muted)]">
+                No results found. Did you mean{" "}
+                <button
+                  onClick={() => engine.handleSearch(engine.searchData!.correction!)}
+                  className="font-medium text-[var(--accent)] italic hover:underline cursor-pointer"
+                >
+                  {engine.searchData.correction}
+                </button>
+                ?
+              </div>
+            )}
             <div className="text-[14px] text-[var(--meta)]">
               {engine.searchData.total_results} results ({(engine.searchData.time_ms / 1000).toFixed(2)}s)
             </div>

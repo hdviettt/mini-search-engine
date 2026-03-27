@@ -152,6 +152,8 @@ export interface ExplainResponse {
   time_ms: number;
   params_used: { bm25_k1: number; bm25_b: number; rank_alpha: number };
   pipeline: PipelineTrace;
+  correction?: string | null;
+  original_query?: string | null;
 }
 
 export interface SearchResult {

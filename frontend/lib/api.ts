@@ -167,6 +167,14 @@ export async function exploreEmbed(q: string): Promise<{ query: string; embeddin
 }
 
 
+export async function getSuggestions(q: string): Promise<string[]> {
+  if (q.length < 2) return [];
+  const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.popular || [];
+}
+
 // Stats history for time-series charts
 export interface StatsHistory {
   pages_over_time: { day: string; count: number }[];
