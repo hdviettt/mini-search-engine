@@ -10,7 +10,7 @@
 
 ---
 
-This is a series where I learn SEO by building a mini search engine from scratch. It covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus an **AI Overviews** feature.
+This is a series where I learn SEO by building a mini search engine from scratch. It covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking**, **AI Overviews**, and **Sports OneBox**.
 
 As someone who works in SEO, I wanted to understand search at the engineering level. Not just what Google does, but how and why. It's no coincidence that the research problems search engines needed to solve — understanding language, ranking relevance across billions of documents — drove the breakthroughs that became modern AI. The transformer paper ("Attention Is All You Need") came out of Google. So did Word2Vec and BERT. Search is where it all started.
 
@@ -25,36 +25,41 @@ This is what Google does every time you search something. I built each piece.
         ┌──────────────────────────────────────┐        ┌──────────────────────────────────────────────┐
         │                                      │        │                                              │
         │   Crawler ──→ Pages DB ──┬──→ Indexer │        │   Search Query                               │
-        │   (BFS,       (1000      │           │        │       │                                      │
-        │   robots.txt,  pages)    ├──→ PageRank│        │       ├──→ Tokenize ──→ Index Lookup ──→ BM25│
-        │   rate limit)            │           │        │       │                                  │   │
-        │                          └──→ Chunker │        │       ├──→ Fan-out ──→ Vector Search ──→ LLM│
-        │                               │      │        │       │                                  │   │
-        │                          Embedder     │        │       └──→ PageRank Lookup               │   │
-        │                               │      │        │                    │                      │   │
-        │                               ▼      │        │                    ▼                      │   │
-        │   ┌─────────┐ ┌──────────┐ ┌───────┐ │        │              Combine Scores ──→ Results   │   │
-        │   │Inverted │ │PageRank  │ │Vector │ │        │                                     │    │   │
-        │   │ Index   │ │ Scores   │ │ Store │ │◄───────┤                              AI Overview  │   │
-        │   └─────────┘ └──────────┘ └───────┘ │        │                                          │   │
-        └──────────────────────────────────────┘        └──────────────────────────────────────────────┘
-                    ▲                                                        ▲
-                    │             Databases are the bridge                   │
-                    └───────────────────────────────────────────────────────┘
+        │   (BFS,       (1000+     │           │        │       │                                      │
+        │   robots.txt,  pages)    ├──→ PageRank│        │       ├──→ Spell Check ──→ Tokenize          │
+        │   rate limit)            │           │        │       │                      │               │
+        │                          └──→ Chunker │        │       │              Index Lookup ──→ BM25   │
+        │                               │      │        │       │                                │     │
+        │                          Embedder     │        │       ├──→ PageRank Lookup             │     │
+        │                               │      │        │       │        │                       │     │
+        │                               ▼      │        │       │        ▼                       │     │
+        │   ┌─────────┐ ┌──────────┐ ┌───────┐ │        │       │  Combine Scores ──→ Rerank (Top 5)   │
+        │   │Inverted │ │PageRank  │ │Vector │ │        │       │                        │             │
+        │   │ Index   │ │ Scores   │ │ Store │ │◄───────┤       │                    Results           │
+        │   └─────────┘ └──────────┘ └───────┘ │        │       │                        │             │
+        └──────────────────────────────────────┘        │       ├──→ Fan-out ──→ Hybrid Retrieval      │
+                    ▲                                   │       │                    │             │   │
+                    │             Databases are the     │       │               AI Overview        │   │
+                    │                  bridge            │       │                    │             │   │
+                    └───────────────────────────────────┤       └──→ Sports Detection (OneBox)    │   │
+                                                        └──────────────────────────────────────────────┘
 ```
 
 ### What each piece does
 
 | Stage | What it does | How | Numbers |
 |-------|-------------|-----|---------|
-| **Crawler** | Downloads web pages | BFS traversal, robots.txt compliance, 1.5s rate limiting | ~1,000+ pages from Wikipedia, BBC Sport, ESPN, FBref, Transfermarkt |
+| **Crawler** | Downloads web pages | BFS traversal, robots.txt compliance, 1.5s rate limiting, dead page tracking | ~1,000+ pages from Wikipedia, BBC Sport, ESPN, FBref, Transfermarkt |
 | **Indexer** | Maps every word to the pages containing it | Tokenization (Porter stemmer) → stopword removal → inverted index via PostgreSQL COPY | 100K+ terms, 1M+ postings |
 | **PageRank** | Scores page authority from link structure | Iterative algorithm (d=0.85, 20 iterations), handles dangling nodes | Scores for all live pages |
 | **Chunker + Embedder** | Prepares pages for semantic search | Split into ~300-token chunks, embed with Voyage AI voyage-3-lite, store as pgvector | ~15,000+ chunks (512d vectors) |
-| **BM25** | Scores text relevance | Term frequency × inverse document frequency × length normalization | k1=1.2, b=0.75 |
+| **BM25** | Scores text relevance | BM25F with 4× title weight, term frequency × inverse document frequency × length normalization | k1=1.2, b=0.75 |
+| **Neural Reranker** | Refines top results with a cross-encoder | ONNX inference with ms-marco-MiniLM-L-6-v2 (22M params), runs locally on CPU | Reranks top 5 candidates |
 | **Ranking** | Combines signals | 80% BM25 + 20% PageRank, exponential freshness decay, 7-day recency bonus | min-max normalized, tunable live in the UI |
 | **Spell correction** | Fixes typos before searching | Levenshtein edit-distance ≤ 2, vocabulary from page titles + indexed stems | Proper nouns protected via terms table |
 | **AI Overview** | Generates a summary with citations | Co-occurrence fan-out → hybrid retrieval (vector + keyword) → Groq streaming with retry | Llama 3.3 70B, cached 24h |
+| **AI Chat** | Follow-up conversation with context | Multi-turn chat grounded in retrieved chunks, inline citations | Groq streaming |
+| **Sports OneBox** | Live match cards above results | Keyword detection for teams/leagues → API-Football integration | Live scores, standings, fixtures |
 
 ## The UI
 
@@ -64,7 +69,9 @@ The frontend is a **React Flow canvas** that visualizes the entire pipeline as a
 - **Right side**: Query pipeline (tokenize → lookup → rank → results)
 - **Click any node** to see real data — actual postings from the inverted index, PageRank scores, RAG chunks
 - **Live WebSocket** progress during crawl/index/embed jobs
-- **Google-style results** with score breakdowns and AI Overview with citations
+- **Google-style results** with score breakdowns, AI Overview with citations, and follow-up chat
+- **DuckDuckGo-style hero** with live dashboard charts on the landing page
+- **Sports OneBox** — live match cards, standings, and fixtures for sports queries
 
 ## Tech Stack
 
@@ -73,8 +80,10 @@ The frontend is a **React Flow canvas** that visualizes the entire pipeline as a
 | Frontend | Next.js 16, React 19, React Flow, Tailwind v4, TypeScript |
 | Backend | FastAPI, Python 3.12+ |
 | Database | PostgreSQL 16 + pgvector |
+| Reranking | ONNX Runtime (ms-marco-MiniLM-L-6-v2, 22M params, CPU) |
 | LLM | Groq API (Llama 3.3 70B via `llama-3.3-70b-versatile`) |
 | Embeddings | Voyage AI API (voyage-3-lite, 512d) |
+| Sports Data | API-Football |
 | Hosting | Railway |
 
 ## Project Structure
@@ -84,17 +93,20 @@ backend/
 ├── crawler/        # BFS web crawler (fetcher, parser, queue manager)
 ├── indexer/        # inverted index builder + tokenizer
 │   └── docs/       # technical write-ups on indexing decisions
-├── ranker/         # BM25 + PageRank
-├── search/         # query engine + pipeline explainer
+├── ranker/         # BM25F + PageRank + ONNX neural reranker
+├── search/         # query engine, spell correction, pipeline explainer
 ├── rag/            # chunker, embedder, retriever, query fan-out
-├── ai_overview/    # Groq streaming, response caching
-├── api/            # REST endpoints + WebSocket jobs
+├── ai_overview/    # Groq streaming, response caching, follow-up chat
+├── sports/         # sports query detection + API-Football integration
+├── api/            # REST endpoints + WebSocket jobs + scheduling
 └── scripts/        # CLI: crawl, index, pagerank, build_rag
 
 frontend/
-├── app/            # Next.js app router
+├── app/            # Next.js app router (search + explore + dashboard)
 ├── components/
-│   └── canvas/     # React Flow nodes, edges, detail panels
+│   ├── canvas/     # React Flow nodes, edges, detail panels
+│   └── playground/ # control panels for live tuning
+├── hooks/          # useSearchEngine, useWebSocket, useResizable
 └── lib/            # API client, types, hooks
 ```
 
@@ -150,12 +162,14 @@ Open [localhost:3000](http://localhost:3000).
 ### Done
 - [x] BFS crawler with robots.txt, rate limiting, dead page tracking
 - [x] Inverted index with Porter stemmer, stopwords, bulk COPY ingestion
-- [x] BM25 + PageRank hybrid ranking with min-max normalization
+- [x] BM25F + PageRank hybrid ranking with min-max normalization
+- [x] Neural reranking — ONNX cross-encoder (ms-marco-MiniLM-L-6-v2), local CPU inference on top 5
 - [x] Scheduled auto-crawling — daily seed discovery + weekly top-PageRank refresh, resumes after restart
 - [x] Query fan-out via index co-occurrence (no LLM needed, ~2ms)
 - [x] Hybrid semantic retrieval — pgvector + BM25 chunks
 - [x] AI Overviews with Groq streaming, inline citations, 24h cache
 - [x] AI Overview retry logic (2× with 1s backoff) + "unavailable" UI state
+- [x] AI Chat — follow-up conversation grounded in retrieved chunks
 - [x] Sports OneBox — live match cards, standings, live scores above results
 - [x] Spell correction + "Did you mean?" — Levenshtein edit-distance, proper noun protection via terms table
 - [x] Autocomplete — debounced suggestions from query log, keyboard nav
