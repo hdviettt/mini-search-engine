@@ -4,9 +4,9 @@
 
 **[Live Demo](https://search.hoangducviet.work)**
 
-| Canvas View (Explore) | Search View |
-|:---:|:---:|
-| ![Canvas View](docs/canvas-view.png) | ![Search View](docs/search-view.png) |
+<div align="center">
+  <video src="https://github.com/hdviettt/mini-search-engine/raw/main/docs/demo.mp4" width="800" controls></video>
+</div>
 
 ---
 
