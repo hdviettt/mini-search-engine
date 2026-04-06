@@ -4,9 +4,7 @@
 
 **[Live Demo](https://search.hoangducviet.work)**
 
-<div align="center">
-  <video src="https://github.com/hdviettt/mini-search-engine/raw/main/docs/demo.mp4" width="800" controls></video>
-</div>
+https://github.com/hdviettt/mini-search-engine/releases/download/demo-assets/demo.mp4
 
 ---
 
