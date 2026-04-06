@@ -4,7 +4,7 @@
 
 **[Live Demo](https://search.hoangducviet.work)**
 
-![Demo](https://pub-21eb6bdd475e49679838e54eabfd619a.r2.dev/1774634267074-search-engine-demo.gif)
+![Demo](docs/demo.gif)
 
 ---
 
