@@ -2,7 +2,7 @@
 
 ### A search engine built from scratch to understand how Google really works.
 
-**[Live Demo](https://search.hoangducviet.work)** · **[Blog Series](https://hoangducviet.work/posts/building-a-mini-search-engine-2-designing-the-web-crawler)**
+**[Live Demo](https://search.hoangducviet.work)**
 
 | Canvas View (Explore) | Search View |
 |:---:|:---:|
@@ -10,11 +10,7 @@
 
 ---
 
-This is a series where I learn SEO by building a mini search engine from scratch. It covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking**, **AI Overviews**, and **Sports OneBox**.
-
-As someone who works in SEO, I wanted to understand search at the engineering level. Not just what Google does, but how and why. It's no coincidence that the research problems search engines needed to solve — understanding language, ranking relevance across billions of documents — drove the breakthroughs that became modern AI. The transformer paper ("Attention Is All You Need") came out of Google. So did Word2Vec and BERT. Search is where it all started.
-
-This project started in March 2026 and is still ongoing.
+A mini search engine built from scratch that covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking**, **AI Overviews**, and **Sports OneBox**.
 
 ## The Pipeline
 
@@ -157,39 +153,3 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000).
 
-## Roadmap
-
-### Done
-- [x] BFS crawler with robots.txt, rate limiting, dead page tracking
-- [x] Inverted index with Porter stemmer, stopwords, bulk COPY ingestion
-- [x] BM25F + PageRank hybrid ranking with min-max normalization
-- [x] Neural reranking — ONNX cross-encoder (ms-marco-MiniLM-L-6-v2), local CPU inference on top 5
-- [x] Scheduled auto-crawling — daily seed discovery + weekly top-PageRank refresh, resumes after restart
-- [x] Query fan-out via index co-occurrence (no LLM needed, ~2ms)
-- [x] Hybrid semantic retrieval — pgvector + BM25 chunks
-- [x] AI Overviews with Groq streaming, inline citations, 24h cache
-- [x] AI Overview retry logic (2× with 1s backoff) + "unavailable" UI state
-- [x] AI Chat — follow-up conversation grounded in retrieved chunks
-- [x] Sports OneBox — live match cards, standings, live scores above results
-- [x] Spell correction + "Did you mean?" — Levenshtein edit-distance, proper noun protection via terms table
-- [x] Autocomplete — debounced suggestions from query log, keyboard nav
-- [x] Tokenizer: season strings ("2024/25" → "2024"), 4-digit year support
-- [x] Ranking tuning — 80/20 BM25/PageRank, exponential freshness decay, 7-day recency bonus
-- [x] Full error states — API failure banners, ErrorBoundary, AI Overview unavailable chip
-- [x] DB connection leak fixes — all `get_connection()` wrapped in `try/finally`
-
-### Planned
-- [ ] **Query intent detection** — classify sports vs general queries to trigger structured results
-- [ ] Incremental indexing (no full rebuild)
-- [ ] Knowledge Graph — entity understanding beyond text matching
-
-## Blog Series
-
-1. [Why I'm Building a Search Engine](https://hoangducviet.work/posts/building-a-mini-search-engine-1-why)
-2. [Designing the Web Crawler](https://hoangducviet.work/posts/building-a-mini-search-engine-2-designing-the-web-crawler)
-3. Building the Inverted Index *(coming soon)*
-4. Ranking with BM25 + PageRank *(coming soon)*
-
-## Author
-
-Built by [Hoang Duc Viet](https://hoangducviet.work) — AI Leader at SEONGON, Vietnam's largest Google Ads & SEO agency.
