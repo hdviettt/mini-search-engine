@@ -77,7 +77,7 @@ SEARCH_PAGE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VietSearch</title>
+    <title>Mini Search Engine</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; }
@@ -137,7 +137,7 @@ SEARCH_PAGE = """
         function renderHome() {
             app.innerHTML = `
                 <div class="home">
-                    <h1>VietSearch</h1>
+                    <h1>Mini Search Engine</h1>
                     <form class="search-box" onsubmit="doSearch(event)">
                         <input type="text" id="q" placeholder="Search football..." autofocus>
                         <button type="submit">Search</button>
@@ -153,7 +153,7 @@ SEARCH_PAGE = """
 
             app.innerHTML = `
                 <div class="results-header">
-                    <h1 onclick="renderHome()">VietSearch</h1>
+                    <h1 onclick="renderHome()">Mini Search Engine</h1>
                     <form class="search-box" onsubmit="doSearch(event)" style="max-width:500px">
                         <input type="text" id="q" value="${q}" autofocus>
                         <button type="submit">Search</button>

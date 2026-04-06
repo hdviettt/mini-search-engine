@@ -1,4 +1,4 @@
-# VietSearch
+# Mini Search Engine
 
 ### A search engine built from scratch to understand how Google really works.
 
