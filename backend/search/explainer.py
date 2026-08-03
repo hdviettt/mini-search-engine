@@ -9,7 +9,12 @@ from config import BM25_B, BM25_K1, FRESHNESS_DECAY, FRESHNESS_FLOOR, RANK_ALPHA
 from models import SearchResult
 from ranker.bm25 import search_bm25
 from search.engine import generate_snippet
-from search.ranking import RERANK_MIN_SCORE, freshness_multiplier, normalize_scores
+from search.ranking import (
+    RERANK_MIN_SCORE,
+    RERANK_TOP_K,
+    freshness_multiplier,
+    normalize_scores,
+)
 
 
 def search_explain(conn: psycopg.Connection, query: str, params: dict | None = None) -> dict:
@@ -202,7 +207,10 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Step 6: Neural re-ranking
     from ranker.reranker import rerank
     t0 = time.time()
-    head = ranked[:5]
+    # Must be RERANK_TOP_K, not a literal. This was hardcoded to 5 and happened
+    # to agree with the engine until the depth changed; the canvas then explained
+    # a five-deep rerank the engine was not performing.
+    head = ranked[:RERANK_TOP_K]
     head_ids = [page_id for page_id, _ in head]
     head_rows = {}
     if head_ids:
@@ -224,7 +232,7 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
             })
             pre_rerank_order[page_id] = i + 1
 
-    reranked = rerank(query, rerank_candidates, top_k=10)
+    reranked = rerank(query, rerank_candidates, top_k=len(rerank_candidates))
     # Filter clearly irrelevant results
     reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > RERANK_MIN_SCORE]
 
