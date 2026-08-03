@@ -196,6 +196,43 @@ stopword_heavy 0.9598 · multi_term 0.8172 · entity 0.7525
 informational  0.7217 · navigational 0.6402 · misspelled 0.6218
 ```
 
+**`eval/baseline.json` is deliberately not regenerated.** It is the reference
+the from-scratch cross-encoder is measured against, and its fixture is frozen
+against these numbers. Record current behaviour here instead.
+
+### Current, after `RERANK_TOP_K` 5 → 10
+
+```
+nDCG@10  0.8476   MRR  0.7259   zero-result precision  0.40
+latency  p50 834-941 ms   p95 1349-1357 ms   (two runs)
+
+stopword_heavy 1.0000 · multi_term 0.9065 · informational 0.8781
+navigational   0.8580 · entity     0.8447 · misspelled    0.6296
+```
+
+**+0.1082 nDCG@10 and +0.1000 MRR, and it got faster.** Every intent group
+improved or held. Zero-result precision did not move, which is consistent with
+defect 1 — that failure is upstream in BM25, not in the reranker.
+
+The depth was chosen from three measurements:
+
+| `RERANK_TOP_K` | nDCG@10 | MRR | p50 |
+|---|---|---|---|
+| 5 (baseline) | 0.7394 | 0.6259 | 1325 ms |
+| **10** | **0.8476** | **0.7259** | **834-941 ms** |
+| 20 | 0.8920 | 0.8074 | 2316 ms |
+
+Quality is monotonic and reproduces exactly — 0.8476 twice at depth 10. The
+latency column does not: two runs of the same configuration differ by 13%, and
+the 2316 ms at depth 20 was taken minutes after a redeploy on a cold instance.
+Reranking costs about 10 ms per candidate measured directly, so depth 20 should
+cost roughly 100 ms more than depth 10, not 1400. **Do not read that table's
+last column as a latency curve.**
+
+Depth 20 may well be free enough to be worth its extra 0.0444. Measuring that
+honestly means several runs at each depth on a warm instance. `RERANK_TOP_K` is
+env-overridable so it can be settled without a redeploy.
+
 **Does the cross-encoder earn its keep? Yes — and it costs 8×, not the
 100-150 ms this file used to claim.** With `RERANK_ENABLED=false`: nDCG drops to
 0.5689 (−23%), MRR to 0.3407 (−46%), and p50 falls from 1325 ms to 167 ms. Some
@@ -233,25 +270,6 @@ Ranked by what the numbers say, not by feel. Fix one, re-run
    was tuned by eye. Before changing it, note that it also drives zero-result
    precision — a higher `RERANK_MIN_SCORE` would raise 0.40 and cost recall.
    Measure both.
-
-0b. **`RERANK_TOP_K = 5` is too shallow, and the fix is measured.** Letting the
-   same cross-encoder score every returned candidate instead of the top five
-   gains **+0.0553 nDCG@10 (± 0.0171)** and **+0.0593 MRR (± 0.0286)** on the
-   50-query set — 15 queries better, 2 worse, 28 unchanged. Both gaps clear two
-   standard errors, so this is decided rather than noise.
-
-   The measurement is conservative twice over. It was taken on a fixture whose
-   tail carries no body text, so the cross-encoder scored those candidates on
-   their titles alone and still ordered them better than BM25F + PageRank +
-   freshness did. And the candidates it reordered are only the ones that
-   survived the pipeline; a deeper rerank would also see the ones dropped
-   before the slice.
-
-   Not free: the stage costs 1,158 ms at p50 for five candidates, and the
-   median query returns seven. Raise `RERANK_TOP_K`, re-run
-   `eval/run.py --compare eval/baseline.json`, and read the latency line as
-   carefully as the nDCG line. Reranking is batched, so the cost is closer to
-   linear in candidates than in queries.
 
 1. **No minimum-should-match.** BM25 admits any document matching any term, so
    `kubernetes ingress controller annotations` returns 1,429 football pages.
