@@ -19,17 +19,20 @@ CANDIDATE_POOL = 500
 # definition; `ranker.reranker.rerank` takes it as a required argument so the
 # number cannot diverge between callers.
 #
-# Was 5. Measured on the 50-query set, letting the cross-encoder order every
-# returned candidate rather than the top five is worth +0.0553 nDCG@10
-# (± 0.0171) and +0.0593 MRR (± 0.0286) — 15 queries better, 2 worse, both gaps
-# clearing two standard errors. Reranking costs about 10 ms per candidate, and
-# per-domain dedup means roughly twice this many have to be scored to fill a
-# page of ten.
+# Was 5. Five depths were deployed and measured on a warm instance — see the
+# table in CLAUDE.md. 40 is the pick: best MRR of any depth, and it is what
+# lifts zero-result precision from 0.40 to 0.60, because a deeper rerank gives
+# RERANK_MIN_SCORE enough candidates to throw the junk out of a nonsense query.
+# It gives up 0.0036 nDCG@10 against depth 20, which is nothing next to that.
+#
+# Do not raise this much further without re-measuring. p50 goes 300 ms at 20,
+# 440 ms at 40, then 4,700 ms at 80 — a ten-fold jump for no quality. That is
+# almost certainly the `SELECT ... body_text` for the head, not the model,
+# which costs about 10 ms per candidate.
 #
 # Env-overridable so the trade-off can be retuned against a live instance
-# without a redeploy. Raise it, re-run `eval/run.py --compare`, and read the
-# latency line as carefully as the nDCG line.
-RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "10"))
+# without a redeploy.
+RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "40"))
 
 # Cross-encoder logits below this are treated as "not actually relevant".
 RERANK_MIN_SCORE = -8.0

@@ -200,38 +200,51 @@ informational  0.7217 · navigational 0.6402 · misspelled 0.6218
 the from-scratch cross-encoder is measured against, and its fixture is frozen
 against these numbers. Record current behaviour here instead.
 
-### Current, after `RERANK_TOP_K` 5 → 10
+### Current, after `RERANK_TOP_K` 5 → 40
 
 ```
-nDCG@10  0.8476   MRR  0.7259   zero-result precision  0.40
-latency  p50 834-941 ms   p95 1349-1357 ms   (two runs)
-
-stopword_heavy 1.0000 · multi_term 0.9065 · informational 0.8781
-navigational   0.8580 · entity     0.8447 · misspelled    0.6296
+nDCG@10  0.8884   MRR  0.8370   zero-result precision  0.60
+latency  p50 408-468 ms   p95 656-926 ms
 ```
 
-**+0.1082 nDCG@10 and +0.1000 MRR, and it got faster.** Every intent group
-improved or held. Zero-result precision did not move, which is consistent with
-defect 1 — that failure is upstream in BM25, not in the reranker.
+**+0.1490 nDCG@10, +0.2111 MRR, +0.20 zero-result precision — and roughly
+three times faster than the recorded baseline.**
 
-The depth was chosen from three measurements:
+Zero-result precision moving is the surprise. Defect 1 says that failure is
+upstream in BM25, and it is; but a deeper rerank hands `RERANK_MIN_SCORE`
+enough candidates to throw the junk out of a nonsense query, so two of the five
+now come back empty instead of leaking. The reranker cannot fix the recall
+problem, only the visible symptom.
 
-| `RERANK_TOP_K` | nDCG@10 | MRR | p50 |
-|---|---|---|---|
-| 5 (baseline) | 0.7394 | 0.6259 | 1325 ms |
-| **10** | **0.8476** | **0.7259** | **834-941 ms** |
-| 20 | 0.8920 | 0.8074 | 2316 ms |
+### Choosing the depth
 
-Quality is monotonic and reproduces exactly — 0.8476 twice at depth 10. The
-latency column does not: two runs of the same configuration differ by 13%, and
-the 2316 ms at depth 20 was taken minutes after a redeploy on a cold instance.
-Reranking costs about 10 ms per candidate measured directly, so depth 20 should
-cost roughly 100 ms more than depth 10, not 1400. **Do not read that table's
-last column as a latency curve.**
+Five depths, deployed and measured. Every row is two eval runs; the last three
+were taken on a warm instance after twenty priming queries.
 
-Depth 20 may well be free enough to be worth its extra 0.0444. Measuring that
-honestly means several runs at each depth on a warm instance. `RERANK_TOP_K` is
-env-overridable so it can be settled without a redeploy.
+| `RERANK_TOP_K` | nDCG@10 | MRR | zero-result | p50 |
+|---|---|---|---|---|
+| 5 (baseline) | 0.7394 | 0.6259 | 0.40 | 1325 ms · cold |
+| 10 | 0.8476 | 0.7259 | 0.40 | 834-941 ms · cold |
+| 20 | **0.8920** | 0.8074 | 0.40 | **295-311 ms** |
+| **40** | 0.8884 | **0.8370** | **0.60** | 408-468 ms |
+| 80 | 0.8941 | 0.8074 | 0.60 | 4671-4798 ms |
+
+**Quality reproduces exactly. Latency does not, and the first two rows are
+worthless as timings** — they were taken minutes after a redeploy, and cold
+instance state swamps everything else. The reranker itself costs about 10 ms
+per candidate timed directly with the weights loaded; the deployed cost is
+nearer 10-15 ms per candidate up to 40, then something else takes over.
+
+40 is the pick: the best MRR of any depth and the zero-result improvement, for
+0.0036 of nDCG@10 against depth 20. That difference is real but trivial, and it
+is the only column where 20 wins.
+
+**The cliff between 40 and 80 is not the model.** Ten times the latency for no
+quality is the wrong shape for inference, which is linear in candidates. The
+likely cause is `SELECT id, url, title, body_text FROM pages WHERE id = ANY(%s)`
+in `search/engine.py` pulling eighty full page bodies. Nobody has confirmed
+that. Do not raise the depth past 40 without re-measuring, and if deeper is ever
+wanted, look at that query first.
 
 **Does the cross-encoder earn its keep? Yes — and it costs 8×, not the
 100-150 ms this file used to claim.** With `RERANK_ENABLED=false`: nDCG drops to
