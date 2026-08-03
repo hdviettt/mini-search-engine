@@ -19,8 +19,8 @@ ideas/
 # Downloaded cross-encoder weights — fetch with scripts/download_model.py
 backend/models/
 
-# Eval output; the labeled query set is committed, results are not.
-eval/baseline.json
+# Ad-hoc eval reports. The baseline IS committed — a reference point nobody
+# else can reproduce is not a reference point.
 eval/*-report.json
 backup.sql
 full_backup.sql

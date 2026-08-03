@@ -29,6 +29,13 @@ from pathlib import Path
 import httpx
 import yaml
 
+# The report uses arrows and box glyphs. A Windows console defaults to cp1252
+# and raises UnicodeEncodeError on them mid-report — after the run has already
+# cost 50 live queries. Force UTF-8 rather than dumb the output down.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 EVAL_DIR = Path(__file__).parent
 DEFAULT_QUERIES = EVAL_DIR / "queries.yaml"
 DEFAULT_BASELINE = EVAL_DIR / "baseline.json"

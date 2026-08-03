@@ -211,6 +211,8 @@ changing anything here.
 6. Query Fan-out and Hybrid Retrieval
 7. AI Overviews
 8. AI Mode
+9. [I measured my own search engine](docs/posts/09-measuring-the-search-engine.md)
+10. [What it takes to let an agent maintain production](docs/posts/10-maintaining-production-with-claude-code.md)
 
 ## Author
 

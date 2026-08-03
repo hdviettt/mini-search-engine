@@ -184,15 +184,45 @@ A `NEXT_PUBLIC_*` variable would be inlined into the bundle and public.
 
 ---
 
-## Open questions the eval harness exists to answer
+## Measured baseline
 
-- Does the cross-encoder earn its 100-150 ms? (`search/ranking.py: RERANK_TOP_K`)
-- Is `RANK_ALPHA = 0.8` the right BM25/PageRank split? (`config.py`)
-- `RERANK_MIN_SCORE = -8.0` is a magic number picked by eye. What does the data say?
-- Is `CANDIDATE_POOL = 500` deep enough to not lose good results?
+First run against production, 50 labelled queries (`eval/baseline.json`):
 
-Do not tune these by feel. Change one, run `eval/run.py --compare`, keep the
-number that wins.
+```
+nDCG@10  0.7394   MRR  0.6259   zero-result precision  0.40
+latency  p50 1325 ms   p95 2180 ms
+
+stopword_heavy 0.9598 · multi_term 0.8172 · entity 0.7525
+informational  0.7217 · navigational 0.6402 · misspelled 0.6218
+```
+
+**Does the cross-encoder earn its keep? Yes — and it costs 8×, not the
+100-150 ms this file used to claim.** With `RERANK_ENABLED=false`: nDCG drops to
+0.5689 (−23%), MRR to 0.3407 (−46%), and p50 falls from 1325 ms to 167 ms. Some
+queries collapse entirely without it (`kylian mbappe` 1.000 → 0.000). Keep it on;
+the latency figure in any comment claiming otherwise is wrong.
+
+## Known defects the measurement surfaced
+
+Ranked by what the numbers say, not by feel. Fix one, re-run
+`eval/run.py --compare eval/baseline.json`, keep the change only if it wins.
+
+1. **No minimum-should-match.** BM25 admits any document matching any term, so
+   `kubernetes ingress controller annotations` returns 1,429 football pages.
+   Zero-result precision is 0.40 — three of five nonsense queries leak.
+2. **No phrase or proximity signal.** `serie a` loses "a" to the stopword list
+   and searches the single stem `seri`; top result is LDU Quito.
+3. **Spell correction is wired to `/api/search/explain` but not `/api/search`.**
+   It has never run for a real query. `bundesliaga` returns nothing.
+4. **No domain signal in the ranker.** `bbc sport football` names a host; BM25F
+   scores title and body only, so it can never reach it.
+
+Still open, still tuned by eye: `RANK_ALPHA = 0.8`, `RERANK_MIN_SCORE = -8.0`,
+`CANDIDATE_POOL = 500`.
+
+The evaluation does not yet separate a coverage gap (page was never crawled)
+from a ranking failure (page exists, ranked too low). Some zero scores above are
+the former.
 
 ---
 

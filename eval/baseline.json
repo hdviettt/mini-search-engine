@@ -1,0 +1,528 @@
+{
+  "api": "https://be-production-d23a.up.railway.app",
+  "queries": 50,
+  "summary": {
+    "ndcg@10": 0.7394,
+    "mrr": 0.6259,
+    "zero_result_precision": 0.4,
+    "empty_responses": 1,
+    "latency_p50_ms": 1325.4,
+    "latency_p95_ms": 2180.3,
+    "reranked_queries": 39
+  },
+  "by_intent": {
+    "entity": 0.7525,
+    "informational": 0.7217,
+    "misspelled": 0.6218,
+    "multi_term": 0.8172,
+    "navigational": 0.6402,
+    "stopword_heavy": 0.9598
+  },
+  "per_query": [
+    {
+      "q": "lionel messi",
+      "intent": "entity",
+      "returned": 9,
+      "total_results": 424,
+      "latency_ms": 1744.2,
+      "ndcg@10": 0.8541,
+      "mrr": 1.0,
+      "reranked": 1
+    },
+    {
+      "q": "cristiano ronaldo",
+      "intent": "entity",
+      "returned": 10,
+      "total_results": 465,
+      "latency_ms": 1308.9,
+      "ndcg@10": 0.6669,
+      "mrr": 0.3333,
+      "reranked": 1
+    },
+    {
+      "q": "kylian mbappe",
+      "intent": "entity",
+      "returned": 5,
+      "total_results": 211,
+      "latency_ms": 777.6,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "erling haaland",
+      "intent": "entity",
+      "returned": 7,
+      "total_results": 135,
+      "latency_ms": 1209.6,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "premier league",
+      "intent": "entity",
+      "returned": 9,
+      "total_results": 3647,
+      "latency_ms": 1889.7,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "la liga",
+      "intent": "entity",
+      "returned": 7,
+      "total_results": 1847,
+      "latency_ms": 1503.0,
+      "ndcg@10": 0.9197,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "serie a",
+      "intent": "entity",
+      "returned": 6,
+      "total_results": 1912,
+      "latency_ms": 2442.5,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 1
+    },
+    {
+      "q": "bundesliga",
+      "intent": "entity",
+      "returned": 7,
+      "total_results": 384,
+      "latency_ms": 1741.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "champions league",
+      "intent": "entity",
+      "returned": 10,
+      "total_results": 3796,
+      "latency_ms": 2410.9,
+      "ndcg@10": 0.855,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "europa league",
+      "intent": "entity",
+      "returned": 4,
+      "total_results": 3580,
+      "latency_ms": 1904.4,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "fifa world cup",
+      "intent": "entity",
+      "returned": 2,
+      "total_results": 4348,
+      "latency_ms": 2207.1,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "ballon d'or",
+      "intent": "entity",
+      "returned": 7,
+      "total_results": 393,
+      "latency_ms": 983.9,
+      "ndcg@10": 0.9918,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "copa america",
+      "intent": "entity",
+      "returned": 4,
+      "total_results": 1870,
+      "latency_ms": 993.8,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "africa cup of nations",
+      "intent": "entity",
+      "returned": 2,
+      "total_results": 4400,
+      "latency_ms": 1917.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 1
+    },
+    {
+      "q": "uefa european championship",
+      "intent": "entity",
+      "returned": 2,
+      "total_results": 3499,
+      "latency_ms": 1410.0,
+      "ndcg@10": 1.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "offside rule",
+      "intent": "informational",
+      "returned": 6,
+      "total_results": 2294,
+      "latency_ms": 1490.1,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "how football tactics work",
+      "intent": "informational",
+      "returned": 5,
+      "total_results": 4515,
+      "latency_ms": 1103.9,
+      "ndcg@10": 0.6309,
+      "mrr": 0.0,
+      "reranked": 0
+    },
+    {
+      "q": "history of association football",
+      "intent": "informational",
+      "returned": 2,
+      "total_results": 4750,
+      "latency_ms": 1195.7,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "what is a hat trick",
+      "intent": "informational",
+      "returned": 7,
+      "total_results": 832,
+      "latency_ms": 1204.6,
+      "ndcg@10": 0.9691,
+      "mrr": 1.0,
+      "reranked": 0
+    },
+    {
+      "q": "goalkeeper position",
+      "intent": "informational",
+      "returned": 6,
+      "total_results": 2636,
+      "latency_ms": 1488.2,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "penalty shootout rules",
+      "intent": "informational",
+      "returned": 2,
+      "total_results": 2967,
+      "latency_ms": 813.2,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "var video assistant referee",
+      "intent": "informational",
+      "returned": 5,
+      "total_results": 2110,
+      "latency_ms": 1171.7,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 0
+    },
+    {
+      "q": "football transfer market",
+      "intent": "informational",
+      "returned": 8,
+      "total_results": 4463,
+      "latency_ms": 1125.1,
+      "ndcg@10": 0.6166,
+      "mrr": 0.3333,
+      "reranked": 0
+    },
+    {
+      "q": "what is a clean sheet",
+      "intent": "informational",
+      "returned": 7,
+      "total_results": 593,
+      "latency_ms": 1600.6,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0
+    },
+    {
+      "q": "football formation 4 4 2",
+      "intent": "informational",
+      "returned": 2,
+      "total_results": 4280,
+      "latency_ms": 901.4,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 1
+    },
+    {
+      "q": "bbc sport football",
+      "intent": "navigational",
+      "returned": 2,
+      "total_results": 4410,
+      "latency_ms": 1398.5,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "espn soccer",
+      "intent": "navigational",
+      "returned": 5,
+      "total_results": 1633,
+      "latency_ms": 1185.0,
+      "ndcg@10": 0.9639,
+      "mrr": 1.0,
+      "reranked": 3
+    },
+    {
+      "q": "transfermarkt premier league",
+      "intent": "navigational",
+      "returned": 9,
+      "total_results": 3651,
+      "latency_ms": 1608.7,
+      "ndcg@10": 0.9871,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "fbref premier league stats",
+      "intent": "navigational",
+      "returned": 10,
+      "total_results": 3651,
+      "latency_ms": 1087.5,
+      "ndcg@10": 0.5613,
+      "mrr": 0.0,
+      "reranked": 1
+    },
+    {
+      "q": "guardian football",
+      "intent": "navigational",
+      "returned": 3,
+      "total_results": 4149,
+      "latency_ms": 1208.2,
+      "ndcg@10": 0.6885,
+      "mrr": 0.3333,
+      "reranked": 2
+    },
+    {
+      "q": "messi barcelona champions league goals",
+      "intent": "multi_term",
+      "returned": 10,
+      "total_results": 4142,
+      "latency_ms": 1292.9,
+      "ndcg@10": 0.9888,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "premier league top scorers all time",
+      "intent": "multi_term",
+      "returned": 7,
+      "total_results": 4661,
+      "latency_ms": 1902.3,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "world cup final results history",
+      "intent": "multi_term",
+      "returned": 2,
+      "total_results": 4770,
+      "latency_ms": 1418.6,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "real madrid champions league titles",
+      "intent": "multi_term",
+      "returned": 8,
+      "total_results": 4322,
+      "latency_ms": 2180.3,
+      "ndcg@10": 0.7744,
+      "mrr": 0.3333,
+      "reranked": 2
+    },
+    {
+      "q": "english football stadium capacity",
+      "intent": "multi_term",
+      "returned": 3,
+      "total_results": 4540,
+      "latency_ms": 1341.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "uefa club coefficient ranking",
+      "intent": "multi_term",
+      "returned": 6,
+      "total_results": 3987,
+      "latency_ms": 1172.4,
+      "ndcg@10": 0.9733,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "youngest player to win ballon d'or",
+      "intent": "multi_term",
+      "returned": 7,
+      "total_results": 3742,
+      "latency_ms": 1389.3,
+      "ndcg@10": 0.8175,
+      "mrr": 0.0,
+      "reranked": 1
+    },
+    {
+      "q": "most expensive football transfers",
+      "intent": "multi_term",
+      "returned": 8,
+      "total_results": 4296,
+      "latency_ms": 1296.8,
+      "ndcg@10": 0.9838,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "lionel mesi",
+      "intent": "misspelled",
+      "returned": 9,
+      "total_results": 399,
+      "latency_ms": 1604.0,
+      "ndcg@10": 0.8112,
+      "mrr": 1.0,
+      "reranked": 1
+    },
+    {
+      "q": "cristano ronaldo",
+      "intent": "misspelled",
+      "returned": 10,
+      "total_results": 446,
+      "latency_ms": 1214.0,
+      "ndcg@10": 0.6669,
+      "mrr": 0.3333,
+      "reranked": 1
+    },
+    {
+      "q": "premeir league",
+      "intent": "misspelled",
+      "returned": 7,
+      "total_results": 3569,
+      "latency_ms": 989.6,
+      "ndcg@10": 0.6309,
+      "mrr": 0.5,
+      "reranked": 2
+    },
+    {
+      "q": "champiosn league",
+      "intent": "misspelled",
+      "returned": 7,
+      "total_results": 3569,
+      "latency_ms": 1000.0,
+      "ndcg@10": 1.0,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "bundesliaga",
+      "intent": "misspelled",
+      "returned": 0,
+      "total_results": 0,
+      "latency_ms": 189.7,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0
+    },
+    {
+      "q": "who is the best football player of all time",
+      "intent": "stopword_heavy",
+      "returned": 7,
+      "total_results": 4811,
+      "latency_ms": 1419.3,
+      "ndcg@10": 0.9197,
+      "mrr": 1.0,
+      "reranked": 2
+    },
+    {
+      "q": "what are the rules of the game",
+      "intent": "stopword_heavy",
+      "returned": 4,
+      "total_results": 3772,
+      "latency_ms": 1375.9,
+      "ndcg@10": 1.0,
+      "mrr": 0.0,
+      "reranked": 2
+    },
+    {
+      "q": "zzzzqqqxyw",
+      "intent": "zero_result",
+      "returned": 0,
+      "total_results": 0,
+      "latency_ms": 198.3,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0,
+      "zero_ok": true
+    },
+    {
+      "q": "quantum chromodynamics lagrangian",
+      "intent": "zero_result",
+      "returned": 2,
+      "total_results": 20,
+      "latency_ms": 1235.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0,
+      "zero_ok": false
+    },
+    {
+      "q": "sourdough starter hydration ratio",
+      "intent": "zero_result",
+      "returned": 2,
+      "total_results": 504,
+      "latency_ms": 1372.3,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0,
+      "zero_ok": false
+    },
+    {
+      "q": "kubernetes ingress controller annotations",
+      "intent": "zero_result",
+      "returned": 7,
+      "total_results": 1429,
+      "latency_ms": 2087.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0,
+      "zero_ok": false
+    },
+    {
+      "q": "!!!! ???? .....",
+      "intent": "zero_result",
+      "returned": 0,
+      "total_results": 0,
+      "latency_ms": 119.8,
+      "ndcg@10": 0.0,
+      "mrr": 0.0,
+      "reranked": 0,
+      "zero_ok": true
+    }
+  ]
+}
