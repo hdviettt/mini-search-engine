@@ -94,3 +94,47 @@ def test_dedupe_preserves_input_order():
 
 def test_dedupe_skips_ids_without_a_url():
     assert dedupe_by_domain([1, 2], {1: "https://a.com/1"}) == [1]
+
+
+def test_rerank_depth_has_exactly_one_definition():
+    """`ranker.reranker` used to carry its own RERANK_TOP_K = 5.
+
+    Both callers passed top_k explicitly, so that copy never ran — but anyone
+    reading reranker.py would have taken 5 for the knob. Two copies of the
+    freshness formula already drifted apart once in this codebase; this asserts
+    the depth cannot go the same way.
+    """
+    import ranker.reranker as reranker
+
+    assert not hasattr(reranker, "RERANK_TOP_K")
+
+
+def test_rerank_requires_an_explicit_depth():
+    """No default, so a new caller has to decide rather than inherit one."""
+    import inspect
+
+    from ranker.reranker import rerank
+
+    assert inspect.signature(rerank).parameters["top_k"].default is inspect.Parameter.empty
+
+
+def test_rerank_depth_is_read_from_the_environment(monkeypatch):
+    """The nDCG/latency trade-off is retunable against a live instance."""
+    import importlib
+
+    import search.ranking as ranking
+
+    monkeypatch.setenv("RERANK_TOP_K", "37")
+    try:
+        assert importlib.reload(ranking).RERANK_TOP_K == 37
+    finally:
+        monkeypatch.delenv("RERANK_TOP_K")
+        importlib.reload(ranking)
+
+
+def test_rerank_depth_covers_a_full_page_after_dedup():
+    """Per-domain dedup discards candidates, so the depth has to exceed the
+    page size or the page cannot be filled from reranked results alone."""
+    from search.ranking import MAX_PER_DOMAIN, RERANK_TOP_K
+
+    assert RERANK_TOP_K >= 10 * MAX_PER_DOMAIN / 2

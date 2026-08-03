@@ -6,7 +6,16 @@ bi-encoders, it captures the interaction between query and document.
 
 Model: cross-encoder/ms-marco-MiniLM-L-6-v2 (22M params)
 Runtime: ONNX on CPU (no GPU needed)
-Latency: ~100-150ms for 10 candidates
+Latency: about 10 ms per candidate, near enough linear — 42 ms for 5, 94 ms
+for 10, 196 ms for 20, measured on a 16-core CPU with the model already
+loaded. Do not confuse this with the 1,158 ms gap between p50 with and
+without reranking: that is an end-to-end request difference measured against
+the deployed instance, and most of it is not this function.
+
+How many candidates to re-score is not decided here. `search/ranking.py` owns
+that, and `top_k` is required so the number cannot quietly diverge between
+callers — the same duplication that let two copies of the freshness formula
+drift apart.
 """
 import logging
 import os
@@ -16,7 +25,6 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-RERANK_TOP_K = 5      # how many BM25 candidates to re-rank (fewer = faster)
 MAX_LENGTH = 128      # max tokens per (query, doc) pair (shorter = faster)
 
 # Set RERANK_ENABLED=false to measure what the reranker is actually worth.
@@ -82,7 +90,7 @@ def _get_model():
     return _session, _tokenizer
 
 
-def rerank(query: str, candidates: list[dict], top_k: int = RERANK_TOP_K) -> list[dict]:
+def rerank(query: str, candidates: list[dict], top_k: int) -> list[dict]:
     """Re-rank candidates using the cross-encoder.
 
     Args:

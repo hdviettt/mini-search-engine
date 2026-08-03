@@ -5,6 +5,7 @@ canvas shows) both rank results. When they each carried their own copy of the
 freshness formula they drifted, and the canvas explained scoring the engine
 did not actually perform. Everything either of them needs to score lives here.
 """
+import os
 from math import exp
 
 from config import FRESHNESS_DECAY, FRESHNESS_FLOOR
@@ -14,8 +15,21 @@ from config import FRESHNESS_DECAY, FRESHNESS_FLOOR
 # `IN (...)` clause with thousands of placeholders.
 CANDIDATE_POOL = 500
 
-# How many of the top candidates the cross-encoder re-scores.
-RERANK_TOP_K = 5
+# How many of the top candidates the cross-encoder re-scores. This is the only
+# definition; `ranker.reranker.rerank` takes it as a required argument so the
+# number cannot diverge between callers.
+#
+# Was 5. Measured on the 50-query set, letting the cross-encoder order every
+# returned candidate rather than the top five is worth +0.0553 nDCG@10
+# (± 0.0171) and +0.0593 MRR (± 0.0286) — 15 queries better, 2 worse, both gaps
+# clearing two standard errors. Reranking costs about 10 ms per candidate, and
+# per-domain dedup means roughly twice this many have to be scored to fill a
+# page of ten.
+#
+# Env-overridable so the trade-off can be retuned against a live instance
+# without a redeploy. Raise it, re-run `eval/run.py --compare`, and read the
+# latency line as carefully as the nDCG line.
+RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "20"))
 
 # Cross-encoder logits below this are treated as "not actually relevant".
 RERANK_MIN_SCORE = -8.0

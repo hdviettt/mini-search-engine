@@ -92,7 +92,7 @@ def explain(req: ExplainRequest, conn: psycopg.Connection = Depends(get_db)):
 
 
 @router.get("/suggest")
-def suggest(q: str = Query(""), conn: psycopg.Connection = Depends(get_db)):
+def suggest(q: str = Query("", max_length=200), conn: psycopg.Connection = Depends(get_db)):
     """Return popular past queries matching a prefix, for autocomplete."""
     if len(q) < 2:
         return {"popular": []}
@@ -314,7 +314,9 @@ def schedule_toggle(schedule_id: str, enabled: bool = True):
 @router.get("/explore/pages")
 def explore_pages(
     limit: int = Query(20, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    # Capped because OFFSET makes Postgres walk every skipped row. An
+    # unbounded value turns a browse endpoint into a full table scan.
+    offset: int = Query(0, ge=0, le=100_000),
     conn: psycopg.Connection = Depends(get_db),
 ):
     """Browse crawled pages."""

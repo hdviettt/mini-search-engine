@@ -199,8 +199,16 @@ informational  0.7217 · navigational 0.6402 · misspelled 0.6218
 **Does the cross-encoder earn its keep? Yes — and it costs 8×, not the
 100-150 ms this file used to claim.** With `RERANK_ENABLED=false`: nDCG drops to
 0.5689 (−23%), MRR to 0.3407 (−46%), and p50 falls from 1325 ms to 167 ms. Some
-queries collapse entirely without it (`kylian mbappe` 1.000 → 0.000). Keep it on;
-the latency figure in any comment claiming otherwise is wrong.
+queries collapse entirely without it (`kylian mbappe` 1.000 → 0.000). Keep it on.
+
+**That 1,158 ms is an end-to-end gap, not the model's compute.** Timed directly
+with the weights already loaded, the cross-encoder costs about 10 ms per
+candidate and scales near-linearly: 42 ms for 5, 94 ms for 10, 196 ms for 20.
+This file previously said the "~100-150 ms for 10 candidates" comment in
+`reranker.py` was wrong; the comment was right, and conflating it with the p50
+gap was the mistake. Whatever accounts for the rest of that second — cold
+starts, a slower shared CPU, per-request setup — has not been isolated, and
+budgeting for a deeper rerank should use the per-candidate figure, not the gap.
 
 Read that number together with defect 0 below: the stage earns its 23% mostly by
 *deleting* weak candidates, not by reordering strong ones.
