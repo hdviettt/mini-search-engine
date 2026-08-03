@@ -1,13 +1,23 @@
+import logging
 import re
 from urllib.parse import urlparse
 
 import psycopg
 
-from config import ALLOWED_DOMAINS, ALLOWED_PATH_PATTERNS, BLOCKED_DOMAINS, MAX_PAGES, MAX_DEPTH, WIKIPEDIA_FOOTBALL_KEYWORDS
-from crawler.fetcher import Fetcher
+from config import (
+    ALLOWED_DOMAINS,
+    ALLOWED_PATH_PATTERNS,
+    BLOCKED_DOMAINS,
+    MAX_DEPTH,
+    MAX_PAGES,
+    WIKIPEDIA_FOOTBALL_KEYWORDS,
+)
+from crawler.fetcher import Fetcher, is_safe_url
 from crawler.parser import parse_page
 from indexer.indexer import index_page
 from rag.chunker import chunk_page
+
+log = logging.getLogger(__name__)
 
 
 # Titles that indicate error/placeholder pages
@@ -32,17 +42,17 @@ def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_tex
     # 1. Minimum content length (100 words)
     word_count = len(body_text.split())
     if word_count < 100:
-        print(f"  [quality] skip page {page_id}: only {word_count} words (min 100)")
+        log.debug("[quality] skip page %s: only %d words (min 100)", page_id, word_count)
         return False
 
     # 2. Title quality
     if not title or title.lower().strip() in _BAD_TITLES:
-        print(f"  [quality] skip page {page_id}: bad title '{title}'")
+        log.debug("[quality] skip page %s: bad title %r", page_id, title)
         return False
 
     # 3. Redirect detection
     if _REDIRECT_PATTERNS.search(body_text[:1000]):
-        print(f"  [quality] skip page {page_id}: redirect/soft-404 detected")
+        log.debug("[quality] skip page %s: redirect/soft-404 detected", page_id)
         return False
 
     # 4. Content-hash dedup (different URL, same content)
@@ -51,7 +61,7 @@ def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_tex
         (content_hash, page_id),
     ).fetchone()
     if dup:
-        print(f"  [quality] skip page {page_id}: duplicate of page {dup[0]}")
+        log.debug("[quality] skip page %s: duplicate of page %s", page_id, dup[0])
         return False
 
     return True
@@ -67,18 +77,32 @@ class CrawlManager:
             self.allowed_domains.update(extra_domains)
 
     def seed(self, urls: list[str], clear_queue: bool = False):
-        """Add seed URLs to the crawl queue."""
+        """Add seed URLs to the crawl queue.
+
+        Seeds go through the same gates as discovered links: they must resolve
+        to a public address and fall inside the configured scope. Without this,
+        a seed URL would be an unchecked path straight into the fetcher.
+        """
         if clear_queue:
             self.conn.execute("DELETE FROM crawl_queue WHERE status = 'pending'")
             self.conn.commit()
-            print("Cleared pending queue.")
+            log.info("Cleared pending queue.")
+
+        accepted = 0
         for url in urls:
+            if not is_safe_url(url):
+                log.warning("[seed] rejected non-public or unsupported URL: %s", url)
+                continue
+            if not self._is_in_scope(url, depth=0):
+                log.warning("[seed] rejected out-of-scope URL: %s", url)
+                continue
             self.conn.execute(
                 "INSERT INTO crawl_queue (url, depth) VALUES (%s, 0) ON CONFLICT (url) DO NOTHING",
                 (url,),
             )
+            accepted += 1
         self.conn.commit()
-        print(f"Seeded {len(urls)} URLs.")
+        log.info("Seeded %d/%d URLs (%d rejected).", accepted, len(urls), len(urls) - accepted)
 
     def _is_in_scope(self, url: str, depth: int = 0) -> bool:
         """Check if URL belongs to an allowed domain and matches allowed paths.
@@ -95,7 +119,8 @@ class CrawlManager:
         if domain in BLOCKED_DOMAINS:
             return False
 
-        # If domain restriction is off, allow everything (except blocked)
+        # If domain restriction is off, allow any *public* domain. Private and
+        # link-local addresses are still blocked in crawler.fetcher.
         if not self.restrict_domains:
             return True
 
@@ -136,15 +161,11 @@ class CrawlManager:
         return url, depth
 
     def _count_crawled(self) -> int:
-        row = self.conn.execute(
-            "SELECT COUNT(*) FROM pages"
-        ).fetchone()
+        row = self.conn.execute("SELECT COUNT(*) FROM pages").fetchone()
         return row[0]
 
     def _page_already_crawled(self, url: str) -> bool:
-        row = self.conn.execute(
-            "SELECT 1 FROM pages WHERE url = %s", (url,)
-        ).fetchone()
+        row = self.conn.execute("SELECT 1 FROM pages WHERE url = %s", (url,)).fetchone()
         return row is not None
 
     def _store_page(self, url: str, status_code: int, parsed: dict) -> int:
@@ -208,22 +229,25 @@ class CrawlManager:
         max_pages = max_pages_override or MAX_PAGES
         max_depth = max_depth_override or MAX_DEPTH
         pages_this_session = 0
-        print(f"Starting crawl (max {max_pages} new pages, max depth {max_depth})...")
-        print(f"Domains: {', '.join(self.allowed_domains) if self.restrict_domains else 'ALL (unrestricted)'}")
+        log.info("Starting crawl (max %d new pages, max depth %d)...", max_pages, max_depth)
+        log.info(
+            "Domains: %s",
+            ", ".join(sorted(self.allowed_domains)) if self.restrict_domains else "ALL public (unrestricted)",
+        )
 
         while True:
             # Check stop signal
             if stop_event and stop_event.is_set():
-                print("\nCrawl stopped by user.")
+                log.info("Crawl stopped by user.")
                 break
 
             if pages_this_session >= max_pages:
-                print(f"\nReached page limit ({max_pages}). Stopping.")
+                log.info("Reached page limit (%d). Stopping.", max_pages)
                 break
 
             next_item = self._get_next_url()
             if next_item is None:
-                print("\nQueue empty. Stopping.")
+                log.info("Queue empty. Stopping.")
                 break
 
             url, depth = next_item
@@ -239,7 +263,7 @@ class CrawlManager:
             # Fetch
             pages_this_session += 1
             domain = urlparse(url).netloc
-            print(f"[{pages_this_session}/{max_pages}] depth={depth} [{domain}] {url}")
+            log.info("[%d/%d] depth=%d [%s] %s", pages_this_session, max_pages, depth, domain, url)
             response = self.fetcher.fetch(url)
 
             if response is None:
@@ -267,7 +291,10 @@ class CrawlManager:
             status = "ok"
             if body_len < 500 and links_count == 0:
                 status = "js_only"
-                print(f"  Warning: {url} returned minimal content ({body_len} chars, 0 links) — likely JS-rendered")
+                log.warning(
+                    "%s returned minimal content (%d chars, 0 links) — likely JS-rendered",
+                    url, body_len,
+                )
 
             # Store page
             page_id = self._store_page(url, response.status_code, parsed)
@@ -302,4 +329,4 @@ class CrawlManager:
 
         self.fetcher.close()
         total = self._count_crawled()
-        print(f"\nCrawl complete. {total} pages stored ({pages_this_session} new this session).")
+        log.info("Crawl complete. %d pages stored (%d new this session).", total, pages_this_session)

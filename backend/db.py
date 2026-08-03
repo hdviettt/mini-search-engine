@@ -1,6 +1,16 @@
-import psycopg
-from config import DATABASE_URL
+import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 
+import psycopg
+from psycopg_pool import ConnectionPool
+
+from config import DATABASE_URL, VOYAGE_DIMENSIONS
+
+log = logging.getLogger(__name__)
+
+# This module is the only place the schema is defined. Do not inline
+# CREATE TABLE anywhere else — three copies had already drifted apart.
 SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -70,7 +80,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     page_id   INTEGER NOT NULL REFERENCES pages(id),
     chunk_idx INTEGER NOT NULL,
     content   TEXT NOT NULL,
-    embedding vector(768),
+    embedding vector({embedding_dim}),
     UNIQUE(page_id, chunk_idx)
 );
 
@@ -138,7 +148,52 @@ CREATE INDEX IF NOT EXISTS idx_query_log_query ON query_log(query);
 """
 
 
+def _schema_sql() -> str:
+    """Schema with the embedding dimension filled in.
+
+    A plain str.format() would choke on the `DEFAULT '{}'` array literal
+    further down, so substitute the one placeholder directly.
+    """
+    return SCHEMA_SQL.replace("{embedding_dim}", str(VOYAGE_DIMENSIONS))
+
+
+_pool: ConnectionPool | None = None
+
+
+def get_pool() -> ConnectionPool:
+    """Process-wide connection pool, opened on first use."""
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=10, timeout=30, open=True)
+    return _pool
+
+
+def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        _pool.close()
+        _pool = None
+
+
+@contextmanager
+def db_conn() -> Iterator[psycopg.Connection]:
+    """Pooled connection. Use for anything serving a request."""
+    with get_pool().connection() as conn:
+        yield conn
+
+
+def get_db() -> Iterator[psycopg.Connection]:
+    """FastAPI dependency wrapping the pool."""
+    with get_pool().connection() as conn:
+        yield conn
+
+
 def get_connection() -> psycopg.Connection:
+    """Standalone connection for CLI scripts and long-running background jobs.
+
+    Deliberately not pooled: a crawl holds its connection for minutes and
+    would starve the request pool.
+    """
     return psycopg.connect(DATABASE_URL)
 
 
@@ -160,7 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = t
 
 def init_db():
     with get_connection() as conn:
-        conn.execute(SCHEMA_SQL)
+        conn.execute(_schema_sql())
         conn.commit()
         # Run migrations for existing tables that need new columns
         try:
@@ -168,9 +223,12 @@ def init_db():
             conn.commit()
         except Exception as e:
             conn.rollback()
-            print(f"Migration note: {e}")
-    print("Database schema initialized.")
+            log.info("Migration note: %s", e)
+    log.info("Database schema initialized (embedding dim %s).", VOYAGE_DIMENSIONS)
 
 
 if __name__ == "__main__":
+    from logging_config import setup_logging
+
+    setup_logging()
     init_db()

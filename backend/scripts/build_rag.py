@@ -1,5 +1,6 @@
 """Build the RAG pipeline: chunk pages and generate embeddings."""
 import sys
+
 sys.path.insert(0, sys.path[0] + "/..")
 
 from db import get_connection

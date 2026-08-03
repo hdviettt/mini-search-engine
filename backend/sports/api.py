@@ -9,11 +9,14 @@ Cache TTLs prevent burning through the quota:
   - Live scores: 1 minute
   - Head to head: 1 hour
 """
+import logging
 import time
 
 import httpx
 
 from config import FOOTBALL_API_KEY
+
+log = logging.getLogger(__name__)
 
 API_BASE = "https://v3.football.api-sports.io"
 
@@ -55,13 +58,13 @@ def _api_get(endpoint: str, params: dict, cache_ttl: int = 900) -> dict | None:
         data = response.json()
 
         if data.get("errors") and len(data["errors"]) > 0:
-            print(f"  API-Football error: {data['errors']}")
+            log.error(f"  API-Football error: {data['errors']}")
             return None
 
         _cache_set(cache_key, data, cache_ttl)
         return data
     except Exception as e:
-        print(f"  API-Football request failed: {e}")
+        log.error(f"  API-Football request failed: {e}")
         return None
 
 

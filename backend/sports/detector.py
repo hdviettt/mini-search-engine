@@ -94,7 +94,7 @@ def detect_sports(query: str) -> SportsDetection | None:
             break
 
     team_ids = [t[1] for t in matched_teams]
-    league_ids = [l[1] for l in matched_leagues]
+    league_ids = [league[1] for league in matched_leagues]
     matched_name = matched_teams[0][0] if matched_teams else (matched_leagues[0][0] if matched_leagues else "")
 
     # Determine action based on keywords

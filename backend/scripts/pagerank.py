@@ -1,5 +1,6 @@
 """Compute PageRank scores for all crawled pages."""
 import sys
+
 sys.path.insert(0, sys.path[0] + "/..")
 
 from db import get_connection

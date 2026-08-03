@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, memo } from "react";
+import Link from "next/link";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import AIChat from "@/components/AIChat";
@@ -425,9 +426,9 @@ export default function Home() {
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
       <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
         <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
-          <a href="/" className="text-[18px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
+          <Link href="/" className="text-[18px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
             FS
-          </a>
+          </Link>
 
           <div ref={searchFormRef} className="flex-1 relative">
             <form onSubmit={(e) => { e.preventDefault(); if (headerInput.trim()) commitSearch(headerInput.trim()); }}

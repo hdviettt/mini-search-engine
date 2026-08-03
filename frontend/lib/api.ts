@@ -2,6 +2,37 @@ import type { ExplainResponse, Stats, SearchParams } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Operational endpoints (crawl, index, embed, schedules) require an API key.
+// It is read from localStorage rather than NEXT_PUBLIC_* on purpose — a
+// NEXT_PUBLIC var is inlined into the client bundle and would be public.
+// Set it once in the browser console:  localStorage.setItem('mse_admin_key', '<key>')
+export const ADMIN_KEY_STORAGE = "mse_admin_key";
+
+export function getAdminKey(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ADMIN_KEY_STORAGE);
+}
+
+export class AdminAuthError extends Error {}
+
+async function adminFetch(path: string, init: RequestInit = {}) {
+  const key = getAdminKey();
+  if (!key) {
+    throw new AdminAuthError(
+      `No admin key set. Run: localStorage.setItem('${ADMIN_KEY_STORAGE}', '<key>')`,
+    );
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: { ...(init.headers || {}), "X-API-Key": key },
+  });
+
+  if (res.status === 401) throw new AdminAuthError("Admin key rejected.");
+  if (res.status === 503) throw new AdminAuthError("ADMIN_API_KEY not configured on the server.");
+  return res;
+}
+
 export interface OverviewSource {
   index: number;
   title: string;
@@ -58,7 +89,7 @@ export async function getStats(): Promise<Stats> {
 }
 
 export async function startCrawl(seedUrls: string[], maxPages: number, maxDepth: number, extraDomains: string[] = [], restrictDomains: boolean = true) {
-  const res = await fetch(`${API_BASE}/api/crawl/start`, {
+  const res = await adminFetch(`/api/crawl/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ seed_urls: seedUrls, max_pages: maxPages, max_depth: maxDepth, extra_domains: extraDomains, restrict_domains: restrictDomains }),
@@ -67,17 +98,17 @@ export async function startCrawl(seedUrls: string[], maxPages: number, maxDepth:
 }
 
 export async function stopCrawl(jobId: string) {
-  const res = await fetch(`${API_BASE}/api/crawl/stop?job_id=${jobId}`, { method: "POST" });
+  const res = await adminFetch(`/api/crawl/stop?job_id=${jobId}`, { method: "POST" });
   return res.json();
 }
 
 export async function rebuildIndex() {
-  const res = await fetch(`${API_BASE}/api/index/rebuild`, { method: "POST" });
+  const res = await adminFetch(`/api/index/rebuild`, { method: "POST" });
   return res.json();
 }
 
 export async function rebuildEmbeddings() {
-  const res = await fetch(`${API_BASE}/api/embedding/rebuild`, { method: "POST" });
+  const res = await adminFetch(`/api/embedding/rebuild`, { method: "POST" });
   return res.json();
 }
 
@@ -88,7 +119,7 @@ export function getWebSocketUrl(): string {
 
 // Parameter tuning
 export async function recomputePageRank(damping: number, iterations: number) {
-  const res = await fetch(`${API_BASE}/api/pagerank/recompute`, {
+  const res = await adminFetch(`/api/pagerank/recompute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ damping, iterations }),
@@ -108,7 +139,7 @@ export interface CrawlSchedule {
 }
 
 export async function createSchedule(seedUrls: string[], maxPages: number, intervalHours: number) {
-  const res = await fetch(`${API_BASE}/api/crawl/schedule`, {
+  const res = await adminFetch(`/api/crawl/schedule`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ seed_urls: seedUrls, max_pages: maxPages, interval_hours: intervalHours }),
@@ -124,12 +155,12 @@ export async function listSchedules(): Promise<CrawlSchedule[]> {
 }
 
 export async function deleteSchedule(scheduleId: string) {
-  const res = await fetch(`${API_BASE}/api/crawl/schedule/${scheduleId}`, { method: "DELETE" });
+  const res = await adminFetch(`/api/crawl/schedule/${scheduleId}`, { method: "DELETE" });
   return res.json();
 }
 
 export async function toggleSchedule(scheduleId: string, enabled: boolean) {
-  const res = await fetch(`${API_BASE}/api/crawl/schedule/${scheduleId}/toggle?enabled=${enabled}`, { method: "POST" });
+  const res = await adminFetch(`/api/crawl/schedule/${scheduleId}/toggle?enabled=${enabled}`, { method: "POST" });
   return res.json();
 }
 

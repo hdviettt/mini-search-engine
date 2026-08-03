@@ -20,19 +20,41 @@ import math
 
 import psycopg
 
-from config import BM25_K1, BM25_B
+from config import BM25_B, BM25_K1
 from indexer.tokenizer import tokenize
 
 # Field weights for BM25F — title matches are far more relevant
 TITLE_WEIGHT = 4.0
 BODY_WEIGHT = 1.0
 
+# One statement for every query term. The previous version issued three
+# round-trips per term (term id, COUNT(*) for df, then postings); the window
+# function computes df in the same pass.
+_POSTINGS_SQL = """
+SELECT t.term,
+       p.page_id,
+       p.term_freq,
+       p.title_freq,
+       p.body_freq,
+       d.doc_length,
+       COUNT(*) OVER (PARTITION BY p.term_id) AS doc_freq
+FROM terms t
+JOIN postings p ON p.term_id = t.id
+JOIN doc_stats d ON d.page_id = p.page_id
+WHERE t.term = ANY(%s)
+"""
 
-def search_bm25(conn: psycopg.Connection, query: str, k1: float | None = None, b: float | None = None) -> dict[int, float]:
-    """Score all matching documents for a query using BM25.
 
-    Returns {page_id: bm25_score} for all documents containing at least one query term.
-    Optional k1 and b params allow live tuning from the playground.
+def search_bm25(
+    conn: psycopg.Connection,
+    query: str,
+    k1: float | None = None,
+    b: float | None = None,
+) -> dict[int, float]:
+    """Score all matching documents for a query using BM25F.
+
+    Returns {page_id: score} for every document containing at least one query
+    term. Optional k1/b allow live tuning from the playground.
     """
     k1 = k1 if k1 is not None else BM25_K1
     b = b if b is not None else BM25_B
@@ -41,50 +63,38 @@ def search_bm25(conn: psycopg.Connection, query: str, k1: float | None = None, b
     if not query_terms:
         return {}
 
-    # Load corpus stats
     stats = dict(conn.execute("SELECT key, value FROM corpus_stats").fetchall())
     total_docs = stats.get("total_docs", 0)
-    avg_doc_length = stats.get("avg_doc_length", 1)
+    avg_doc_length = stats.get("avg_doc_length", 1) or 1
 
-    if total_docs == 0:
+    if not total_docs:
         return {}
 
+    rows = conn.execute(_POSTINGS_SQL, (list(set(query_terms)),)).fetchall()
+
+    # A term repeated in the query should count once per occurrence.
+    term_counts: dict[str, int] = {}
+    for term in query_terms:
+        term_counts[term] = term_counts.get(term, 0) + 1
+
+    idf_cache: dict[str, float] = {}
     scores: dict[int, float] = {}
 
-    for term in query_terms:
-        # Look up term ID
-        row = conn.execute("SELECT id FROM terms WHERE term = %s", (term,)).fetchone()
-        if row is None:
-            continue  # term not in index
-        term_id = row[0]
+    for term, page_id, tf, title_freq, body_freq, doc_length, doc_freq in rows:
+        idf = idf_cache.get(term)
+        if idf is None:
+            idf = math.log((total_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1)
+            idf_cache[term] = idf
 
-        # Get document frequency (how many docs contain this term)
-        df = conn.execute(
-            "SELECT COUNT(*) FROM postings WHERE term_id = %s", (term_id,)
-        ).fetchone()[0]
+        if title_freq > 0 or body_freq > 0:
+            tf_weighted = TITLE_WEIGHT * title_freq + BODY_WEIGHT * body_freq
+        else:
+            tf_weighted = float(tf)  # fallback for old rows without field freqs
 
-        # IDF: how rare is this term? Rarer terms = higher weight
-        idf = math.log((total_docs - df + 0.5) / (df + 0.5) + 1)
+        numerator = tf_weighted * (k1 + 1)
+        denominator = tf_weighted + k1 * (1 - b + b * (doc_length / avg_doc_length))
+        term_score = idf * (numerator / denominator) * term_counts.get(term, 1)
 
-        # Get all postings for this term (with per-field frequencies for BM25F)
-        postings = conn.execute(
-            """SELECT p.page_id, p.term_freq, p.title_freq, p.body_freq, d.doc_length
-               FROM postings p
-               JOIN doc_stats d ON p.page_id = d.page_id
-               WHERE p.term_id = %s""",
-            (term_id,),
-        ).fetchall()
-
-        for page_id, tf, title_freq, body_freq, doc_length in postings:
-            # BM25F: weight title matches higher than body matches
-            if title_freq > 0 or body_freq > 0:
-                tf_weighted = TITLE_WEIGHT * title_freq + BODY_WEIGHT * body_freq
-            else:
-                tf_weighted = float(tf)  # fallback for old data without field freqs
-            numerator = tf_weighted * (k1 + 1)
-            denominator = tf_weighted + k1 * (1 - b + b * (doc_length / avg_doc_length))
-            term_score = idf * (numerator / denominator)
-
-            scores[page_id] = scores.get(page_id, 0) + term_score
+        scores[page_id] = scores.get(page_id, 0.0) + term_score
 
     return scores

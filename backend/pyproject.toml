@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mini-search-engine"
 version = "0.1.0"
@@ -7,11 +11,49 @@ dependencies = [
     "httpx>=0.28",
     "lxml>=5.0",
     "fastapi>=0.115",
-    "uvicorn>=0.34",
+    "uvicorn[standard]>=0.34",
     "pydantic>=2.10",
     "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
     "python-dotenv>=1.0",
+    "PyYAML>=6.0",
+    # Neural reranking — ONNX cross-encoder on CPU.
+    "numpy>=1.26",
+    "onnxruntime>=1.17",
+    "tokenizers>=0.15",
+    # Used by scripts/download_model.py to fetch the cross-encoder.
+    "huggingface-hub>=0.20",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.9"]
+
+[tool.ruff]
+line-length = 120
+exclude = ["build", "models", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # line length is handled by the formatter, not worth failing CI over
+    "B008",  # FastAPI's Depends() in defaults is the documented pattern
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# This file is the single source of truth for dependencies.
+# The Dockerfile installs from it — never hardcode a second list there.
+[tool.setuptools]
+packages = [
+    "ai_overview",
+    "api",
+    "crawler",
+    "indexer",
+    "rag",
+    "ranker",
+    "search",
+    "sports",
+]
+py-modules = ["auth", "config", "db", "logging_config", "main", "models"]

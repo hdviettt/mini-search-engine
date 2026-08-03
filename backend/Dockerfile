@@ -2,23 +2,18 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir httpx lxml fastapi "uvicorn[standard]" pydantic "psycopg[binary]" python-dotenv
-
-# Neural re-ranking dependencies (ONNX cross-encoder, no GPU needed)
-RUN pip install --no-cache-dir onnxruntime tokenizers numpy huggingface-hub
-
-# Download the cross-encoder model at build time (not at runtime)
-RUN python -c "\
-from huggingface_hub import hf_hub_download; \
-import os; \
-os.makedirs('/app/models/reranker/onnx', exist_ok=True); \
-hf_hub_download('Xenova/ms-marco-MiniLM-L-6-v2', 'onnx/model.onnx', local_dir='/app/models/reranker'); \
-hf_hub_download('Xenova/ms-marco-MiniLM-L-6-v2', 'tokenizer.json', local_dir='/app/models/reranker'); \
-print('Reranker model downloaded.')"
-
-COPY . .
-
 ENV RERANKER_MODEL_DIR=/app/models/reranker
+
+# Cross-encoder model. Heavy and independent of app code, so this layer
+# caches until the download script itself changes.
+COPY scripts/download_model.py scripts/
+RUN pip install --no-cache-dir "huggingface-hub>=0.20" \
+ && python scripts/download_model.py
+
+# Dependencies come from pyproject.toml — the single source of truth.
+# Never hardcode a second package list here; that drift is what made
+# `pip install -e .` fail locally while the image worked.
+COPY . .
+RUN pip install --no-cache-dir .
 
 CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-keep-alive 300

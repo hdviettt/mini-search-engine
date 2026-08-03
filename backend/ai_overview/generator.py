@@ -1,15 +1,18 @@
 """Generate AI Overviews using Groq API + hybrid RAG retrieval."""
 import json
+import logging
 import time
-from typing import Generator
+from collections.abc import Generator
 
 import httpx
 import psycopg
 
-from config import GROQ_API_KEY, GROQ_MODEL, AI_OVERVIEW_MAX_TOKENS, AI_CACHE_TTL_HOURS
-from rag.fanout import expand_query
+from config import AI_CACHE_TTL_HOURS, AI_OVERVIEW_MAX_TOKENS, GROQ_API_KEY, GROQ_MODEL
 from rag.embedder import embed_queries
+from rag.fanout import expand_query
 from rag.retriever import hybrid_retrieve
+
+log = logging.getLogger(__name__)
 
 
 def _normalize_query(query: str) -> str:
@@ -142,7 +145,7 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
         trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
         return {"overview": overview, "sources": sources, "trace": trace, "from_cache": False}
     except Exception as e:
-        print(f"AI Overview error: {e}")
+        log.error(f"AI Overview error: {e}")
         return None
 
 
@@ -307,5 +310,5 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
             if attempt < MAX_RETRIES:
                 time.sleep(1)
             else:
-                print(f"AI Overview unavailable after {MAX_RETRIES + 1} attempts: {e}")
+                log.info(f"AI Overview unavailable after {MAX_RETRIES + 1} attempts: {e}")
                 yield f"data: {json.dumps({'type': 'unavailable'})}\n\n"

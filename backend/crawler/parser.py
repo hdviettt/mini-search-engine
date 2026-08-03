@@ -1,9 +1,8 @@
 import hashlib
 import re
-from urllib.parse import urljoin, urlparse, urldefrag
+from urllib.parse import urldefrag, urljoin, urlparse
 
 from lxml import html
-
 
 # Elements to remove entirely before text extraction
 _STRIP_TAGS = [

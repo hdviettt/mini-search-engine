@@ -2,13 +2,17 @@
 
 ### A search engine built from scratch to understand how Google really works.
 
-**[Live Demo](https://search.hoangducviet.work)**
+**[Live Demo](https://search.hoangducviet.work)** · **[Blog Series](https://hoangducviet.work/posts/building-a-mini-search-engine-1-why)**
 
 ![Demo](docs/demo.gif)
 
 ---
 
 A mini search engine built from scratch that covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking**, **AI Overviews**, and **Sports OneBox**.
+
+I work in SEO, and I wanted to understand search at the engineering level. Not just what Google does, but how and why. It is no coincidence that the research problems search engines had to solve — understanding language, ranking relevance across billions of documents — drove the breakthroughs that became modern AI. The transformer paper came out of Google. So did Word2Vec and BERT. Search is where it started.
+
+Started March 2026. Still ongoing.
 
 ## The Pipeline
 
@@ -112,11 +116,29 @@ frontend/
 - PostgreSQL 16+ with pgvector
 - API keys: [Groq](https://console.groq.com), [Voyage AI](https://dash.voyageai.com)
 
+### Endpoint access
+
+Read endpoints — search, explore, stats — are public.
+
+Operational endpoints — crawl, index rebuild, embedding rebuild, PageRank recompute,
+schedules — require `X-API-Key` matching the `ADMIN_API_KEY` environment variable.
+If `ADMIN_API_KEY` is unset, those endpoints return `503` rather than running unprotected.
+
+To use the playground's operational controls in the browser, store the key once:
+
+```js
+localStorage.setItem("mse_admin_key", "<your ADMIN_API_KEY>")
+```
+
 ### Backend
 
 ```bash
 cd backend
 pip install -e .
+
+# Download the ONNX cross-encoder used for neural reranking (~90 MB).
+# Skip this and search still works, but reranking is disabled.
+python scripts/download_model.py
 
 # Start Postgres with pgvector
 docker run -d --name search-pg \
@@ -126,7 +148,7 @@ docker run -d --name search-pg \
   -p 5432:5432 pgvector/pgvector:pg16
 
 # Configure
-cp .env.example .env  # add your GROQ_API_KEY and VOYAGE_API_KEY
+cp .env.example .env  # add GROQ_API_KEY, VOYAGE_API_KEY, ADMIN_API_KEY
 
 # Initialize database
 python db.py
@@ -150,4 +172,52 @@ npm run dev
 ```
 
 Open [localhost:3000](http://localhost:3000).
+
+## Measuring quality
+
+Ranking changes are judged on numbers, not on a handful of spot-checked queries.
+`eval/` holds 50 labeled queries across six intent types — entity, informational,
+navigational, multi-term, misspelled, and queries that should return nothing at all.
+
+```bash
+python eval/run.py --baseline                   # record current behaviour
+python eval/run.py --compare eval/baseline.json # what a change moved
+```
+
+It reports nDCG@10, MRR, zero-result precision and latency p50/p95, broken down
+by intent, plus the queries that regressed most. To price the cross-encoder
+against the 100-150 ms it costs, restart the API with `RERANK_ENABLED=false`
+and compare.
+
+## Development
+
+```bash
+cd backend
+pytest tests -q     # 89 tests: tokenizer, ranking maths, SSRF guard, auth, request bounds
+ruff check .
+```
+
+CI runs ruff + pytest on the backend and tsc + eslint on the frontend.
+[`CLAUDE.md`](CLAUDE.md) documents the architecture, the invariants, and the
+mistakes already made once — it is what an agent (or a person) reads before
+changing anything here.
+
+## Blog Series
+
+1. [Why I'm Building a Search Engine](https://hoangducviet.work/posts/building-a-mini-search-engine-1-why)
+2. [Designing the Web Crawler](https://hoangducviet.work/posts/building-a-mini-search-engine-2-designing-the-web-crawler)
+3. Building the Inverted Index
+4. Ranking with BM25 + PageRank
+5. Neural Reranking with a Cross-Encoder
+6. Query Fan-out and Hybrid Retrieval
+7. AI Overviews
+8. AI Mode
+
+## Author
+
+**Hoang Duc Viet** — AI Leader at [SEONGON](https://seongon.com), Vietnam's largest SEO agency.
+
+I build agentic AI systems and write about how search actually works underneath.
+
+[hoangducviet.work](https://hoangducviet.work) · [GitHub](https://github.com/hdviettt) · [LinkedIn](https://linkedin.com/in/hdviettt)
 

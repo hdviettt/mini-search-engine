@@ -1,7 +1,10 @@
 """Split pages into semantic chunks for vector search."""
+import logging
 import re
 
 import psycopg
+
+log = logging.getLogger(__name__)
 
 
 def _split_into_chunks(text: str, max_tokens: int = 300) -> list[str]:
@@ -78,7 +81,7 @@ def chunk_page(conn: psycopg.Connection, page_id: int, title: str, body_text: st
 
 def chunk_all_pages(conn: psycopg.Connection):
     """Split all crawled pages into chunks and store in the chunks table."""
-    print("Chunking pages...")
+    log.info("Chunking pages...")
 
     conn.execute("DELETE FROM chunks WHERE embedding IS NULL OR embedding IS NOT NULL")
     conn.commit()
@@ -100,8 +103,8 @@ def chunk_all_pages(conn: psycopg.Connection):
 
         if (i + 1) % 100 == 0:
             conn.commit()
-            print(f"  Chunked {i + 1}/{len(pages)} pages ({total_chunks} chunks)...")
+            log.info(f"  Chunked {i + 1}/{len(pages)} pages ({total_chunks} chunks)...")
 
     conn.commit()
-    print(f"  {total_chunks} chunks created from {len(pages)} pages.")
-    print("Chunking complete.")
+    log.info(f"  {total_chunks} chunks created from {len(pages)} pages.")
+    log.info("Chunking complete.")

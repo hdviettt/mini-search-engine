@@ -1,8 +1,12 @@
 """Generate embeddings using Voyage API."""
+import logging
+
 import httpx
 import psycopg
 
 from config import VOYAGE_API_KEY, VOYAGE_MODEL
+
+log = logging.getLogger(__name__)
 
 BATCH_SIZE = 50
 VOYAGE_URL = "https://api.voyageai.com/v1/embeddings"
@@ -27,7 +31,7 @@ def _embed_voyage(texts: list[str], input_type: str = "document") -> list[list[f
         data = response.json()
         return [item["embedding"] for item in data["data"]]
     except Exception as e:
-        print(f"  Voyage embed error: {e}")
+        log.error(f"  Voyage embed error: {e}")
         return None
 
 
@@ -42,7 +46,7 @@ def _embed_ollama(texts: list[str]) -> list[list[float]] | None:
         response.raise_for_status()
         return response.json()["embeddings"]
     except Exception as e:
-        print(f"  Ollama embed error: {e}")
+        log.error(f"  Ollama embed error: {e}")
         return None
 
 
@@ -77,7 +81,7 @@ def _ensure_vector_dimension(conn: psycopg.Connection, dim: int):
             current_dim = len(row[0]) if isinstance(row[0], (list, tuple)) else None
             # If using pgvector, dimension is encoded in the type
             if current_dim and current_dim != dim:
-                print(f"  Dimension mismatch: stored={current_dim}, needed={dim}. Clearing old embeddings...")
+                log.info(f"  Dimension mismatch: stored={current_dim}, needed={dim}. Clearing old embeddings...")
                 conn.execute("UPDATE chunks SET embedding = NULL")
                 conn.commit()
     except Exception:
@@ -87,20 +91,20 @@ def _ensure_vector_dimension(conn: psycopg.Connection, dim: int):
     try:
         conn.execute(f"ALTER TABLE chunks ALTER COLUMN embedding TYPE vector({dim})")
         conn.commit()
-        print(f"  Embedding column set to vector({dim})")
+        log.info(f"  Embedding column set to vector({dim})")
     except Exception:
         conn.rollback()
 
 
 def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
     """Generate embeddings for all chunks that don't have one yet."""
-    print("Generating embeddings (batched)...")
+    log.info("Generating embeddings (batched)...")
 
     # Determine expected dimension from a test embedding
     test = _get_embeddings_batch(["test"], input_type="query")
     if test:
         dim = len(test[0])
-        print(f"  Embedding dimension: {dim}")
+        log.info(f"  Embedding dimension: {dim}")
         _ensure_vector_dimension(conn, dim)
 
     chunks = conn.execute(
@@ -108,7 +112,7 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
     ).fetchall()
 
     total = len(chunks)
-    print(f"  {total} chunks to embed (batch size {BATCH_SIZE})...")
+    log.info(f"  {total} chunks to embed (batch size {BATCH_SIZE})...")
 
     for batch_start in range(0, total, BATCH_SIZE):
         batch = chunks[batch_start:batch_start + BATCH_SIZE]
@@ -119,7 +123,7 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
         if embeddings is None:
             continue
 
-        for chunk_id, embedding in zip(ids, embeddings):
+        for chunk_id, embedding in zip(ids, embeddings, strict=False):
             conn.execute(
                 "UPDATE chunks SET embedding = %s::vector WHERE id = %s",
                 (str(embedding), chunk_id),
@@ -127,7 +131,7 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
 
         conn.commit()
         done = min(batch_start + BATCH_SIZE, total)
-        print(f"  Embedded {done}/{total} chunks...")
+        log.info(f"  Embedded {done}/{total} chunks...")
 
         if progress_callback:
             preview = texts[0][:80] if texts else ""
@@ -140,16 +144,16 @@ def embed_all_chunks(conn: psycopg.Connection, progress_callback=None):
     embedded_count = conn.execute(
         "SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL"
     ).fetchone()[0]
-    print(f"  {embedded_count} chunks have embeddings.")
+    log.info(f"  {embedded_count} chunks have embeddings.")
 
     # Create HNSW index for fast approximate nearest neighbor search
     try:
         conn.execute("DROP INDEX IF EXISTS idx_chunks_embedding_hnsw")
         conn.execute("CREATE INDEX idx_chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops)")
         conn.commit()
-        print("  HNSW index created for fast vector search.")
+        log.info("  HNSW index created for fast vector search.")
     except Exception as e:
         conn.rollback()
-        print(f"  HNSW index creation skipped: {e}")
+        log.warning(f"  HNSW index creation skipped: {e}")
 
-    print("Embedding complete.")
+    log.info("Embedding complete.")

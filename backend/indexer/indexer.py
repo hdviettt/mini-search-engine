@@ -1,10 +1,13 @@
 """Build the inverted index from crawled pages."""
 import io
+import logging
 from collections import Counter
 
 import psycopg
 
 from indexer.tokenizer import tokenize
+
+log = logging.getLogger(__name__)
 
 
 def index_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str):
@@ -156,7 +159,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
 
     Uses COPY for bulk loading — orders of magnitude faster than INSERT.
     """
-    print("Building inverted index...")
+    log.info("Building inverted index...")
 
     # Ensure BM25F columns exist (migration for existing databases)
     try:
@@ -175,7 +178,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
 
     # Load all pages
     pages = conn.execute("SELECT id, title, body_text FROM pages").fetchall()
-    print(f"  Indexing {len(pages)} pages...")
+    log.info(f"  Indexing {len(pages)} pages...")
 
     # Phase 1: Tokenize everything in memory (title and body separately for BM25F)
     all_terms: set[str] = set()
@@ -198,7 +201,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
         all_terms.update(all_counts.keys())
 
         if (i + 1) % 100 == 0:
-            print(f"    Tokenized {i + 1}/{len(pages)} pages...")
+            log.info(f"    Tokenized {i + 1}/{len(pages)} pages...")
 
         if progress_callback and (i + 1) % 10 == 0:
             sample_tokens = list(all_counts.keys())[:8]
@@ -213,10 +216,10 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
                 "unique_terms": len(all_terms),
             })
 
-    print(f"  {len(all_terms)} unique terms found.")
+    log.info(f"  {len(all_terms)} unique terms found.")
 
     # Phase 2: Bulk insert terms using COPY
-    print("  Inserting terms...")
+    log.info("  Inserting terms...")
     terms_buf = io.StringIO()
     for term in all_terms:
         # Escape tabs and newlines for COPY format
@@ -236,7 +239,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
         term_to_id[row[1]] = row[0]
 
     # Phase 3: Bulk insert doc_stats using COPY
-    print("  Inserting doc stats...")
+    log.info("  Inserting doc stats...")
     stats_buf = io.StringIO()
     for page_id, doc_length in doc_lengths:
         stats_buf.write(f"{page_id}\t{doc_length}\n")
@@ -248,7 +251,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
     conn.commit()
 
     # Phase 4: Bulk insert postings using COPY (with per-field frequencies for BM25F)
-    print("  Inserting postings...")
+    log.info("  Inserting postings...")
     postings_buf = io.StringIO()
     postings_count = 0
     for page_id, all_counts, title_counts, body_counts in page_data:
@@ -280,7 +283,7 @@ def build_index(conn: psycopg.Connection, progress_callback=None):
     conn.commit()
     cur.close()
 
-    print(f"  {len(term_to_id)} unique terms indexed.")
-    print(f"  {postings_count} postings created.")
-    print(f"  Avg document length: {avg_doc_length:.0f} tokens.")
-    print("Index built.")
+    log.info(f"  {len(term_to_id)} unique terms indexed.")
+    log.info(f"  {postings_count} postings created.")
+    log.info(f"  Avg document length: {avg_doc_length:.0f} tokens.")
+    log.info("Index built.")

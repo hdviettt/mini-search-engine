@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(python -m ruff:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff check:*)",
+      "Bash(python eval/run.py:*)",
+      "Bash(python scripts/search_test.py:*)",
+      "Bash(python db.py)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx eslint:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ],
+    "ask": [
+      "Bash(python scripts/crawl.py:*)",
+      "Bash(python scripts/build_rag.py:*)",
+      "Bash(railway:*)",
+      "Bash(git push:*)"
+    ]
+  },
+  "env": {
+    "RERANK_ENABLED": "true"
+  }
+}

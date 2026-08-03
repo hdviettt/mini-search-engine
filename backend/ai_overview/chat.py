@@ -5,13 +5,16 @@ for relevant chunks and injects them as context for grounded responses
 with citations [1], [2], etc.
 """
 import json
+import logging
 import time
-from typing import Generator
+from collections.abc import Generator
 
 import httpx
 
 from config import GROQ_API_KEY, GROQ_MODEL
 from db import get_connection
+
+log = logging.getLogger(__name__)
 
 
 def _search_index(query: str) -> tuple[str, list[dict]]:
@@ -39,7 +42,7 @@ def _search_index(query: str) -> tuple[str, list[dict]]:
 
         return "\n\n".join(context_parts), sources
     except Exception as e:
-        print(f"AI Chat index search error: {e}")
+        log.error(f"AI Chat index search error: {e}")
         return "", []
 
 

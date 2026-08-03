@@ -11,7 +11,17 @@ node_modules/
 *.db
 .DS_Store
 ideas/
-.claude/
+
+# .claude/ is committed on purpose — settings.json and skills/ are how this
+# repo is maintained. Only machine-specific permissions stay out.
+.claude/settings.local.json
+
+# Downloaded cross-encoder weights — fetch with scripts/download_model.py
+backend/models/
+
+# Eval output; the labeled query set is committed, results are not.
+eval/baseline.json
+eval/*-report.json
 backup.sql
 full_backup.sql
 .gstack/

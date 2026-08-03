@@ -1,0 +1,11 @@
+# Repo-level lint config. backend/pyproject.toml carries the same rules for
+# the backend package; this covers everything outside it (eval/, scripts).
+line-length = 120
+exclude = ["backend/build", "backend/models", ".venv", "frontend"]
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # long lines are a formatter concern, not a CI failure
+    "B008",  # FastAPI's Depends() in argument defaults is the documented pattern
+]

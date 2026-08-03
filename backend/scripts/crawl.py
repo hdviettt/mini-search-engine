@@ -1,10 +1,11 @@
 """Run the crawler. Seeds the queue if empty, then crawls."""
 import sys
+
 sys.path.insert(0, sys.path[0] + "/..")
 
 from config import SEED_URLS
-from db import get_connection, init_db
 from crawler.manager import CrawlManager
+from db import get_connection, init_db
 
 
 def main():

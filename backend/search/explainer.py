@@ -1,15 +1,15 @@
 """Instrumented search that captures pipeline details for the playground."""
 import math
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psycopg
 
-from config import BM25_K1, BM25_B, RANK_ALPHA, FRESHNESS_DECAY, FRESHNESS_FLOOR
-from indexer.tokenizer import tokenize
-from ranker.bm25 import search_bm25
-from search.engine import generate_snippet, _normalize_scores
+from config import BM25_B, BM25_K1, FRESHNESS_DECAY, FRESHNESS_FLOOR, RANK_ALPHA
 from models import SearchResult
+from ranker.bm25 import search_bm25
+from search.engine import generate_snippet
+from search.ranking import RERANK_MIN_SCORE, freshness_multiplier, normalize_scores
 
 
 def search_explain(conn: psycopg.Connection, query: str, params: dict | None = None) -> dict:
@@ -28,15 +28,16 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Step 1: Tokenization + Stemming
     t0 = time.time()
     import re
-    from indexer.tokenizer import STOPWORDS
+
     from indexer.stemmer import stem
+    from indexer.tokenizer import STOPWORDS
 
     cleaned = re.sub(r"[^a-z0-9\s]", " ", query.lower())
     raw_tokens = cleaned.split()
     removed = [t for t in raw_tokens if t in STOPWORDS or len(t) <= 1]
     pre_stem_tokens = [t for t in raw_tokens if t not in STOPWORDS and len(t) > 1]
     query_terms = [stem(t) for t in pre_stem_tokens]
-    stems_applied = {orig: stemmed for orig, stemmed in zip(pre_stem_tokens, query_terms) if orig != stemmed}
+    stems_applied = {orig: stemmed for orig, stemmed in zip(pre_stem_tokens, query_terms, strict=False) if orig != stemmed}
     trace["tokenization"] = {
         "input": query,
         "pre_stem_tokens": pre_stem_tokens,  # after cleanup + stopword removal, before stemming
@@ -115,10 +116,9 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Step 4: PageRank fetch
     t0 = time.time()
     matching_ids = list(bm25_scores.keys())
-    placeholders = ",".join(["%s"] * len(matching_ids))
     pr_rows = conn.execute(
-        f"SELECT page_id, score FROM pagerank WHERE page_id IN ({placeholders})",
-        matching_ids,
+        "SELECT page_id, score FROM pagerank WHERE page_id = ANY(%s)",
+        (matching_ids,),
     ).fetchall()
     pagerank_scores = dict(pr_rows)
 
@@ -139,8 +139,8 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
 
     # Step 5: Score combination
     t0 = time.time()
-    norm_bm25 = _normalize_scores(bm25_scores)
-    norm_pr = _normalize_scores(pagerank_scores)
+    norm_bm25 = normalize_scores(bm25_scores)
+    norm_pr = normalize_scores(pagerank_scores)
 
     combined = {}
     for page_id in bm25_scores:
@@ -170,16 +170,17 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
 
     # Step 5b: Freshness boost
     t0 = time.time()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     freshness_rows = conn.execute(
-        f"SELECT id, crawled_at FROM pages WHERE id IN ({placeholders})",
-        matching_ids,
+        "SELECT id, COALESCE(last_checked_at, crawled_at) FROM pages WHERE id = ANY(%s)",
+        (matching_ids,),
     ).fetchall()
     freshness_details = []
     for page_id, crawled_at in freshness_rows:
         if page_id in combined and crawled_at:
             days_old = (now - crawled_at).days
-            boost = max(FRESHNESS_FLOOR, 1.0 - days_old * FRESHNESS_DECAY)
+            # Same formula the engine uses — see search/ranking.py.
+            boost = freshness_multiplier(days_old)
             combined[page_id] *= boost
             if page_id in combined_rank:
                 freshness_details.append({
@@ -201,20 +202,31 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Step 6: Neural re-ranking
     from ranker.reranker import rerank
     t0 = time.time()
+    head = ranked[:5]
+    head_ids = [page_id for page_id, _ in head]
+    head_rows = {}
+    if head_ids:
+        head_rows = {
+            r[0]: r
+            for r in conn.execute(
+                "SELECT id, url, title, body_text FROM pages WHERE id = ANY(%s)", (head_ids,)
+            ).fetchall()
+        }
+
     rerank_candidates = []
     pre_rerank_order = {}
-    for i, (page_id, score) in enumerate(ranked[:5]):
-        row = conn.execute("SELECT url, title, body_text FROM pages WHERE id = %s", (page_id,)).fetchone()
+    for i, (page_id, score) in enumerate(head):
+        row = head_rows.get(page_id)
         if row:
             rerank_candidates.append({
                 "page_id": page_id, "combined_score": score,
-                "url": row[0], "title": row[1], "body_text": row[2],
+                "url": row[1], "title": row[2], "body_text": row[3],
             })
             pre_rerank_order[page_id] = i + 1
 
     reranked = rerank(query, rerank_candidates, top_k=10)
     # Filter clearly irrelevant results
-    reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > -8]
+    reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > RERANK_MIN_SCORE]
 
     # Track rank changes from re-ranking
     rerank_changes = []
@@ -274,8 +286,8 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     # Sports detection
     sports_data = None
     try:
+        from sports.api import get_league_fixtures, get_live_scores, get_standings, get_upcoming_fixtures
         from sports.detector import detect_sports
-        from sports.api import get_upcoming_fixtures, get_league_fixtures, get_standings, get_live_scores
         detection = detect_sports(query)
         if detection:
             if detection.action == "upcoming" and detection.teams:

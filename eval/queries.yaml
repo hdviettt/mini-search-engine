@@ -1,0 +1,270 @@
+# Labeled query set for search quality evaluation.
+#
+# Relevance is judged by substring match against a result's title + URL,
+# case-insensitively. That keeps the labels stable when the corpus is
+# re-crawled and page IDs change — which they do on every crawl.
+#
+#   highly_relevant  gain 3   the page the query is actually asking for
+#   relevant         gain 1   reasonable, related, would not be a bad result
+#   anything else    gain 0
+#
+# intent buckets exist so a regression can be traced to a query type
+# rather than an average.
+
+queries:
+  # ── entity: a specific player, club or competition ──────────────────
+  - q: lionel messi
+    intent: entity
+    highly_relevant: [messi]
+    relevant: [ballon, barcelona, argentina, inter_miami]
+
+  - q: cristiano ronaldo
+    intent: entity
+    highly_relevant: [cristiano_ronaldo, "cristiano ronaldo"]
+    relevant: [ballon, real_madrid, portugal, manchester_united]
+
+  - q: kylian mbappe
+    intent: entity
+    highly_relevant: [mbapp]
+    relevant: [france, real_madrid, paris_saint-germain]
+
+  - q: erling haaland
+    intent: entity
+    highly_relevant: [haaland]
+    relevant: [manchester_city, norway, premier_league]
+
+  - q: premier league
+    intent: entity
+    highly_relevant: [premier_league, "premier league"]
+    relevant: [england, football_league]
+
+  - q: la liga
+    intent: entity
+    highly_relevant: [la_liga, "la liga"]
+    relevant: [spain, spanish]
+
+  - q: serie a
+    intent: entity
+    highly_relevant: [serie_a, "serie a"]
+    relevant: [italy, italian]
+
+  - q: bundesliga
+    intent: entity
+    highly_relevant: [bundesliga]
+    relevant: [germany, german]
+
+  - q: champions league
+    intent: entity
+    highly_relevant: [champions_league, "champions league"]
+    relevant: [uefa, european_cup]
+
+  - q: europa league
+    intent: entity
+    highly_relevant: [europa_league, "europa league"]
+    relevant: [uefa]
+
+  - q: fifa world cup
+    intent: entity
+    highly_relevant: [world_cup, "world cup"]
+    relevant: [fifa]
+
+  - q: ballon d'or
+    intent: entity
+    highly_relevant: [ballon]
+    relevant: [messi, ronaldo, award]
+
+  - q: copa america
+    intent: entity
+    highly_relevant: [copa_am, "copa am"]
+    relevant: [conmebol, south_america]
+
+  - q: africa cup of nations
+    intent: entity
+    highly_relevant: [africa_cup, "africa cup"]
+    relevant: [caf, african]
+
+  - q: uefa european championship
+    intent: entity
+    highly_relevant: [european_championship, "european championship", euro_]
+    relevant: [uefa]
+
+  # ── informational: a concept or explanation ─────────────────────────
+  - q: offside rule
+    intent: informational
+    highly_relevant: [offside]
+    relevant: [laws_of_the_game, association_football, tactics]
+
+  - q: how football tactics work
+    intent: informational
+    highly_relevant: [tactics]
+    relevant: [association_football, formation, strategy]
+
+  - q: history of association football
+    intent: informational
+    highly_relevant: [history_of_association_football, "history of association"]
+    relevant: [association_football]
+
+  - q: what is a hat trick
+    intent: informational
+    highly_relevant: [hat-trick, hat_trick, "hat trick"]
+    relevant: [goal, scoring]
+
+  - q: goalkeeper position
+    intent: informational
+    highly_relevant: [goalkeeper]
+    relevant: [position, association_football]
+
+  - q: penalty shootout rules
+    intent: informational
+    highly_relevant: [penalty]
+    relevant: [shootout, laws_of_the_game]
+
+  - q: var video assistant referee
+    intent: informational
+    highly_relevant: [video_assistant, var]
+    relevant: [referee, laws_of_the_game]
+
+  - q: football transfer market
+    intent: informational
+    highly_relevant: [transfer]
+    relevant: [transfermarkt, market, signing]
+
+  - q: what is a clean sheet
+    intent: informational
+    highly_relevant: [clean_sheet, "clean sheet"]
+    relevant: [goalkeeper, defending]
+
+  - q: football formation 4 4 2
+    intent: informational
+    highly_relevant: [formation]
+    relevant: [tactics, association_football]
+
+  # ── navigational: a known site or hub page ──────────────────────────
+  - q: bbc sport football
+    intent: navigational
+    highly_relevant: ["bbc.com"]
+    relevant: [sport, football]
+
+  - q: espn soccer
+    intent: navigational
+    highly_relevant: ["espn.com"]
+    relevant: [soccer]
+
+  - q: transfermarkt premier league
+    intent: navigational
+    highly_relevant: ["transfermarkt.com"]
+    relevant: [premier_league]
+
+  - q: fbref premier league stats
+    intent: navigational
+    highly_relevant: ["fbref.com"]
+    relevant: [premier_league, stats]
+
+  - q: guardian football
+    intent: navigational
+    highly_relevant: ["theguardian.com"]
+    relevant: [football]
+
+  # ── multi-term: several concepts combined ───────────────────────────
+  - q: messi barcelona champions league goals
+    intent: multi_term
+    highly_relevant: [messi]
+    relevant: [barcelona, champions_league, goal]
+
+  - q: premier league top scorers all time
+    intent: multi_term
+    highly_relevant: [premier_league]
+    relevant: [scorer, record, goal]
+
+  - q: world cup final results history
+    intent: multi_term
+    highly_relevant: [world_cup, "world cup"]
+    relevant: [final, record, history]
+
+  - q: real madrid champions league titles
+    intent: multi_term
+    highly_relevant: [real_madrid, "real madrid"]
+    relevant: [champions_league, european_cup, record]
+
+  - q: english football stadium capacity
+    intent: multi_term
+    highly_relevant: [stadium]
+    relevant: [capacity, england, premier_league]
+
+  - q: uefa club coefficient ranking
+    intent: multi_term
+    highly_relevant: [uefa]
+    relevant: [coefficient, ranking, club]
+
+  - q: youngest player to win ballon d'or
+    intent: multi_term
+    highly_relevant: [ballon]
+    relevant: [record, award, youngest]
+
+  - q: most expensive football transfers
+    intent: multi_term
+    highly_relevant: [transfer]
+    relevant: [record, expensive, transfermarkt]
+
+  # ── misspelled: spell correction should rescue these ────────────────
+  - q: lionel mesi
+    intent: misspelled
+    expects_correction: true
+    highly_relevant: [messi]
+    relevant: [barcelona, argentina]
+
+  - q: cristano ronaldo
+    intent: misspelled
+    expects_correction: true
+    highly_relevant: [cristiano_ronaldo, "cristiano ronaldo"]
+    relevant: [portugal, real_madrid]
+
+  - q: premeir league
+    intent: misspelled
+    expects_correction: true
+    highly_relevant: [premier_league, "premier league"]
+    relevant: [england]
+
+  - q: champiosn league
+    intent: misspelled
+    expects_correction: true
+    highly_relevant: [champions_league, "champions league"]
+    relevant: [uefa]
+
+  - q: bundesliaga
+    intent: misspelled
+    expects_correction: true
+    highly_relevant: [bundesliga]
+    relevant: [germany]
+
+  # ── stopword-heavy: everything meaningful can be stripped ───────────
+  - q: who is the best football player of all time
+    intent: stopword_heavy
+    highly_relevant: [messi, cristiano_ronaldo, "best"]
+    relevant: [association_football, record, ballon]
+
+  - q: what are the rules of the game
+    intent: stopword_heavy
+    highly_relevant: [laws_of_the_game, "laws of the game"]
+    relevant: [association_football, rules]
+
+  # ── zero-result: must return nothing, not noise ─────────────────────
+  - q: zzzzqqqxyw
+    intent: zero_result
+    expects_zero: true
+
+  - q: quantum chromodynamics lagrangian
+    intent: zero_result
+    expects_zero: true
+
+  - q: sourdough starter hydration ratio
+    intent: zero_result
+    expects_zero: true
+
+  - q: kubernetes ingress controller annotations
+    intent: zero_result
+    expects_zero: true
+
+  - q: "!!!! ???? ....."
+    intent: zero_result
+    expects_zero: true

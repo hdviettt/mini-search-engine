@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -53,7 +54,7 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold">Dashboard</h1>
             <p className="text-[var(--text-muted)] text-sm mt-1">Search engine health & analytics</p>
           </div>
-          <a href="/" className="text-sm text-[var(--accent)] hover:underline">&larr; Back to search</a>
+          <Link href="/" className="text-sm text-[var(--accent)] hover:underline">&larr; Back to search</Link>
         </div>
 
         {/* Stats grid */}

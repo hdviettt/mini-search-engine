@@ -1,18 +1,21 @@
 """Background job management for crawl, index, and embed operations."""
 import datetime as dt
-import threading
+import logging
 import queue
-import uuid
+import threading
 import time
+import uuid
 
-from db import get_connection
-from crawler.manager import CrawlManager, is_quality_page
 from crawler.fetcher import Fetcher
+from crawler.manager import CrawlManager, is_quality_page
 from crawler.parser import parse_page
-from indexer.indexer import build_index, index_page, deindex_page
-from ranker.pagerank import compute_pagerank
+from db import get_connection
+from indexer.indexer import deindex_page, index_page
 from rag.chunker import chunk_all_pages, chunk_page
 from rag.embedder import embed_all_chunks
+from ranker.pagerank import compute_pagerank
+
+log = logging.getLogger(__name__)
 
 
 class JobManager:
@@ -50,7 +53,7 @@ class JobManager:
             except queue.Full:
                 pass
         if msg.get("type") in ("crawl_progress", "crawl_complete", "index_progress", "index_complete", "embed_progress", "embed_complete"):
-            print(f"  [WS] Emitted {msg.get('type')} to {len(subs)} subscribers")
+            log.info(f"  [WS] Emitted {msg.get('type')} to {len(subs)} subscribers")
 
     def start_crawl(self, seed_urls: list[str], max_pages: int = 100, max_depth: int = 3, extra_domains: list[str] | None = None, restrict_domains: bool = True) -> str:
         # Only one crawl at a time
@@ -327,7 +330,7 @@ class CrawlScheduler:
         ).fetchall()
         conn.close()
 
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         for schedule_id, next_run_at in rows:
             if next_run_at:
                 remaining = (next_run_at - now).total_seconds()
@@ -336,7 +339,7 @@ class CrawlScheduler:
                 delay = None  # will use full interval
             self._start_timer(schedule_id, delay_seconds=delay)
         if rows:
-            print(f"Loaded {len(rows)} active crawl schedule(s) from DB.")
+            log.info(f"Loaded {len(rows)} active crawl schedule(s) from DB.")
 
     def ensure_default_schedules(self):
         """Create default schedules if none exist. Called once on startup."""
@@ -349,7 +352,7 @@ class CrawlScheduler:
         if existing > 0:
             return  # User has configured their own schedules
 
-        print("[scheduler] No schedules found. Creating defaults...")
+        log.info("[scheduler] No schedules found. Creating defaults...")
 
         # Weekly: re-crawl top 50 pages by PageRank to keep high-value content fresh
         self.add(
@@ -370,7 +373,7 @@ class CrawlScheduler:
             max_depth=1,
         )
 
-        print("[scheduler] Created 2 default schedules (weekly top-pagerank refresh, daily seed discovery).")
+        log.info("[scheduler] Created 2 default schedules (weekly top-pagerank refresh, daily seed discovery).")
 
     def add(self, seed_urls: list[str], max_pages: int, interval_hours: float,
             strategy: str = "seed", max_depth: int = 1) -> str:
@@ -484,13 +487,13 @@ class CrawlScheduler:
                 return
 
             strategy, seed_urls, max_pages, max_depth, _ = row
-            print(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
+            log.info(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
 
             try:
                 if strategy == "top_pagerank":
                     from crawler.fetcher import Fetcher
-                    from crawler.parser import parse_page
                     from crawler.manager import is_quality_page
+                    from crawler.parser import parse_page
 
                     top_rows = conn.execute(
                         """SELECT p.id, p.url FROM pagerank pr
@@ -536,7 +539,7 @@ class CrawlScheduler:
                             refreshed += 1
                     finally:
                         fetcher.close()
-                    print(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
+                    log.info(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
 
                 else:
                     manager = CrawlManager(conn)
@@ -548,7 +551,7 @@ class CrawlScheduler:
                 compute_pagerank(conn)
 
             except Exception as e:
-                print(f"[scheduler] Schedule {schedule_id} failed: {e}")
+                log.error(f"[scheduler] Schedule {schedule_id} failed: {e}")
 
             conn.execute(
                 "UPDATE crawl_schedules SET last_run_at = NOW() WHERE id = %s", (schedule_id,)
