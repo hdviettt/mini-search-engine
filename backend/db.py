@@ -214,16 +214,29 @@ CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = t
 
 
 def init_db():
+    """Create the schema and apply migrations. Idempotent — safe on every boot.
+
+    The two blocks run independently on purpose. They used to share a
+    try-block, so when the CREATE EXTENSION at the top of the schema failed
+    (it needs privileges not every deployment has), the ALTER TABLEs below it
+    never ran. That is how production ended up without `pages.last_checked_at`
+    while the query path had already started selecting it.
+    """
     with get_connection() as conn:
-        conn.execute(_schema_sql())
-        conn.commit()
-        # Run migrations for existing tables that need new columns
+        try:
+            conn.execute(_schema_sql())
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            log.warning("Schema creation skipped or partially applied", exc_info=True)
+
         try:
             conn.execute(MIGRATIONS_SQL)
             conn.commit()
-        except Exception as e:
+        except Exception:
             conn.rollback()
-            log.info("Migration note: %s", e)
+            log.warning("Migrations skipped or partially applied", exc_info=True)
+
     log.info("Database schema initialized (embedding dim %s).", VOYAGE_DIMENSIONS)
 
 

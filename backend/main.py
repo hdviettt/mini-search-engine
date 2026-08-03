@@ -14,7 +14,7 @@ from ai_overview.generator import generate_overview, generate_overview_stream
 from api.playground import admin as admin_router
 from api.playground import capture_stats_snapshot, websocket_jobs
 from api.playground import router as playground_router
-from db import close_pool, db_conn, get_db
+from db import close_pool, db_conn, get_db, init_db
 from logging_config import setup_logging
 from models import ChatRequest, OverviewResponse, SearchResponse
 from search.engine import search
@@ -62,6 +62,19 @@ def _snapshot_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Apply schema migrations on boot. Everything in init_db() is
+    # CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS, so it is
+    # idempotent and additive.
+    #
+    # This exists because the production database never had the phase-2
+    # migration applied — `python db.py` was a manual step somebody had to
+    # remember. `pages.last_checked_at` was missing for months and every
+    # /api/search raised UndefinedColumn. A deploy should heal its own schema.
+    try:
+        init_db()
+    except Exception:
+        log.error("Schema migration failed at startup", exc_info=True)
+
     threading.Thread(target=_prewarm_reranker, daemon=True, name="reranker-prewarm").start()
 
     try:
