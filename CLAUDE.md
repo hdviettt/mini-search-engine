@@ -202,10 +202,29 @@ informational  0.7217 · navigational 0.6402 · misspelled 0.6218
 queries collapse entirely without it (`kylian mbappe` 1.000 → 0.000). Keep it on;
 the latency figure in any comment claiming otherwise is wrong.
 
+Read that number together with defect 0 below: the stage earns its 23% mostly by
+*deleting* weak candidates, not by reordering strong ones.
+
 ## Known defects the measurement surfaced
 
 Ranked by what the numbers say, not by feel. Fix one, re-run
 `eval/run.py --compare eval/baseline.json`, keep the change only if it wins.
+
+0. **`RERANK_MIN_SCORE = -8.0` deletes 60% of everything the reranker scores.**
+   Measured over all 50 queries: the cross-encoder scores 240 candidates and
+   144 of them are removed from the result set entirely, not demoted. Ten
+   queries with real answers lose their *whole* reranked head — `offside rule`,
+   `what is a hat trick`, `goalkeeper position`, `var video assistant referee`,
+   `football transfer market`, `what is a clean sheet`,
+   `football formation 4 4 2`, `youngest player to win ballon d'or`,
+   `how football tactics work`, `serie a`. Only 2 queries of 50 keep all five.
+
+   This is why the reranker is worth 23% nDCG: most of that is the filter
+   throwing out bad candidates, not the model reordering good ones. That is a
+   defensible design, but it is not what "reranking" implies, and the threshold
+   was tuned by eye. Before changing it, note that it also drives zero-result
+   precision — a higher `RERANK_MIN_SCORE` would raise 0.40 and cost recall.
+   Measure both.
 
 1. **No minimum-should-match.** BM25 admits any document matching any term, so
    `kubernetes ingress controller annotations` returns 1,429 football pages.
