@@ -6,6 +6,16 @@ I never actually measured this search engine, I just typed queries I liked and d
 
 ---
 
+> **Update, months later: the ruler in this post is bent, and I want to say so before you read the numbers.**
+>
+> I built a second project that needed a trustworthy way to compare two rerankers, and it used this evaluation. The first thing it found was that a five-line function which counts query words in the title scores **0.7551** here. That beats the entire pipeline this post measures at 0.7394.
+>
+> The reason is in the labels. I graded a result by checking whether its title or url contains a substring I wrote by hand, and the substrings are entity names. "Cristiano Ronaldo" is exactly what appears in the title of a page about Cristiano Ronaldo. So the metric rewards string overlap by construction, and 88% of everything it marks relevant contains a literal query term.
+>
+> Scored against MS MARCO's own human judgments instead, that same keyword counter trails a real cross-encoder by 0.147. Here it trails by 0.037. This evaluation was compressing the difference between a good reranker and a bad one, which is the one job a reranking evaluation has.
+>
+> Everything below still holds as *relative* measurement. The defects it found were real, the reranker ablation was real, and the fixes measured against it moved production from 0.7394 to 0.8884. But the absolute numbers are worth less than I thought when I wrote them, and quoting one without the keyword baseline next to it would be misleading. I would rather leave that here than quietly edit the figures.
+
 Over eight parts I built every stage of this thing. A crawler, an inverted index, BM25, PageRank, a neural reranker, AI Overviews. I judged each one the same way: type a query I cared about, look at the first few results, decide it looked right.
 
 That is a demo, not a measurement. So I finally sat down and measured it.

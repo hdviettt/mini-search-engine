@@ -25,3 +25,7 @@ eval/*-report.json
 backup.sql
 full_backup.sql
 .gstack/
+
+# Throwaway Playwright script from a UI debugging session. Kept on disk,
+# out of a repository people read as a portfolio.
+debug-scroll.mjs

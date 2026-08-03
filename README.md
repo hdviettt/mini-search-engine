@@ -36,7 +36,7 @@ measurement and [`CLAUDE.md`](CLAUDE.md) for the fix order.
 | **PageRank** | Scores page authority from link structure | Iterative algorithm (d=0.85, 20 iterations), handles dangling nodes | Scores for all live pages |
 | **Chunker + Embedder** | Prepares pages for semantic search | Split into ~300-token chunks, embed with Voyage AI voyage-3-lite, store as pgvector | ~15,000+ chunks (512d vectors) |
 | **BM25** | Scores text relevance | BM25F with 4× title weight, term frequency × inverse document frequency × length normalization | k1=1.2, b=0.75 |
-| **Neural Reranker** | Refines top results with a cross-encoder | ONNX inference with ms-marco-MiniLM-L-6-v2 (22M params), runs locally on CPU | Reranks top 5 candidates |
+| **Neural Reranker** | Refines top results with a cross-encoder | ONNX inference with ms-marco-MiniLM-L-6-v2 (22M params), runs locally on CPU | Reranks top 40 candidates, ~10 ms each |
 | **Ranking** | Combines signals | 80% BM25 + 20% PageRank, exponential freshness decay, 7-day recency bonus | min-max normalized, tunable live in the UI |
 | **Spell correction** | Fixes typos before searching | Levenshtein edit-distance ≤ 2, vocabulary from page titles + indexed stems | Proper nouns protected via terms table |
 | **AI Overview** | Generates a summary with citations | Co-occurrence fan-out → hybrid retrieval (vector + keyword) → Groq streaming with retry | Llama 3.3 70B, cached 24h |
@@ -168,9 +168,32 @@ python eval/run.py --compare eval/baseline.json # what a change moved
 ```
 
 It reports nDCG@10, MRR, zero-result precision and latency p50/p95, broken down
-by intent, plus the queries that regressed most. To price the cross-encoder
-against the 100-150 ms it costs, restart the API with `RERANK_ENABLED=false`
-and compare.
+by intent, plus the queries that regressed most. To price the cross-encoder,
+restart the API with `RERANK_ENABLED=false` and compare — it costs about 10 ms
+per candidate.
+
+### Where it stands, and what the eval does not tell you
+
+Five rerank depths were deployed and measured. Raising `RERANK_TOP_K` from 5 to
+40 is the largest single improvement the project has made:
+
+| | nDCG@10 | MRR | zero-result | p50 |
+|---|---|---|---|---|
+| baseline, depth 5 | 0.7394 | 0.6259 | 0.40 | 1325 ms |
+| **current, depth 40** | **0.8884** | **0.8370** | **0.60** | **438 ms** |
+
+**Read those against a keyword counter.** A five-line function that counts query
+words in the title scores **0.7551** on this eval, beating the original
+pipeline. The labels in `eval/queries.yaml` are substrings of entity names,
+which is what appears in the title of a page about that entity, so the metric
+rewards string overlap by construction — 88% of everything it grades relevant
+contains a literal query term.
+
+It is still useful for detecting regressions, which is what it was built for. It
+is not a measure of semantic ranking quality, and a number from it should never
+be quoted without the keyword baseline beside it. That was found by
+[mini-reranker](https://github.com/hdviettt/mini-reranker), which needed a
+trustworthy ruler and discovered this one was bent.
 
 ## Development
 
@@ -196,6 +219,20 @@ changing anything here.
 7. AI Overviews
 8. AI Mode
 9. [I measured my own search engine](docs/posts/09-measuring-the-search-engine.md)
+
+## Related
+
+[**mini-reranker**](https://github.com/hdviettt/mini-reranker) — the
+cross-encoder in step 5 of that list, rebuilt by hand. BPE tokenizer, scaled
+dot-product attention, the encoder stack, the training loop, no pretrained
+weights. It is measured against `ms-marco-MiniLM-L-6-v2` on the same 50 queries,
+and it loses: 0.5963 against 0.7196 on MS MARCO's own human judgments.
+
+Its more useful output was the ruler. Building a trustworthy measurement for it
+surfaced four defects here — a min-score filter deleting 60% of everything the
+cross-encoder scored, a rerank depth eight times too shallow, a playground
+canvas describing a pipeline the engine was not running, and a latency figure in
+this repository's own notes that blamed the model for a cold start.
 
 ## Author
 
