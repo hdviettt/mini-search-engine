@@ -226,6 +226,25 @@ Ranked by what the numbers say, not by feel. Fix one, re-run
    precision — a higher `RERANK_MIN_SCORE` would raise 0.40 and cost recall.
    Measure both.
 
+0b. **`RERANK_TOP_K = 5` is too shallow, and the fix is measured.** Letting the
+   same cross-encoder score every returned candidate instead of the top five
+   gains **+0.0553 nDCG@10 (± 0.0171)** and **+0.0593 MRR (± 0.0286)** on the
+   50-query set — 15 queries better, 2 worse, 28 unchanged. Both gaps clear two
+   standard errors, so this is decided rather than noise.
+
+   The measurement is conservative twice over. It was taken on a fixture whose
+   tail carries no body text, so the cross-encoder scored those candidates on
+   their titles alone and still ordered them better than BM25F + PageRank +
+   freshness did. And the candidates it reordered are only the ones that
+   survived the pipeline; a deeper rerank would also see the ones dropped
+   before the slice.
+
+   Not free: the stage costs 1,158 ms at p50 for five candidates, and the
+   median query returns seven. Raise `RERANK_TOP_K`, re-run
+   `eval/run.py --compare eval/baseline.json`, and read the latency line as
+   carefully as the nDCG line. Reranking is batched, so the cost is closer to
+   linear in candidates than in queries.
+
 1. **No minimum-should-match.** BM25 admits any document matching any term, so
    `kubernetes ingress controller annotations` returns 1,429 football pages.
    Zero-result precision is 0.40 — three of five nonsense queries leak.
