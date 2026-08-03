@@ -16,32 +16,16 @@ Started March 2026. Still ongoing.
 
 ## The Pipeline
 
-This is what Google does every time you search something. I built each piece.
+Two pipelines that share nothing but a database. The build path runs offline and
+fills Postgres; the query path reads it.
 
-```
-                        BUILD (offline)                                    QUERY (online)
-        ┌──────────────────────────────────────┐        ┌──────────────────────────────────────────────┐
-        │                                      │        │                                              │
-        │   Crawler ──→ Pages DB ──┬──→ Indexer │        │   Search Query                               │
-        │   (BFS,       (1000+     │           │        │       │                                      │
-        │   robots.txt,  pages)    ├──→ PageRank│        │       ├──→ Spell Check ──→ Tokenize          │
-        │   rate limit)            │           │        │       │                      │               │
-        │                          └──→ Chunker │        │       │              Index Lookup ──→ BM25   │
-        │                               │      │        │       │                                │     │
-        │                          Embedder     │        │       ├──→ PageRank Lookup             │     │
-        │                               │      │        │       │        │                       │     │
-        │                               ▼      │        │       │        ▼                       │     │
-        │   ┌─────────┐ ┌──────────┐ ┌───────┐ │        │       │  Combine Scores ──→ Rerank (Top 5)   │
-        │   │Inverted │ │PageRank  │ │Vector │ │        │       │                        │             │
-        │   │ Index   │ │ Scores   │ │ Store │ │◄───────┤       │                    Results           │
-        │   └─────────┘ └──────────┘ └───────┘ │        │       │                        │             │
-        └──────────────────────────────────────┘        │       ├──→ Fan-out ──→ Hybrid Retrieval      │
-                    ▲                                   │       │                    │             │   │
-                    │             Databases are the     │       │               AI Overview        │   │
-                    │                  bridge            │       │                    │             │   │
-                    └───────────────────────────────────┤       └──→ Sports Detection (OneBox)    │   │
-                                                        └──────────────────────────────────────────────┘
-```
+![Build pipeline](docs/diagrams/01-build-pipeline.svg)
+
+![Query pipeline](docs/diagrams/02-query-pipeline.svg)
+
+The lettered gaps in Figure 2 are what a 50-query evaluation surfaced, not
+guesses. See [part 9](docs/posts/09-measuring-the-search-engine.md) for the
+measurement and [`CLAUDE.md`](CLAUDE.md) for the fix order.
 
 ### What each piece does
 
