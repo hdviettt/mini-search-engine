@@ -3,4 +3,12 @@ __pycache__
 *.pyc
 docs/
 tests/
-scripts/
+
+# Dev-time CLI tools are not needed in the image — except the model
+# downloader, which the Dockerfile runs at build time. Exclude the contents
+# rather than the directory so the exception below can re-include one file.
+scripts/*
+!scripts/download_model.py
+
+# Downloaded weights; the image fetches its own copy at build time.
+models/
