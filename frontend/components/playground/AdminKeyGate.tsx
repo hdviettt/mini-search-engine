@@ -42,22 +42,20 @@ export default function AdminKeyGate({ onChange }: { onChange?: (hasKey: boolean
 
   if (stored && !editing) {
     return (
-      <div className="flex items-center justify-between gap-2 border border-[var(--border)] px-3 py-2">
-        <span className="text-[11px] text-[var(--text-muted)]">
-          Admin key set &middot; <span className="font-mono">{"•".repeat(8)}{stored.slice(-3)}</span>
+      <div className="md-card md-card-filled flex items-center justify-between gap-3 !p-3">
+        <span className="md-body-small text-[var(--text-muted)]">
+          Admin key set &middot;{" "}
+          <span className="font-mono">
+            {"•".repeat(8)}
+            {stored.slice(-3)}
+          </span>
         </span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setEditing(true)}
-            className="text-[10px] font-mono px-2 py-0.5 border border-[var(--border)] hover:border-[var(--border-hover)] cursor-pointer"
-          >
-            CHANGE
+        <div className="flex gap-1">
+          <button onClick={() => setEditing(true)} className="md-btn md-btn-text md-btn-sm">
+            Change
           </button>
-          <button
-            onClick={clear}
-            className="text-[10px] font-mono px-2 py-0.5 border border-[var(--border)] hover:border-[var(--border-hover)] cursor-pointer"
-          >
-            CLEAR
+          <button onClick={clear} className="md-btn md-btn-text md-btn-sm">
+            Clear
           </button>
         </div>
       </div>
@@ -65,11 +63,11 @@ export default function AdminKeyGate({ onChange }: { onChange?: (hasKey: boolean
   }
 
   return (
-    <div className="space-y-1.5 border border-dashed border-[var(--border)] px-3 py-2.5">
-      <div className="text-[11px] text-[var(--text-muted)]">
+    <div className="md-card !p-3 space-y-2.5">
+      <div className="md-body-small text-[var(--text-muted)]">
         Operations require an admin key. Stored in this browser only.
       </div>
-      <div className="flex gap-1.5">
+      <div className="flex gap-2">
         <input
           type="password"
           value={draft}
@@ -77,21 +75,14 @@ export default function AdminKeyGate({ onChange }: { onChange?: (hasKey: boolean
           onKeyDown={(e) => e.key === "Enter" && save()}
           placeholder="ADMIN_API_KEY"
           autoComplete="off"
-          className="flex-1 bg-transparent border border-[var(--border)] px-2 py-1 text-[12px] font-mono outline-none focus:border-[var(--accent)]"
+          className="md-field md-field-dense flex-1 font-mono"
         />
-        <button
-          onClick={save}
-          disabled={!draft.trim()}
-          className="text-[11px] font-mono px-3 py-1 border border-[var(--border)] hover:border-[var(--accent)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          SAVE
+        <button onClick={save} disabled={!draft.trim()} className="md-btn md-btn-filled md-btn-sm">
+          Save
         </button>
         {stored && (
-          <button
-            onClick={() => setEditing(false)}
-            className="text-[11px] font-mono px-2 py-1 border border-[var(--border)] cursor-pointer"
-          >
-            CANCEL
+          <button onClick={() => setEditing(false)} className="md-btn md-btn-outlined md-btn-sm">
+            Cancel
           </button>
         )}
       </div>

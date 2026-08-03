@@ -108,6 +108,12 @@ per-stage traces. If you change ranking, change both — or better, change
 is not a parameter, it is the literal text `%s`. Use `make_interval(days => %s)`.
 That mistake silently broke `/api/stats/history` on every call.
 
+**Unlayered CSS beats every Tailwind utility.** Tailwind v4 puts utilities in
+a cascade layer, and any rule outside a layer outranks the whole layer. A bare
+`h3 { color: … }` in `globals.css` silently overrode `text-[var(--link-blue)]`
+on every heading in the app and turned the search result titles black. Element
+selectors in `globals.css` belong inside `@layer base`.
+
 **Background jobs use `get_connection()`, not the pool.** A crawl holds its
 connection for minutes and would starve request traffic. Request handlers use
 `Depends(get_db)`.
@@ -117,6 +123,29 @@ actually page through — pagination is bounded by `CANDIDATE_POOL`. This is
 deliberate and standard, but do not treat the two as the same number.
 
 ---
+
+## Design system
+
+The frontend runs the same Material 3 system as the blog at hoangducviet.work,
+so the two properties read as one product. Tokens live in
+`frontend/app/globals.css`.
+
+- **Primary is SEONGON Prosperous Blue `#004AEF`** (`hsl(221 100% 47%)`), with a
+  lighter tint on dark surfaces. Change `--md-sys-color-primary`; everything
+  else derives from it.
+- **Light by default**, dark via `data-theme="dark"`. An inline script in
+  `layout.tsx` sets the attribute before first paint so a reader who chose dark
+  never sees a white flash.
+- **Never hardcode a hex.** Use the M3 roles (`--md-sys-color-*`) or the app
+  aliases (`--bg`, `--text`, `--accent`, `--border`, …) which map onto them.
+  The aliases exist so the original components did not need rewriting.
+- **Type** — M3 scale utilities (`.md-headline-*`, `.md-title-*`, `.md-body-*`,
+  `.md-label-*`). Google Sans Flex, loaded via `<link>`; JetBrains Mono for
+  code and tabular numbers.
+- **Shape** — the M3 corner scale (4/8/12/16/28), not sharp corners.
+- **Components** — `.md-btn` (+ `-filled`/`-tonal`/`-outlined`/`-text`,
+  `-sm`/`-lg`/`-pill`), `.md-card` (+ `-filled`), `.md-field` (+ `-dense`).
+  Hairline edges, no elevation at rest, a state layer on hover.
 
 ## Commands
 

@@ -165,13 +165,19 @@ export default function OperationsTab({
       <AdminKeyGate onChange={setHasKey} />
 
       {authError && (
-        <div className="border border-[var(--accent)] px-3 py-2 text-[11px] text-[var(--accent)]">
+        <div
+          className="md-body-small rounded-[var(--md-sys-shape-corner-small)] px-3 py-2"
+          style={{
+            color: "hsl(var(--md-sys-color-error))",
+            background: "hsl(var(--md-sys-color-error) / 0.08)",
+          }}
+        >
           {authError}
         </div>
       )}
 
       {!hasKey && (
-        <div className="text-[11px] text-[var(--text-dim)]">
+        <div className="md-body-small text-[var(--text-dim)]">
           Read-only exploration works without a key. Crawl, index and embed need one.
         </div>
       )}

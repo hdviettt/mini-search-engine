@@ -13,11 +13,13 @@ type View = "search" | "explore";
 type Theme = "light" | "dark";
 
 function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>("dark");
+  // Light by default, matching the blog. The attribute itself is set before
+  // first paint by the inline script in layout.tsx; this only syncs React.
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
-    const initial = saved || "dark";
+    const initial = saved || "light";
     setTheme(initial);
     document.documentElement.setAttribute("data-theme", initial);
   }, []);

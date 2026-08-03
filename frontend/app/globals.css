@@ -1,71 +1,186 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Neutral monochrome theme — aligned with hoangducviet.work
+   MATERIAL DESIGN 3 — design tokens
+   Ported from hoangducviet.work so this project and the blog are one
+   visual system. Primary is SEONGON Prosperous Blue #004AEF; change
+   --md-sys-color-primary and everything else derives from it.
+
+   The app's original variable names (--bg, --text, --accent, …) are
+   kept as aliases at the bottom of each block, so every existing
+   `var(--accent)` in a component resolves to an M3 role instead of
+   the old monochrome palette. No component rewrite required.
    ================================================================ */
 
 :root,
 [data-theme="light"] {
-  --bg: #ffffff;
-  --bg-card: #fafafa;
-  --bg-elevated: #f5f5f5;
-  --border: #e8e8e8;
-  --border-hover: #d0d0d0;
-  --text: #171717;
-  --text-muted: #666666;
-  --text-dim: #a3a3a3;
-  --accent: #171717;
-  --accent-secondary: #444444;
-  --accent-muted: rgba(0, 0, 0, 0.06);
-  --portugal-red: #c0392b;
-  --portugal-green: #1a6b3c;
-  --portugal-gold: #b8860b;
-  --score-bar-bg: #f0f0f0;
-  --link-blue: #1a73e8;
-  --snippet: #555555;
-  --meta: #888888;
-  --chip-bg: #f0f0f0;
-  --chip-hover: #e5e5e5;
-  --badge-bg: #efefef;
-  --source-border: #e0e0e0;
-  --skeleton: #ebebeb;
-  --separator: #e8e8e8;
+  /* ----- M3 color roles (light) ----- */
+  --md-sys-color-primary: 221 100% 47%; /* #004AEF */
+  --md-sys-color-on-primary: 0 0% 100%;
+  --md-sys-color-primary-container: 221 100% 93%;
+  --md-sys-color-on-primary-container: 221 100% 18%;
+
+  --md-sys-color-secondary: 222 16% 35%;
+  --md-sys-color-on-secondary: 0 0% 100%;
+  --md-sys-color-secondary-container: 220 35% 92%;
+  --md-sys-color-on-secondary-container: 222 25% 20%;
+
+  --md-sys-color-tertiary: 280 35% 45%;
+  --md-sys-color-warning: 33 100% 34%;
+  --md-sys-color-error: 4 76% 49%;
+  --md-sys-color-on-error: 0 0% 100%;
+  --md-sys-color-success: 152 60% 30%;
+
+  --md-sys-color-background: 0 0% 100%;
+  --md-sys-color-on-background: 0 0% 4%; /* #0a0a0a */
+
+  --md-sys-color-surface: 0 0% 100%;
+  --md-sys-color-on-surface: 0 0% 4%;
+  --md-sys-color-surface-variant: 210 17% 98%; /* #F8F9FA */
+  --md-sys-color-on-surface-variant: 227 5% 32%; /* #4e4f56 */
+
+  --md-sys-color-surface-container-lowest: 0 0% 100%;
+  --md-sys-color-surface-container-low: 210 17% 98%;
+  --md-sys-color-surface-container: 220 14% 96%;
+  --md-sys-color-surface-container-high: 220 13% 93%;
+  --md-sys-color-surface-container-highest: 220 13% 91%;
+
+  --md-sys-color-outline: 220 9% 86%; /* #DADCE0 */
+  --md-sys-color-outline-variant: 213 21% 90%; /* #e1e6ec hairline */
+
+  /* Body prose gray — headings stay near-black so the contrast reads
+     the way it does on the blog. */
+  --md-sys-color-body: 213 7% 40%;
+
+  /* ----- App aliases ----- */
+  --bg: hsl(var(--md-sys-color-background));
+  --bg-card: hsl(var(--md-sys-color-surface-container-low));
+  --bg-elevated: hsl(var(--md-sys-color-surface-container));
+  --border: hsl(var(--md-sys-color-outline-variant));
+  --border-hover: hsl(var(--md-sys-color-outline));
+  --text: hsl(var(--md-sys-color-on-surface));
+  --text-muted: hsl(var(--md-sys-color-on-surface-variant));
+  --text-dim: hsl(var(--md-sys-color-on-surface-variant) / 0.65);
+  --accent: hsl(var(--md-sys-color-primary));
+  --accent-secondary: hsl(var(--md-sys-color-secondary));
+  --accent-muted: hsl(var(--md-sys-color-primary) / 0.08);
+  --link-blue: hsl(var(--md-sys-color-primary));
+  --snippet: hsl(var(--md-sys-color-body));
+  --meta: hsl(var(--md-sys-color-on-surface-variant));
+  --chip-bg: hsl(var(--md-sys-color-surface-container));
+  --chip-hover: hsl(var(--md-sys-color-surface-container-high));
+  --badge-bg: hsl(var(--md-sys-color-surface-container-low));
+  --source-border: hsl(var(--md-sys-color-outline-variant));
+  --skeleton: hsl(var(--md-sys-color-surface-container-high));
+  --separator: hsl(var(--md-sys-color-outline-variant));
+  --score-bar-bg: hsl(var(--md-sys-color-surface-container));
+
+  /* Sports OneBox — retuned from the old flat hex to M3-weight tones. */
+  --portugal-red: hsl(var(--md-sys-color-error));
+  --portugal-green: hsl(var(--md-sys-color-success));
+  --portugal-gold: hsl(var(--md-sys-color-warning));
 }
 
 [data-theme="dark"] {
-  --bg: #0f0f0f;
-  --bg-card: #1a1a1a;
-  --bg-elevated: #242424;
-  --border: #2a2a2a;
-  --border-hover: #3a3a3a;
-  --text: #e0e0e0;
-  --text-muted: #888888;
-  --text-dim: #555555;
-  --accent: #e0e0e0;
-  --accent-secondary: #a0a0a0;
-  --accent-muted: rgba(255, 255, 255, 0.06);
-  --portugal-red: #e74c3c;
-  --portugal-green: #2ecc71;
-  --portugal-gold: #f1c40f;
-  --score-bar-bg: #1a1a1a;
-  --link-blue: #8ab4f8;
-  --snippet: #aaaaaa;
-  --meta: #666666;
-  --chip-bg: #222222;
-  --chip-hover: #2e2e2e;
-  --badge-bg: #1e1e1e;
-  --source-border: #2a2a2a;
-  --skeleton: #222222;
-  --separator: #222222;
+  /* ----- M3 color roles (dark) ----- */
+  --md-sys-color-primary: 223 100% 76%; /* Prosperous Blue tint on dark */
+  --md-sys-color-on-primary: 221 100% 14%;
+  --md-sys-color-primary-container: 221 75% 32%;
+  --md-sys-color-on-primary-container: 221 100% 93%;
+
+  --md-sys-color-secondary: 220 18% 78%;
+  --md-sys-color-on-secondary: 222 25% 18%;
+  --md-sys-color-secondary-container: 222 18% 28%;
+  --md-sys-color-on-secondary-container: 220 35% 92%;
+
+  --md-sys-color-tertiary: 280 45% 78%;
+  --md-sys-color-warning: 45 98% 70%;
+  --md-sys-color-error: 4 100% 80%;
+  --md-sys-color-on-error: 4 100% 16%;
+  --md-sys-color-success: 152 55% 62%;
+
+  --md-sys-color-background: 220 9% 8%; /* #131314 */
+  --md-sys-color-on-background: 220 13% 91%;
+
+  --md-sys-color-surface: 220 9% 8%;
+  --md-sys-color-on-surface: 220 13% 91%;
+  --md-sys-color-surface-variant: 220 8% 16%;
+  --md-sys-color-on-surface-variant: 220 8% 72%;
+
+  --md-sys-color-surface-container-lowest: 220 9% 5%;
+  --md-sys-color-surface-container-low: 220 9% 10%;
+  --md-sys-color-surface-container: 220 8% 13%;
+  --md-sys-color-surface-container-high: 220 8% 16%;
+  --md-sys-color-surface-container-highest: 220 8% 20%;
+
+  --md-sys-color-outline: 220 8% 38%;
+  --md-sys-color-outline-variant: 220 8% 22%;
+
+  --md-sys-color-body: 220 9% 72%;
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-sans, system-ui), -apple-system, sans-serif;
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+/* ----- Shape, elevation, motion — theme-independent ----- */
+:root {
+  --md-sys-shape-corner-none: 0;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-large-increased: 24px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --md-sys-elevation-level2: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --md-sys-elevation-level3: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium2: 300ms;
+}
+
+[data-theme="dark"] {
+  --md-sys-elevation-level1: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  --md-sys-elevation-level2: 0 1px 3px 0 rgba(0, 0, 0, 0.32), 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+  --md-sys-elevation-level3: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* ================================================================
+   Base
+   ================================================================ */
+
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Google Sans Flex", "Google Sans", "DM Sans", system-ui,
+      -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    letter-spacing: 0.5px;
+    font-weight: 400;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Inside @layer base on purpose. Tailwind v4 puts utilities in their own
+   layer, and unlayered CSS outranks every layer — a bare `h3 { color }`
+   here silently beat `text-[var(--link-blue)]` on every heading in the app
+   and turned the result titles black. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Google Sans Flex", "Google Sans", "DM Sans", system-ui, sans-serif;
+    color: hsl(var(--md-sys-color-on-surface));
+    font-weight: 500;
+    letter-spacing: 0;
+  }
 }
 
 /* Scale up the entire UI on large desktop screens */
@@ -80,43 +195,168 @@ body {
 html:has(.hero-lock) { overflow: hidden; height: 100vh; }
 html:has(.hero-lock) body { overflow: hidden; height: 100vh; }
 
-
-
 ::selection {
-  background: var(--accent);
-  color: white;
+  background: hsl(var(--md-sys-color-primary) / 0.22);
+  color: hsl(var(--md-sys-color-on-surface));
 }
+
+/* ================================================================
+   M3 type scale
+   ================================================================ */
+
+.md-display-small { font-size: 36px; line-height: 44px; letter-spacing: 0; font-weight: 400; }
+.md-headline-large { font-size: 32px; line-height: 40px; letter-spacing: 0; font-weight: 400; }
+.md-headline-medium { font-size: 28px; line-height: 36px; letter-spacing: 0; font-weight: 400; }
+.md-headline-small { font-size: 24px; line-height: 32px; letter-spacing: 0; font-weight: 400; }
+.md-title-large { font-size: 22px; line-height: 28px; letter-spacing: 0; font-weight: 500; }
+.md-title-medium { font-size: 16px; line-height: 24px; letter-spacing: 0.15px; font-weight: 500; }
+.md-title-small { font-size: 14px; line-height: 20px; letter-spacing: 0.1px; font-weight: 500; }
+.md-body-large { font-size: 16px; line-height: 24px; letter-spacing: 0.5px; font-weight: 400; }
+.md-body-medium { font-size: 14px; line-height: 20px; letter-spacing: 0.25px; font-weight: 400; }
+.md-body-small { font-size: 12px; line-height: 16px; letter-spacing: 0.4px; font-weight: 400; }
+.md-label-large { font-size: 14px; line-height: 20px; letter-spacing: 0.1px; font-weight: 500; }
+.md-label-medium { font-size: 12px; line-height: 16px; letter-spacing: 0.5px; font-weight: 500; }
+.md-label-small { font-size: 11px; line-height: 16px; letter-spacing: 0.5px; font-weight: 500; }
+
+/* ================================================================
+   M3 components — button / card / field
+   Matched to the blog: hairline edges, no elevation at rest, a state
+   layer instead of a colour swap on hover.
+   ================================================================ */
+
+.md-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--md-sys-shape-corner-small);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  isolation: isolate;
+  transition: background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+.md-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+.md-btn:hover::before { opacity: 0.08; }
+.md-btn:focus-visible::before { opacity: 0.12; }
+.md-btn:active::before { opacity: 0.12; }
+.md-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+
+.md-btn-filled {
+  background: hsl(var(--md-sys-color-primary));
+  color: hsl(var(--md-sys-color-on-primary));
+}
+.md-btn-tonal {
+  background: hsl(var(--md-sys-color-surface-container));
+  color: hsl(var(--md-sys-color-on-surface));
+}
+.md-btn-outlined {
+  background: transparent;
+  color: hsl(var(--md-sys-color-on-surface));
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  padding: 0 15px;
+}
+.md-btn-outlined:hover { border-color: hsl(var(--md-sys-color-outline)); }
+.md-btn-text {
+  background: transparent;
+  color: hsl(var(--md-sys-color-on-surface-variant));
+  padding: 0 10px;
+}
+.md-btn-text:hover { color: hsl(var(--md-sys-color-on-surface)); }
+
+.md-btn-sm { height: 30px; padding: 0 12px; font-size: 13px; }
+.md-btn-lg { height: 44px; padding: 0 24px; font-size: 15px; }
+.md-btn-pill { border-radius: var(--md-sys-shape-corner-full); }
+
+.md-card {
+  background: transparent;
+  color: hsl(var(--md-sys-color-on-surface));
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  border-radius: var(--md-sys-shape-corner-large);
+  padding: 20px;
+  transition: border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+.md-card:hover { border-color: hsl(var(--md-sys-color-outline)); }
+.md-card-filled {
+  background: hsl(var(--md-sys-color-surface-container-low));
+  border-color: transparent;
+}
+
+.md-field {
+  width: 100%;
+  background: transparent;
+  color: hsl(var(--md-sys-color-on-surface));
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  border-radius: var(--md-sys-shape-corner-small);
+  padding: 0 12px;
+  height: 40px;
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.005em;
+  outline: none;
+  transition: border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+.md-field:hover { border-color: hsl(var(--md-sys-color-outline)); }
+/* A ring, not a thicker border — growing the border shifts the text sideways. */
+.md-field:focus {
+  border-color: hsl(var(--md-sys-color-primary));
+  box-shadow: 0 0 0 3px hsl(var(--md-sys-color-primary) / 0.14);
+}
+.md-field::placeholder { color: hsl(var(--md-sys-color-on-surface-variant)); }
+
+.md-field-dense {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.md-elevation-1 { box-shadow: var(--md-sys-elevation-level1); }
+.md-elevation-2 { box-shadow: var(--md-sys-elevation-level2); }
+.md-elevation-3 { box-shadow: var(--md-sys-elevation-level3); }
 
 /* ================================================================
    Scrollbar
    ================================================================ */
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: transparent;
-  border-radius: 3px;
+  border-radius: var(--md-sys-shape-corner-full);
 }
-
 *:hover > ::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-hover);
+  background: hsl(var(--md-sys-color-outline) / 0.5);
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
-
 *:hover {
-  scrollbar-color: var(--border-hover) transparent;
+  scrollbar-color: hsl(var(--md-sys-color-outline) / 0.5) transparent;
 }
 
 /* ================================================================
@@ -163,7 +403,7 @@ html:has(.hero-lock) body { overflow: hidden; height: 100vh; }
 
 /* SIU pose entrance */
 .siu-entrance {
-  animation: siu-fade-up 0.7s ease-out both;
+  animation: siu-fade-up 0.7s var(--md-sys-motion-easing-emphasized-decelerate) both;
 }
 
 @keyframes siu-fade-up {
