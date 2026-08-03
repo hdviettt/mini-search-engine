@@ -29,7 +29,7 @@ CANDIDATE_POOL = 500
 # Env-overridable so the trade-off can be retuned against a live instance
 # without a redeploy. Raise it, re-run `eval/run.py --compare`, and read the
 # latency line as carefully as the nDCG line.
-RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "20"))
+RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "10"))
 
 # Cross-encoder logits below this are treated as "not actually relevant".
 RERANK_MIN_SCORE = -8.0
