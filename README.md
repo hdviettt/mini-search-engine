@@ -124,11 +124,10 @@ Operational endpoints — crawl, index rebuild, embedding rebuild, PageRank reco
 schedules — require `X-API-Key` matching the `ADMIN_API_KEY` environment variable.
 If `ADMIN_API_KEY` is unset, those endpoints return `503` rather than running unprotected.
 
-To use the playground's operational controls in the browser, store the key once:
-
-```js
-localStorage.setItem("mse_admin_key", "<your ADMIN_API_KEY>")
-```
+The playground's Operations tab has a field for the key. It is entered once and
+kept in that browser's `localStorage` — deliberately not a `NEXT_PUBLIC_*`
+variable, which would be inlined into the client bundle and visible to every
+visitor.
 
 ### Backend
 

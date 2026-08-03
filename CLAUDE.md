@@ -149,6 +149,10 @@ RERANK_ENABLED=false uvicorn main:app          # then re-run to price the rerank
 Environment lives in `backend/.env` — see `backend/.env.example`.
 `ADMIN_API_KEY` is required for operational routes; unset means 503, never open.
 
+The frontend never ships the key. `AdminKeyGate` in the Operations tab takes it
+once and stores it in `localStorage`; `adminFetch` in `lib/api.ts` attaches it.
+A `NEXT_PUBLIC_*` variable would be inlined into the bundle and public.
+
 ---
 
 ## Open questions the eval harness exists to answer

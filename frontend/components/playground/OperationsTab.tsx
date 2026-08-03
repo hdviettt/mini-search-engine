@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { startCrawl, stopCrawl, rebuildIndex, rebuildEmbeddings } from "@/lib/api";
+import { startCrawl, stopCrawl, rebuildIndex, rebuildEmbeddings, AdminAuthError } from "@/lib/api";
+import AdminKeyGate from "./AdminKeyGate";
 import { CrawlProgressData, IndexProgressData, EmbedProgressData } from "@/lib/types";
 
 const DEFAULT_DOMAINS = ["en.wikipedia.org", "www.bbc.com", "www.espn.com"];
@@ -89,6 +90,8 @@ export default function OperationsTab({
   const [crawlStarted, setCrawlStarted] = useState(false);
   const [indexStarted, setIndexStarted] = useState(false);
   const [embedStarted, setEmbedStarted] = useState(false);
+  const [hasKey, setHasKey] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const indexing = indexStarted && indexProgress !== null;
   const embedding = embedStarted && embedProgress !== null;
   useEffect(() => { if (indexStarted && indexProgress === null) setIndexStarted(false); }, [indexProgress, indexStarted]);
@@ -114,35 +117,64 @@ export default function OperationsTab({
     setDomains(domains.filter((x) => x !== d));
   };
 
-  const handleStartCrawl = async () => {
-    setCrawlStarted(true);
-    const extras = domains.filter((d) => !DEFAULT_DOMAINS.includes(d));
-    const res = await startCrawl([seedUrl], maxPages, 3, extras, restrictDomains);
-    if (res.job_id) onCrawlStarted(res.job_id);
-  };
-
-  const handleStopCrawl = async () => {
-    if (activeCrawlJobId) {
-      await stopCrawl(activeCrawlJobId);
-      setCrawlStarted(false);
+  /** Operational calls 401 without a key; surface that instead of failing silently. */
+  const runGuarded = async (fn: () => Promise<void>, onFail: () => void) => {
+    setAuthError(null);
+    try {
+      await fn();
+    } catch (e) {
+      onFail();
+      setAuthError(e instanceof AdminAuthError ? e.message : "Request failed.");
     }
   };
 
-  const handleRebuildIndex = async () => {
-    setIndexStarted(true);
-    await rebuildIndex();
-  };
+  const handleStartCrawl = () =>
+    runGuarded(async () => {
+      setCrawlStarted(true);
+      const extras = domains.filter((d) => !DEFAULT_DOMAINS.includes(d));
+      const res = await startCrawl([seedUrl], maxPages, 3, extras, restrictDomains);
+      if (res.job_id) onCrawlStarted(res.job_id);
+    }, () => setCrawlStarted(false));
 
-  const handleRebuildEmbeddings = async () => {
-    setEmbedStarted(true);
-    await rebuildEmbeddings();
-  };
+  const handleStopCrawl = () =>
+    runGuarded(async () => {
+      if (activeCrawlJobId) {
+        await stopCrawl(activeCrawlJobId);
+        setCrawlStarted(false);
+      }
+    }, () => {});
+
+  const handleRebuildIndex = () =>
+    runGuarded(async () => {
+      setIndexStarted(true);
+      await rebuildIndex();
+    }, () => setIndexStarted(false));
+
+  const handleRebuildEmbeddings = () =>
+    runGuarded(async () => {
+      setEmbedStarted(true);
+      await rebuildEmbeddings();
+    }, () => setEmbedStarted(false));
 
   const pct = crawlProgress ? Math.round((crawlProgress.pages_crawled / Math.max(crawlProgress.max_pages, 1)) * 100) : 0;
 
   return (
     <div className="p-4 space-y-5">
       <div className="text-[13px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Operations</div>
+
+      <AdminKeyGate onChange={setHasKey} />
+
+      {authError && (
+        <div className="border border-[var(--accent)] px-3 py-2 text-[11px] text-[var(--accent)]">
+          {authError}
+        </div>
+      )}
+
+      {!hasKey && (
+        <div className="text-[11px] text-[var(--text-dim)]">
+          Read-only exploration works without a key. Crawl, index and embed need one.
+        </div>
+      )}
 
       {/* Crawl */}
       <div className="space-y-3">
