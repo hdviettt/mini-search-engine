@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-I never actually measured this search engine, I just typed queries I liked and decided the results looked fine. Fifty labelled queries later it turns out my football engine returns 1,429 results for a Kubernetes question, cannot tell "Serie A" apart from the word "series", and has a spell checker wired to the wrong endpoint that has never run once. The reranker is worth 23% of nDCG and costs eight times the latency I claimed in my own code comment.
+When I ran 50 labelled queries for evaluation, it turns out my football engine returns 1,429 results for a Kubernetes question, cannot tell "Serie A" apart from the word "series", and has a spell checker wired to the wrong endpoint that has never run once. The reranker is worth 23% of nDCG and costs eight times the latency I claimed in my own code comment.
 
 ---
 
@@ -14,7 +14,7 @@ I never actually measured this search engine, I just typed queries I liked and d
 >
 > Scored against MS MARCO's own human judgments instead, that same keyword counter trails a real cross-encoder by 0.147. Here it trails by 0.037. This evaluation was compressing the difference between a good reranker and a bad one, which is the one job a reranking evaluation has.
 >
-> Everything below still holds as *relative* measurement. The defects it found were real, the reranker ablation was real, and the fixes measured against it moved production from 0.7394 to 0.8884. But the absolute numbers are worth less than I thought when I wrote them, and quoting one without the keyword baseline next to it would be misleading. I would rather leave that here than quietly edit the figures.
+> Everything below still holds as *relative* measurement. The defects it found were real, the reranker ablation was real, and the fixes measured against it moved production from 0.7394 to 0.8884. But the absolute numbers are worth less than I thought when I wrote them, and quoting one without the keyword baseline next to it would be misleading. I would rather leave that here than quietly edit the figures. The whole story is in [I wrote a transformer by hand](/posts/i-wrote-a-transformer-by-hand).
 
 Over eight parts I built every stage of this thing. A crawler, an inverted index, BM25, PageRank, a neural reranker, AI Overviews. I judged each one the same way: type a query I cared about, look at the first few results, decide it looked right.
 
