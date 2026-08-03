@@ -224,6 +224,23 @@ The evaluation does not yet separate a coverage gap (page was never crawled)
 from a ranking failure (page exists, ranked too low). Some zero scores above are
 the former.
 
+## This repo is the measuring stick for a separate project
+
+A from-scratch cross-encoder is being built in its own repository: transformer
+encoder written by hand, trained as a reranker, then measured here against
+`ms-marco-MiniLM-L-6-v2`.
+
+That project depends on three things in this one staying stable:
+
+- `eval/queries.yaml` — the 50 labelled queries. Adding to it is fine; editing
+  or removing an existing query invalidates the comparison.
+- `eval/baseline.json` — the reference run. Do not regenerate it casually.
+- `RERANK_ENABLED` — the switch that isolates the reranker's contribution.
+
+To score a replacement model, point it at the same `eval/run.py --compare`
+path. A model that loses to the off-the-shelf one is a valid result; it was
+trained on 500K labelled Microsoft pairs.
+
 ---
 
 ## Working style
