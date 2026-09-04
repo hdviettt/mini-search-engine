@@ -5,10 +5,13 @@ docs/
 tests/
 
 # Dev-time CLI tools are not needed in the image — except the model
-# downloader, which the Dockerfile runs at build time. Exclude the contents
-# rather than the directory so the exception below can re-include one file.
+# downloader, which the Dockerfile runs at build time, and the meta-page
+# purge, which is a maintenance job that has to run where the production
+# database is reachable. Exclude the contents rather than the directory so
+# the exceptions below can re-include individual files.
 scripts/*
 !scripts/download_model.py
+!scripts/purge_wiki_meta.py
 
 # Downloaded weights; the image fetches its own copy at build time.
 models/
