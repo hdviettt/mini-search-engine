@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import psycopg
 from fastapi import Depends, FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from ai_overview.generator import generate_overview, generate_overview_stream
 from api.playground import admin as admin_router
@@ -123,6 +123,32 @@ async def ws_jobs(websocket: WebSocket):
 
 @app.get("/health")
 def health():
+    """Readiness: can this instance actually serve a search?
+
+    This used to be `return {"status": "ok"}` — a literal that could not fail,
+    on a service whose only real dependency is the database. Postgres spent a
+    day restart-looping and every search returned 500 while this endpoint
+    reported healthy, because nothing it did touched Postgres. A health check
+    that cannot fail is not a health check.
+
+    Use `/health/live` for liveness, where a DB outage must NOT trigger a
+    restart — killing the app does not fix the database.
+    """
+    try:
+        with db_conn() as conn:
+            conn.execute("SELECT 1").fetchone()
+    except Exception as exc:
+        log.error("Health check failed: database unreachable", exc_info=True)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "unreachable", "detail": str(exc)[:200]},
+        )
+    return {"status": "ok", "database": "ok"}
+
+
+@app.get("/health/live")
+def health_live():
+    """Liveness only: the process is up. Never touches the database."""
     return {"status": "ok"}
 
 
