@@ -1,4 +1,5 @@
 import logging
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -161,10 +162,29 @@ _pool: ConnectionPool | None = None
 
 
 def get_pool() -> ConnectionPool:
-    """Process-wide connection pool, opened on first use."""
+    """Process-wide connection pool, opened on first use.
+
+    `check` is what stops the pool handing out corpses. When the database
+    restarts — a failover, a redeploy, a platform stop — every connection
+    already in the pool is dead, and without a check the next request gets
+    one and fails with `SSL error: unexpected eof while reading`. The check
+    costs one round trip and turns that into a transparent reconnect.
+
+    `max_lifetime` retires connections before a proxy or the server decides
+    to, so the recycling happens on our schedule instead of mid-query.
+    """
     global _pool
     if _pool is None:
-        _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=10, timeout=30, open=True)
+        _pool = ConnectionPool(
+            DATABASE_URL,
+            min_size=1,
+            max_size=10,
+            timeout=30,
+            open=True,
+            check=ConnectionPool.check_connection,
+            max_lifetime=30 * 60,
+            max_idle=5 * 60,
+        )
     return _pool
 
 
@@ -188,13 +208,20 @@ def get_db() -> Iterator[psycopg.Connection]:
         yield conn
 
 
+# Seconds to wait for a TCP connection before giving up. Without this psycopg
+# inherits the OS timeout, which on an unreachable host is about 130 seconds —
+# and startup makes three of these calls in sequence, so a dead database turned
+# boot into a six-minute hang with no error until the very end.
+CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
+
+
 def get_connection() -> psycopg.Connection:
     """Standalone connection for CLI scripts and long-running background jobs.
 
     Deliberately not pooled: a crawl holds its connection for minutes and
     would starve the request pool.
     """
-    return psycopg.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL, connect_timeout=CONNECT_TIMEOUT)
 
 
 MIGRATIONS_SQL = """
