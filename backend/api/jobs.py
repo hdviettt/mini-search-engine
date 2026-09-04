@@ -6,6 +6,8 @@ import threading
 import time
 import uuid
 
+import psycopg
+
 from crawler.fetcher import Fetcher
 from crawler.manager import CrawlManager, is_quality_page
 from crawler.parser import parse_page
@@ -16,6 +18,48 @@ from rag.embedder import embed_all_chunks
 from ranker.pagerank import compute_pagerank
 
 log = logging.getLogger(__name__)
+
+# Catch-up pacing for schedules that came due while the service was down.
+# A schedule due within the stagger window counts as "due now or soon enough
+# to collide", so it gets a slot rather than firing alongside its neighbour.
+OVERDUE_BASE_DELAY_SECONDS = 5.0
+OVERDUE_STAGGER_SECONDS = 300.0
+
+# Advisory lock guarding the whole build path (crawl → index → pagerank).
+# Two crawls writing the index at once is what produced the terms deadlock.
+# A Postgres advisory lock rather than a threading.Lock because it has to hold
+# across processes and replicas, not just within one interpreter.
+INDEXER_ADVISORY_LOCK_KEY = 0x5EA2C4
+
+# A deadlock is a transient loser, not a broken crawl: Postgres kills one of
+# two transactions and the retry usually wins uncontended.
+DEADLOCK_MAX_ATTEMPTS = 3
+DEADLOCK_BACKOFF_SECONDS = 2.0
+
+
+def acquire_indexer_lock(conn) -> bool:
+    """Try to take the build-path lock. False means another crawl holds it.
+
+    Session-scoped, so it is released if the connection dies — a crawler
+    killed mid-run cannot leave the lock held forever.
+    """
+    try:
+        row = conn.execute(
+            "SELECT pg_try_advisory_lock(%s)", (INDEXER_ADVISORY_LOCK_KEY,)
+        ).fetchone()
+        conn.commit()
+        return bool(row and row[0])
+    except Exception:
+        log.error("Could not acquire indexer advisory lock", exc_info=True)
+        return False
+
+
+def release_indexer_lock(conn) -> None:
+    try:
+        conn.execute("SELECT pg_advisory_unlock(%s)", (INDEXER_ADVISORY_LOCK_KEY,))
+        conn.commit()
+    except Exception:
+        log.warning("Could not release indexer advisory lock", exc_info=True)
 
 
 class JobManager:
@@ -331,15 +375,30 @@ class CrawlScheduler:
         conn.close()
 
         now = dt.datetime.now(dt.UTC)
+        # Overdue schedules are staggered, not fired together.
+        #
+        # This used to floor every past-due schedule to `max(1.0, remaining)`,
+        # so after any restart all of them started within the same second. With
+        # two default schedules that meant two crawls indexing concurrently on
+        # every boot, which is what surfaced the terms deadlock. Spacing the
+        # catch-up keeps a restart from stampeding the indexer.
+        overdue = 0
         for schedule_id, next_run_at in rows:
             if next_run_at:
                 remaining = (next_run_at - now).total_seconds()
-                delay = max(1.0, remaining)
+                if remaining < OVERDUE_STAGGER_SECONDS:
+                    delay = OVERDUE_BASE_DELAY_SECONDS + overdue * OVERDUE_STAGGER_SECONDS
+                    overdue += 1
+                else:
+                    delay = remaining
             else:
                 delay = None  # will use full interval
             self._start_timer(schedule_id, delay_seconds=delay)
         if rows:
-            log.info(f"Loaded {len(rows)} active crawl schedule(s) from DB.")
+            log.info(
+                f"Loaded {len(rows)} active crawl schedule(s) from DB "
+                f"({overdue} overdue, staggered {OVERDUE_STAGGER_SECONDS}s apart)."
+            )
 
     def ensure_default_schedules(self):
         """Create default schedules if none exist. Called once on startup."""
@@ -476,6 +535,96 @@ class CrawlScheduler:
         finally:
             conn.close()
 
+    def _run_strategy(self, conn, schedule_id, strategy, seed_urls, max_pages, max_depth):
+        """Run one scheduled crawl, retrying if Postgres picks it as a deadlock victim.
+
+        A deadlock is a transient loser, not a broken crawl. The lock-ordering
+        fix in `indexer.index_page` is what makes them rare; this is the belt
+        to that pair of braces, so a single unlucky transaction cannot take
+        down a whole scheduled run the way it did on 2026-09-04.
+        """
+        for attempt in range(1, DEADLOCK_MAX_ATTEMPTS + 1):
+            try:
+                if strategy == "top_pagerank":
+                    self._refresh_top_pagerank(conn, max_pages)
+                else:
+                    manager = CrawlManager(conn)
+                    if seed_urls:
+                        manager.seed(seed_urls)
+                    stop_event = threading.Event()
+                    manager.crawl(stop_event=stop_event, max_pages_override=max_pages, max_depth_override=max_depth)
+
+                compute_pagerank(conn)
+                return
+
+            except psycopg.errors.DeadlockDetected as e:
+                conn.rollback()
+                if attempt == DEADLOCK_MAX_ATTEMPTS:
+                    log.error(
+                        f"[scheduler] Schedule {schedule_id} failed after "
+                        f"{attempt} deadlock retries: {e}"
+                    )
+                    return
+                backoff = DEADLOCK_BACKOFF_SECONDS * attempt
+                log.warning(
+                    f"[scheduler] Schedule {schedule_id} hit a deadlock "
+                    f"(attempt {attempt}/{DEADLOCK_MAX_ATTEMPTS}); retrying in {backoff}s."
+                )
+                time.sleep(backoff)
+
+            except Exception as e:
+                conn.rollback()
+                log.error(f"[scheduler] Schedule {schedule_id} failed: {e}")
+                return
+
+    def _refresh_top_pagerank(self, conn, max_pages: int):
+        """Re-crawl the highest-PageRank pages to keep important content fresh."""
+        top_rows = conn.execute(
+            """SELECT p.id, p.url FROM pagerank pr
+               JOIN pages p ON pr.page_id = p.id
+               ORDER BY pr.score DESC LIMIT %s""",
+            (max_pages,),
+        ).fetchall()
+
+        fetcher = Fetcher()
+        refreshed = 0
+        try:
+            for page_id, url in top_rows:
+                response = fetcher.fetch(url)
+                if response is None or response.status_code >= 400:
+                    conn.execute(
+                        """UPDATE pages
+                           SET consecutive_failures = consecutive_failures + 1,
+                               last_checked_at = NOW(),
+                               is_dead = (consecutive_failures + 1 >= 3)
+                           WHERE id = %s""",
+                        (page_id,),
+                    )
+                    conn.commit()
+                    dead_row = conn.execute(
+                        "SELECT is_dead FROM pages WHERE id = %s", (page_id,)
+                    ).fetchone()
+                    if dead_row and dead_row[0]:
+                        deindex_page(conn, page_id)
+                    continue
+                parsed = parse_page(url, response.text)
+                conn.execute(
+                    """UPDATE pages SET title=%s, body_text=%s, content_hash=%s,
+                              last_checked_at=NOW(), consecutive_failures=0
+                       WHERE id=%s""",
+                    (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
+                )
+                conn.commit()
+                if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
+                    index_page(conn, page_id, parsed["title"], parsed["body_text"])
+                    conn.execute("UPDATE pages SET indexed_at = NOW() WHERE id = %s", (page_id,))
+                    conn.commit()
+                    chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
+                refreshed += 1
+        finally:
+            fetcher.close()
+        log.info(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
+
     def _run_scheduled(self, schedule_id: str):
         conn = get_connection()
         try:
@@ -489,69 +638,21 @@ class CrawlScheduler:
             strategy, seed_urls, max_pages, max_depth, _ = row
             log.info(f"[scheduler] Running schedule {schedule_id} (strategy={strategy}, max_pages={max_pages})")
 
-            try:
-                if strategy == "top_pagerank":
-                    from crawler.fetcher import Fetcher
-                    from crawler.manager import is_quality_page
-                    from crawler.parser import parse_page
-
-                    top_rows = conn.execute(
-                        """SELECT p.id, p.url FROM pagerank pr
-                           JOIN pages p ON pr.page_id = p.id
-                           ORDER BY pr.score DESC LIMIT %s""",
-                        (max_pages,),
-                    ).fetchall()
-
-                    fetcher = Fetcher()
-                    refreshed = 0
-                    try:
-                        for page_id, url in top_rows:
-                            response = fetcher.fetch(url)
-                            if response is None or response.status_code >= 400:
-                                conn.execute(
-                                    """UPDATE pages
-                                       SET consecutive_failures = consecutive_failures + 1,
-                                           last_checked_at = NOW(),
-                                           is_dead = (consecutive_failures + 1 >= 3)
-                                       WHERE id = %s""",
-                                    (page_id,),
-                                )
-                                conn.commit()
-                                dead_row = conn.execute(
-                                    "SELECT is_dead FROM pages WHERE id = %s", (page_id,)
-                                ).fetchone()
-                                if dead_row and dead_row[0]:
-                                    deindex_page(conn, page_id)
-                                continue
-                            parsed = parse_page(url, response.text)
-                            conn.execute(
-                                """UPDATE pages SET title=%s, body_text=%s, content_hash=%s,
-                                          last_checked_at=NOW(), consecutive_failures=0
-                                   WHERE id=%s""",
-                                (parsed["title"], parsed["body_text"], parsed["content_hash"], page_id),
-                            )
-                            conn.commit()
-                            if is_quality_page(conn, page_id, parsed["title"], parsed["body_text"], parsed["content_hash"]):
-                                index_page(conn, page_id, parsed["title"], parsed["body_text"])
-                                conn.execute("UPDATE pages SET indexed_at = NOW() WHERE id = %s", (page_id,))
-                                conn.commit()
-                                chunk_page(conn, page_id, parsed["title"], parsed["body_text"])
-                            refreshed += 1
-                    finally:
-                        fetcher.close()
-                    log.info(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
-
-                else:
-                    manager = CrawlManager(conn)
-                    if seed_urls:
-                        manager.seed(seed_urls)
-                    stop_event = threading.Event()
-                    manager.crawl(stop_event=stop_event, max_pages_override=max_pages, max_depth_override=max_depth)
-
-                compute_pagerank(conn)
-
-            except Exception as e:
-                log.error(f"[scheduler] Schedule {schedule_id} failed: {e}")
+            # Only one crawl may write the index at a time. Deliberately
+            # try-and-skip rather than block: a scheduled run that cannot get
+            # the lock has nothing useful to wait for, and its next tick is
+            # already scheduled. Note this must not return early — the
+            # reschedule at the end of this method is what keeps the schedule
+            # alive, and skipping it would silently retire the schedule.
+            if acquire_indexer_lock(conn):
+                try:
+                    self._run_strategy(conn, schedule_id, strategy, seed_urls, max_pages, max_depth)
+                finally:
+                    release_indexer_lock(conn)
+            else:
+                log.warning(
+                    f"[scheduler] Schedule {schedule_id} skipped: another crawl holds the indexer lock."
+                )
 
             conn.execute(
                 "UPDATE crawl_schedules SET last_run_at = NOW() WHERE id = %s", (schedule_id,)
