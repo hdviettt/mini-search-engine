@@ -260,6 +260,36 @@ enough candidates to throw the junk out of a nonsense query, so two of the five
 now come back empty instead of leaking. The reranker cannot fix the recall
 problem, only the visible symptom.
 
+### After removing Wikipedia's furniture from the link graph
+
+Measured against production on 2026-09-05, after the meta-namespace and
+citation-identifier filters and `scripts/purge_wiki_meta.py` (169 pages,
+24,594 links and 6,460 queued URLs removed):
+
+```
+nDCG@10  0.9101   MRR  0.8370   zero-result precision  0.60
+latency  p50 538 ms   p95 840 ms   empty responses 1 (was 8)
+
+entity 0.9895 · informational 0.9537 · navigational 0.9257
+multi_term 0.8866 · stopword_heavy 1.0000 · misspelled 0.5707
+```
+
+**+0.1707 nDCG@10 and +0.2111 MRR against the frozen baseline**, and +0.0217
+nDCG@10 against the depth-40 run above at identical MRR. Entity, informational
+and navigational all gain more than 0.23 — which is what you would expect from
+deleting pages that were absorbing authority without ever being a useful
+answer.
+
+**Quote the keyword counter beside this, as always.** A five-line function
+scores 0.7551 on this eval. The gain is real but the ruler still rewards
+string overlap.
+
+**One intent went backwards: misspelled, 0.6218 → 0.5707.** `premeir league`
+fell from 0.631 to 0.000. That is defect 3 below, not a new fault — spell
+correction never runs on `/api/search`, so the query searches the single stem
+`leagu`, and which league pages surface is luck. The purge changed the luck.
+Fixing defect 3 is the way to move that number; do not tune anything else at it.
+
 ### Choosing the depth
 
 Five depths, deployed and measured. Every row is two eval runs; the last three
