@@ -48,8 +48,18 @@ def index_page(conn: psycopg.Connection, page_id: int, title: str, body_text: st
     body_counts = Counter(body_tokens)
 
     # Phase 3: Upsert terms — get_or_create with ON CONFLICT
+    #
+    # Sorted, and that is load-bearing. ON CONFLICT DO UPDATE takes an
+    # exclusive row lock even though the write is a no-op, so two pages
+    # sharing vocabulary — which any two pages on one topic do — deadlock
+    # if they acquire those locks in different orders. Iterating a Counter
+    # yields insertion order, which is page-dependent. Sorting gives every
+    # transaction the same global lock order, which makes the deadlock
+    # impossible rather than merely unlikely.
+    #
+    # This is not hypothetical: it killed a scheduled crawl one page in.
     term_ids = {}
-    for term in all_counts:
+    for term in sorted(all_counts):
         row = conn.execute(
             "INSERT INTO terms (term) VALUES (%s) ON CONFLICT (term) DO UPDATE SET term = EXCLUDED.term RETURNING id",
             (term,),
