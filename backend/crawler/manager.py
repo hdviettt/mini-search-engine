@@ -33,6 +33,61 @@ _REDIRECT_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Wikipedia namespaces that are not articles. A namespace is the prefix before
+# the first colon in a /wiki/ title — "Help:Category", "File:Commons-logo.svg".
+# Articles never carry one, so this is an exact, cheap test rather than a
+# keyword guess. Talk variants ("Category talk:") are covered by the space
+# check below.
+_WIKIPEDIA_META_NAMESPACES = frozenset({
+    "help", "wikipedia", "file", "category", "template", "portal", "draft",
+    "special", "talk", "user", "mediawiki", "module", "book", "timedtext",
+    "image", "wikt", "wp",
+})
+
+
+# Article-namespace pages that are citation plumbing. Every reference list on
+# Wikipedia links to these, so they collect in-degree the same way the meta
+# namespaces did and float to the top of PageRank — after the namespace fix the
+# five most authoritative pages in the index were Digital object identifier,
+# ISBN, ISSN, Wayback Machine and OCLC, with "Association football" sixth.
+#
+# They are real articles, so the namespace test cannot catch them; they are also
+# never a plausible result for a football query. Matched on exact title, not a
+# substring, so "ISBN" does not take "List of ISBN agencies" with it.
+_WIKIPEDIA_CITATION_PAGES = frozenset({
+    "digital object identifier", "doi (identifier)", "isbn", "isbn (identifier)",
+    "issn", "issn (identifier)", "oclc", "oclc (identifier)", "lccn",
+    "lccn (identifier)", "pmid", "pmid (identifier)", "pmc", "pmc (identifier)",
+    "bibcode", "bibcode (identifier)", "s2cid", "s2cid (identifier)",
+    "arxiv", "arxiv (identifier)", "jstor", "jstor (identifier)",
+    "wayback machine", "internet archive", "google books", "hdl (identifier)",
+    "wikidata", "wikimedia commons", "wikisource", "wikiquote",
+})
+
+
+def _is_wikipedia_citation_page(path: str) -> bool:
+    """True for Wikipedia's citation-identifier articles (ISBN, DOI, JSTOR, …)."""
+    title = path.split("/wiki/", 1)[-1]
+    title = title.replace("_", " ").replace("%28", "(").replace("%29", ")").strip().lower()
+    return title in _WIKIPEDIA_CITATION_PAGES
+
+
+def _is_wikipedia_meta_page(path: str) -> bool:
+    """True for non-article Wikipedia pages (Help:, File:, Category: and friends).
+
+    These are linked from nearly every article, so leaving them in the crawl
+    hands them enormous in-degree and lets them dominate PageRank. They are
+    also never a useful search result for a football query.
+    """
+    title = path.split("/wiki/", 1)[-1]
+    title = title.replace("%3A", ":").replace("%3a", ":")
+    if ":" not in title:
+        return False  # articles have no namespace prefix
+    namespace = title.split(":", 1)[0].replace("_", " ").strip().lower()
+    # "Category talk" and similar share the base namespace name.
+    base = namespace.removesuffix(" talk").strip()
+    return base in _WIKIPEDIA_META_NAMESPACES
+
 
 def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str, content_hash: str) -> bool:
     """Return True if the page is worth indexing. Logs reason when skipping."""
@@ -131,6 +186,17 @@ class CrawlManager:
         # Wikipedia: depth-aware filtering
         if domain == "en.wikipedia.org":
             if "/wiki/" not in path:
+                return False
+            # Namespace check applies at every depth, including the seeds.
+            #
+            # The depth<=1 shortcut below used to admit any /wiki/ URL, which
+            # let Help:, Wikipedia:, File: and Category: pages in — and every
+            # article links to those, so they accumulated enormous in-degree
+            # and took over PageRank. The top three pages by authority were
+            # Help:Category, Wikipedia:Protection policy and File:Commons-logo.svg;
+            # "Association football" ranked fourth. These are navigational
+            # furniture, not content, and they are never a good search result.
+            if _is_wikipedia_meta_page(path) or _is_wikipedia_citation_page(path):
                 return False
             # Depth 0-1: trust links from curated seeds (player pages, etc.)
             if depth <= 1:
