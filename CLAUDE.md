@@ -68,6 +68,22 @@ rank. When each carried its own freshness formula they drifted, and the
 playground canvas explained scoring the engine was not doing. Change the
 formula in one place.
 
+**Terms are upserted in sorted order, and that is load-bearing.**
+`ON CONFLICT DO UPDATE` takes an exclusive row lock even when the write is a
+no-op, so two pages sharing vocabulary deadlock if they take those locks in
+different orders. Iterating a `Counter` gives insertion order, which is
+page-dependent. `sorted(all_counts)` in `indexer.index_page` gives every
+transaction the same global lock order. This is not a style preference: the
+unsorted version killed a scheduled crawl one page in on 2026-09-04, and
+`tests/test_indexer_lock_order.py` fails if it comes back.
+
+**One crawl writes the index at a time.** `api.jobs.acquire_indexer_lock` takes
+a Postgres advisory lock around the whole build path. Advisory rather than a
+`threading.Lock` because it has to hold across processes and replicas. A
+scheduled run that cannot get it skips and waits for its next tick — but it must
+still fall through to `_start_timer`, because that reschedule is the only thing
+keeping the schedule alive. An early `return` there silently retires it forever.
+
 **Bounded queries only.** Never build `IN (%s, %s, …)` from an unbounded list —
 a common term matches thousands of pages. Use `= ANY(%s)` against a pool that
 is already capped.
@@ -117,6 +133,34 @@ selectors in `globals.css` belong inside `@layer base`.
 **Background jobs use `get_connection()`, not the pool.** A crawl holds its
 connection for minutes and would starve request traffic. Request handlers use
 `Depends(get_db)`.
+
+**Never enable Railway's app sleeping on the Postgres service.** It stops the
+container when HTTP traffic goes quiet, but database clients speak raw TCP on
+5432, so the signal Railway watches is not the signal that matters. The result
+is a database hard-killed and crash-recovered in a loop — `database system was
+not properly shut down`, then `FATAL: the database system is starting up` on
+every reconnect. It cost a day of 500s in September 2026. The backend sets
+`sleepApplication: false` in `backend/railway.json`; Postgres has no repo, so
+that one is a dashboard setting and has to be checked by hand.
+
+**`/health` touches the database; `/health/live` does not.** Railway's
+healthcheck points at `/health/live`, deliberately: `/health` returns 503 when
+Postgres is unreachable, and restarting the API does not fix a broken database
+— it just adds a crash loop to the outage. `/health` is for external uptime
+monitoring, which is what should page you. It used to be a hardcoded
+`{"status": "ok"}`, which is why nothing noticed the outage above.
+
+**Two classes of Wikipedia page are excluded from the crawl, for the same
+reason.** `_is_wikipedia_meta_page` drops the non-article namespaces (`Help:`,
+`File:`, `Category:`, …) and `_is_wikipedia_citation_page` drops the
+citation-identifier articles (`ISBN`, `Digital object identifier`, `Wayback
+Machine`, …). Both are linked from nearly every article, so both accumulate
+enormous in-degree and take over PageRank. With them in, the top of the graph
+was `Help:Category` and `Wikipedia:Protection policy`; remove only the
+namespaces and `ISBN` and `DOI` move straight into the vacancy. With both gone,
+`Association football` ranks first, which is what a football corpus should look
+like. `scripts/purge_wiki_meta.py` cleans pages crawled before the filters
+existed — the crawler fix stops new ones, it does not remove old ones.
 
 **`total_results` is the BM25 match count**, not the number of pages you can
 actually page through — pagination is bounded by `CANDIDATE_POOL`. This is

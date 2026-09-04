@@ -124,7 +124,10 @@ pip install -e .
 python scripts/download_model.py
 
 # Start Postgres with pgvector
+# The named volume is not optional. Without -v the data lives in the
+# container's writable layer, and `docker rm` takes the whole index with it.
 docker run -d --name search-pg \
+  -v search-pgdata:/var/lib/postgresql/data \
   -e POSTGRES_USER=searchengine \
   -e POSTGRES_PASSWORD=searchengine \
   -e POSTGRES_DB=searchengine \
@@ -199,7 +202,8 @@ trustworthy ruler and discovered this one was bent.
 
 ```bash
 cd backend
-pytest tests -q     # 89 tests: tokenizer, ranking maths, SSRF guard, auth, request bounds
+pytest tests -q     # 105 tests: tokenizer, ranking maths, SSRF guard, auth, request
+                    # bounds, crawl filters, indexer lock ordering
 ruff check .
 ```
 
