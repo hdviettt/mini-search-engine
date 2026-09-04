@@ -32,6 +32,25 @@ META_URL_PATTERN = (
 )
 
 
+def _referencing_columns(conn) -> list[tuple[str, str]]:
+    """Every (table, column) with a foreign key onto pages(id).
+
+    Read from the catalogue so the purge cannot be defeated by a table the
+    repository's schema does not know about.
+    """
+    rows = conn.execute(
+        """SELECT c.conrelid::regclass::text AS table_name,
+                  a.attname                  AS column_name
+           FROM pg_constraint c
+           JOIN unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+           JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+           WHERE c.contype = 'f'
+             AND c.confrelid = 'pages'::regclass
+           ORDER BY table_name, column_name"""
+    ).fetchall()
+    return [(t, col) for t, col in rows]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="report what would be deleted, change nothing")
@@ -70,16 +89,13 @@ def main():
             print("\nDry run — nothing deleted.")
             return
 
-        # Order matters: everything referencing pages(id) goes first.
-        for table, column in [
-            ("postings", "page_id"),
-            ("doc_stats", "page_id"),
-            ("chunks", "page_id"),
-            ("pagerank", "page_id"),
-            ("links", "source_id"),
-            ("links", "target_id"),
-        ]:
-            cur = conn.execute(f"DELETE FROM {table} WHERE {column} = ANY(%s)", (page_ids,))
+        # Everything referencing pages(id) goes first. The dependants are read
+        # from pg_constraint rather than hardcoded: production carries tables
+        # this repo's db.py does not define (page_entities, entity_attributes,
+        # entity_relationships), and a hardcoded list silently missed them —
+        # the delete failed on a foreign key after doing most of its work.
+        for table, column in _referencing_columns(conn):
+            cur = conn.execute(f'DELETE FROM "{table}" WHERE "{column}" = ANY(%s)', (page_ids,))
             print(f"  deleted {cur.rowcount:>7} from {table}.{column}")
 
         cur = conn.execute("DELETE FROM crawl_queue WHERE url ~ %s", (META_URL_PATTERN,))
