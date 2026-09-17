@@ -31,6 +31,25 @@ def _get_cached(conn: psycopg.Connection, query: str) -> str | None:
     return row[0] if row else None
 
 
+# Shortest plausible overview. The prompt asks for two to three sentences, so
+# anything this short is a truncated generation, not a terse answer.
+MIN_OVERVIEW_CHARS = 40
+
+
+def _is_usable(overview: str, finish_reason: str | None = None) -> bool:
+    """Is this worth showing, and worth keeping for 24 hours?
+
+    A generation that stopped early is still a non-empty string, so the old
+    `if not overview` guard let it through and `_set_cache` pinned it for a
+    day. That happened: one request came back as the single word "Erling" and
+    every later request for that query served the same six characters from
+    cache while the model itself was answering perfectly.
+    """
+    if not overview or len(overview.strip()) < MIN_OVERVIEW_CHARS:
+        return False
+    return finish_reason != "length"
+
+
 def _set_cache(conn: psycopg.Connection, query: str, overview: str):
     normalized = _normalize_query(query)
     conn.execute(
@@ -141,11 +160,25 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
             timeout=15,
         )
         response.raise_for_status()
-        overview = response.json()["choices"][0]["message"]["content"].strip()
-        trace["synthesis"] = {"model": GROQ_MODEL, "time_ms": round((time.time() - t0) * 1000, 1)}
+        choice = response.json()["choices"][0]
+        finish_reason = choice.get("finish_reason")
+        overview = (choice["message"].get("content") or "").strip()
+        trace["synthesis"] = {
+            "model": GROQ_MODEL,
+            "time_ms": round((time.time() - t0) * 1000, 1),
+            "finish_reason": finish_reason,
+        }
 
-        if not overview:
-            return None
+        if not _is_usable(overview, finish_reason):
+            log.warning(
+                "Discarding unusable overview for %r: %d chars, finish_reason=%s",
+                query, len(overview), finish_reason,
+            )
+            trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
+            return {
+                "overview": None, "sources": sources, "trace": trace, "from_cache": False,
+                "error": f"model returned a truncated answer ({len(overview)} chars, finish_reason={finish_reason})",
+            }
 
         _set_cache(conn, query, overview)
         trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
@@ -310,8 +343,15 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
                         except (json.JSONDecodeError, KeyError, IndexError):
                             pass
 
-            if full_text:
+            # Only cache a complete answer. A stream that stopped early is
+            # still non-empty, and caching it pins the truncation for 24 hours.
+            if _is_usable(full_text):
                 _set_cache(conn, query, full_text)
+            elif full_text:
+                log.warning(
+                    "Not caching truncated streamed overview for %r (%d chars)",
+                    query, len(full_text),
+                )
             total_ms = round((time.time() - total_start) * 1000, 1)
             yield f"data: {json.dumps({'type': 'done', 'total_ms': total_ms, 'from_cache': False})}\n\n"
             return  # success
