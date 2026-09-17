@@ -65,11 +65,11 @@
 <header>
   <div class="kicker">Fixes · 17 September 2026</div>
   <h1>AI Overviews, the football API, and the scrollbars</h1>
-  <p class="sub">Four commits, <code>8f4b91e</code> to <code>c821b3b</code>. All deployed and verified against production.</p>
+  <p class="sub">Seven commits, <code>8f4b91e</code> to <code>96b59a8</code>. All deployed and verified against production.</p>
 </header>
 
 <div class="verdict">
-  <p><strong>All four are done.</strong> AI Overviews were not out of tokens: Groq had retired the model. The football API is gone from both services. The scrollbars were one bug with one cause, and it is measured before and after. Nothing needs a local LLM.</p>
+  <p><strong>All four are done, and nothing is left open.</strong> AI Overviews were not out of tokens: Groq had retired the model. The football API is gone from both services. The scrollbars were one bug with one cause, and it is measured before and after. Nothing needs a local LLM.</p>
 </div>
 
 <h2>1. AI Overviews</h2>
@@ -162,14 +162,41 @@ pid 36239  active Lock/relation  6m54s  CREATE TABLE IF NOT EXISTS ...</div>
   <p>Verified after redeploy: four sessions, all <code>idle</code> on <code>Client</code>, oldest 38 seconds. No <code>idle in transaction</code>, nothing waiting on a lock.</p>
 </div>
 
-<h2>Still open</h2>
+<h2>5. Two things verification turned up</h2>
 
-<div class="open">
-  <p><strong><code>CLAUDE.md</code> could not be updated.</strong> The workspace voice hook rebuilds the whole file and rejects any edit while it contains an em dash, and that file has 30 of them in your own prose. So the lessons from today are in code comments next to the code they concern, in <code>config.py</code>, <code>db.py</code>, <code>globals.css</code> and <code>layout.tsx</code>, but not in the file an agent reads first. Say the word and I will normalise the punctuation in one pass and add the notes.</p>
+<p>Checking the new model across a spread of queries found a second fault, and then a third behind it. Both are fixed.</p>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">05</span><span class="ftitle">One truncated answer poisoned the cache for 24 hours</span><span class="pill p-fixed">Fixed</span></div>
+  <p><code>/api/overview?q=erling+haaland+goals</code> returned the single word <code>Erling</code>. Six characters, no citations, and <code>from_cache: true</code>. Every other query answered normally at 297 to 445 characters, and the model reproduced the full answer when asked directly, so this was one transient truncation that got written to <code>ai_cache</code> and then served for a day.</p>
+  <p>The guard was <code>if not overview</code>, which only catches the empty string. A generation that stopped early is still truthy, so it cached. <code>_is_usable()</code> now requires at least 40 characters, since the prompt asks for two to three sentences and anything shorter is truncation rather than brevity, and rejects <code>finish_reason: length</code> whatever the length. Both the blocking and the streaming path use it. The one bad row has been deleted; the other 69 entries are fine.</p>
 </div>
 
-<div class="open">
-  <p><strong><code>FOOTBALL_API_KEY</code> is still set on the Railway backend service.</strong> Nothing reads it now. Deleting it needs the dashboard, since reading and writing service variables is blocked from here.</p>
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">06</span><span class="ftitle">Reasoning tokens were eating the answer</span><span class="pill p-fixed">Fixed</span></div>
+  <p>With the new guard in place, <code>premier league history</code> was refused: <code>finish_reason: length</code> after only 355 visible characters. 355 characters is nowhere near 300 tokens of prose, so the budget was going somewhere else. It was the reasoning: <code>gpt-oss</code> thinks before it answers and those tokens come out of <code>max_tokens</code> too, which is the trap noted in finding 01, now confirmed on the 120b model and not just the 20b.</p>
+  <p><code>AI_OVERVIEW_MAX_TOKENS</code> is 300 to 1000. That is headroom, not a target: the prompt bounds the visible answer to two or three sentences and Groq bills what is actually generated, so the cap only has to be large enough that thinking plus answer both fit.</p>
+  <div class="ev">six fresh queries after the change, all finish_reason=stop
+
+premier league history    513 chars   3 citations
+erling haaland goals      471 chars
+offside rule explained    415 chars   1 citation
+ballon dor 2023           326 chars
+real madrid trophies      436 chars   2 citations
+world cup final 2018      366 chars</div>
+</div>
+
+<h2>Cleared since the first draft</h2>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">07</span><span class="ftitle"><code>CLAUDE.md</code> is editable again, and updated</span><span class="pill p-fixed">Fixed</span></div>
+  <p>The workspace voice hook rebuilds the whole file and rejects any edit while it contains an em dash, so the file could not be edited at all while it held 30 of them. The 29 outside code fences are now the comma, colon or full stop each sentence wanted; the one inside a fence is untouched, because the hook ignores fenced content.</p>
+  <p>With that unblocked, the file now carries the five lessons from this week: the viewport-unit rule, the streaming-transaction rule, why <code>init_db</code> sets its timeouts, that Groq retires models, and the reasoning-token trap. It also records that the Explore view's two scrollbars are deliberate, and corrects the query pipeline summary, which still said the cross-encoder reranks the top 5. It has been 40 since <code>36f01cb</code>.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">08</span><span class="ftitle"><code>FOOTBALL_API_KEY</code> deleted from Railway</span><span class="pill p-fixed">Fixed</span></div>
+  <p>Removed from the backend service with <code>railway variable delete</code>. What remains is <code>DATABASE_URL</code>, <code>GROQ_API_KEY</code>, <code>VOYAGE_API_KEY</code>, <code>ADMIN_API_KEY</code>, <code>RERANK_ENABLED</code> and <code>RERANK_TOP_K</code>, all of them still read.</p>
 </div>
 
 <h2>What shipped</h2>
@@ -182,11 +209,14 @@ pid 36239  active Lock/relation  6m54s  CREATE TABLE IF NOT EXISTS ...</div>
     <tr><td><code>bd1aefa</code></td><td class="w">Remove the live sports OneBox and API-Football</td></tr>
     <tr><td><code>7a9fd17</code></td><td class="w">Stop CSS zoom putting a phantom scrollbar on every page</td></tr>
     <tr><td><code>c821b3b</code></td><td class="w">Stop a leaked connection from blocking startup forever</td></tr>
+    <tr><td><code>c7f6259</code></td><td class="w">Record this week's lessons, and make CLAUDE.md editable again</td></tr>
+    <tr><td><code>3e2bae7</code></td><td class="w">Do not cache a truncated overview</td></tr>
+    <tr><td><code>96b59a8</code></td><td class="w">Give the reasoning model room inside max_tokens</td></tr>
   </tbody>
 </table>
 </div>
 
-<p>105 backend tests pass, ruff clean, frontend <code>tsc</code> and <code>eslint</code> clean, Next build clean.</p>
+<p>110 backend tests pass, ruff clean, frontend <code>tsc</code> and <code>eslint</code> clean, Next build clean.</p>
 
 <footer>
   17 September 2026 · verified against the deployed backend and <a href="https://search.hoangducviet.work">search.hoangducviet.work</a>.
