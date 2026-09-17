@@ -31,6 +31,23 @@ def _get_cached(conn: psycopg.Connection, query: str) -> str | None:
     return row[0] if row else None
 
 
+# gpt-oss sometimes emits CJK fullwidth brackets for citations instead of the
+# ASCII ones the prompt asks for. The frontend parses [1], so a 【1】 renders as
+# literal junk next to the sentence it was meant to mark. Cheaper to normalise
+# than to fight the model about it.
+_CITATION_FIXUPS = (
+    ("【", "["), ("】", "]"),   # 【 】
+    ("［", "["), ("］", "]"),   # ［ ］
+    ("❨", "["), ("❩", "]"),
+)
+
+
+def _normalise_citations(text: str) -> str:
+    for bad, good in _CITATION_FIXUPS:
+        text = text.replace(bad, good)
+    return text
+
+
 # Shortest plausible overview. The prompt asks for two to three sentences, so
 # anything this short is a truncated generation, not a terse answer.
 MIN_OVERVIEW_CHARS = 40
@@ -162,7 +179,7 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
         response.raise_for_status()
         choice = response.json()["choices"][0]
         finish_reason = choice.get("finish_reason")
-        overview = (choice["message"].get("content") or "").strip()
+        overview = _normalise_citations((choice["message"].get("content") or "").strip())
         trace["synthesis"] = {
             "model": GROQ_MODEL,
             "time_ms": round((time.time() - t0) * 1000, 1),
@@ -345,6 +362,7 @@ def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[
 
             # Only cache a complete answer. A stream that stopped early is
             # still non-empty, and caching it pins the truncation for 24 hours.
+            full_text = _normalise_citations(full_text)
             if _is_usable(full_text):
                 _set_cache(conn, query, full_text)
             elif full_text:

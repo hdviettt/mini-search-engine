@@ -39,3 +39,24 @@ def test_hitting_the_token_ceiling_is_rejected_however_long():
 def test_threshold_is_a_boundary_not_a_range():
     assert not _is_usable("x" * (MIN_OVERVIEW_CHARS - 1))
     assert _is_usable("x" * MIN_OVERVIEW_CHARS)
+
+
+# gpt-oss sometimes emits CJK fullwidth brackets for citations instead of the
+# ASCII ones the prompt asks for, so a citation renders as literal junk next to
+# the sentence it marks. Seen live on "explain the video assistant referee
+# system", which came back citing \u30102\u3011.
+
+def test_fullwidth_citation_brackets_are_normalised():
+    from ai_overview.generator import _normalise_citations
+    assert _normalise_citations("won it\u30101\u3011 twice") == "won it[1] twice"
+    assert _normalise_citations("see\uff3b2\uff3d here") == "see[2] here"
+
+
+def test_ascii_citations_are_left_alone():
+    from ai_overview.generator import _normalise_citations
+    assert _normalise_citations("plain [1] and [2]") == "plain [1] and [2]"
+
+
+def test_normalisation_is_safe_on_empty_text():
+    from ai_overview.generator import _normalise_citations
+    assert _normalise_citations("") == ""
