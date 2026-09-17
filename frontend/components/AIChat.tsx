@@ -191,7 +191,15 @@ export default function AIChat({ initialQuery, initialOverview, initialSources, 
       </div>
 
       {/* Conversation — matches AI Overview text style */}
-      <div ref={scrollRef} className="max-h-[65vh] overflow-y-auto">
+      {/* scrollbarGutter: stable reserves the scrollbar's width whether or not
+          one is showing, so the text never reflows when it appears. Without it
+          hovering a source favicon shifted the whole answer sideways.
+          var(--vph), not vh: see the note in globals.css. */}
+      <div
+        ref={scrollRef}
+        className="max-h-[calc(var(--vph)*0.65)] overflow-y-auto"
+        style={{ scrollbarGutter: "stable" }}
+      >
         {messages.map((msg, i) => (
           <div key={i}>
             {msg.role === "user" && i > 0 && (
@@ -210,7 +218,7 @@ export default function AIChat({ initialQuery, initialOverview, initialSources, 
                 />
                 {/* Source favicons — stacked circles matching AI Overview style */}
                 {messageSources[i] && messageSources[i].length > 0 && !(streaming && i === messages.length - 1) && (
-                  <div className="flex items-center -space-x-1 mt-3">
+                  <div className="flex items-center -space-x-1 mt-3 pb-1">
                     {messageSources[i].slice(0, 5).map(s => {
                       let domain = "";
                       try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = ""; }

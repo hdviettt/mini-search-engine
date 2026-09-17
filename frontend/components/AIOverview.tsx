@@ -199,7 +199,7 @@ export default memo(function AIOverview({ text, sources, loading, streaming, una
 
               {/* Stacked source favicons */}
               {sources.length > 0 && (
-                <div className="flex items-center -space-x-1">
+                <div className="flex items-center -space-x-1 pb-1">
                   {sources.slice(0, 5).map(s => {
                     let d = "";
                     try { d = new URL(s.url).hostname.replace("www.", ""); } catch { d = s.url; }

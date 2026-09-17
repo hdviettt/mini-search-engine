@@ -1290,7 +1290,7 @@ function MobileSheet({ nodeId, onClose, data, stats, overviewText, overviewSourc
       <div className="lg:hidden fixed inset-0 bg-black/25 z-40" onClick={onClose} />
       <div
         ref={sheetRef}
-        className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto overscroll-contain"
+        className="lg:hidden fixed z-50 bottom-0 left-0 right-0 max-h-[calc(var(--vph)*0.7)] rounded-t-2xl shadow-xl bg-[var(--bg-card)] overflow-hidden overflow-y-auto overscroll-contain"
         style={{ animation: "slide-up 0.2s ease-out" }}
       >
         {/* Drag handle — swipe down to dismiss */}
