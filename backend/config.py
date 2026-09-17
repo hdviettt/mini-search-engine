@@ -160,6 +160,12 @@ VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 VOYAGE_MODEL = os.getenv("VOYAGE_MODEL", "voyage-3-lite")
 VOYAGE_DIMENSIONS = 512
 
-AI_OVERVIEW_MAX_TOKENS = 300
+# Headroom, not a target. The prompt asks for two to three sentences, so the
+# visible answer is bounded by the instruction and Groq bills what is actually
+# generated. The cap exists to stop a runaway, and on a reasoning model it also
+# has to cover the thinking: at 300 the model hit finish_reason=length after
+# only 355 visible characters on "premier league history", because reasoning
+# tokens come out of the same budget. Do not lower this below about 800.
+AI_OVERVIEW_MAX_TOKENS = 1000
 AI_CACHE_TTL_HOURS = 24
 
