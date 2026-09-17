@@ -454,10 +454,27 @@ class CrawlScheduler:
 
         log.info("[scheduler] No schedules found. Creating defaults...")
 
-        # Daily: re-crawl the highest-authority pages so they do not go stale.
+        # Every four hours: re-crawl whatever has gone longest unvisited.
+        #
+        # Sized to turn the whole corpus over rather than to look busy. At
+        # 800 pages every four hours that is 4,800 a day against roughly 6,000
+        # pages, so nothing sits more than about a day and a half out of date.
+        # The previous arrangement refreshed 300 of the highest-PageRank pages
+        # once a day, which never reached the tail at all: 4,678 pages had not
+        # been fetched in three months and last_checked_at was NULL for
+        # essentially all of them.
         self.add(
             seed_urls=[],
-            max_pages=300,
+            max_pages=800,
+            interval_hours=4.0,
+            strategy="refresh_stale",
+            max_depth=0,
+        )
+
+        # Daily: re-crawl the highest-authority pages on top of the rotation.
+        self.add(
+            seed_urls=[],
+            max_pages=200,
             interval_hours=24.0,
             strategy="top_pagerank",
             max_depth=0,
@@ -483,7 +500,7 @@ class CrawlScheduler:
             max_depth=2,
         )
 
-        log.info("[scheduler] Created 2 default schedules (daily top-pagerank refresh, 6-hourly seed discovery).")
+        log.info("[scheduler] Created 3 default schedules (4-hourly staleness refresh, daily top-pagerank, 6-hourly seed discovery).")
 
     def add(self, seed_urls: list[str], max_pages: int, interval_hours: float,
             strategy: str = "seed", max_depth: int = 1) -> str:
@@ -598,6 +615,8 @@ class CrawlScheduler:
             try:
                 if strategy == "top_pagerank":
                     self._refresh_top_pagerank(conn, max_pages)
+                elif strategy == "refresh_stale":
+                    self._refresh_stale(conn, max_pages)
                 else:
                     manager = CrawlManager(conn)
                     if seed_urls:
@@ -628,6 +647,33 @@ class CrawlScheduler:
                 log.error(f"[scheduler] Schedule {schedule_id} failed: {e}")
                 return
 
+    def _refresh_stale(self, conn, max_pages: int):
+        """Re-crawl whatever has gone longest without being looked at.
+
+        Authority is the wrong thing to refresh by, on its own. The corpus had
+        6,112 pages of which 4,678 had not been fetched in over three months,
+        and `last_checked_at` was NULL for nearly all of them, because the only
+        refresh that existed walked the PageRank ranking and never reached the
+        tail.
+
+        That is how "who won the 2026 world cup" returned nothing useful. The
+        page `2026 FIFA World Cup final` was in the index the whole time. It
+        had been crawled on 2026-03-25, months before the tournament was
+        played, so the copy we served was the pre-tournament stub. The right
+        page, the wrong snapshot.
+
+        Oldest first, so the refresh is a rotation over the whole corpus rather
+        than a repeat visit to the same head.
+        """
+        rows = conn.execute(
+            """SELECT id, url FROM pages
+               WHERE is_dead = false
+               ORDER BY COALESCE(last_checked_at, crawled_at) ASC
+               LIMIT %s""",
+            (max_pages,),
+        ).fetchall()
+        self._refetch(conn, rows, label="stale")
+
     def _refresh_top_pagerank(self, conn, max_pages: int):
         """Re-crawl the highest-PageRank pages to keep important content fresh."""
         top_rows = conn.execute(
@@ -636,7 +682,11 @@ class CrawlScheduler:
                ORDER BY pr.score DESC LIMIT %s""",
             (max_pages,),
         ).fetchall()
+        self._refetch(conn, top_rows, label="top PageRank")
 
+    def _refetch(self, conn, rows, label: str = "pages"):
+        """Re-fetch, re-index and re-chunk a list of (page_id, url)."""
+        top_rows = rows
         fetcher = Fetcher()
         refreshed = 0
         try:
@@ -674,7 +724,7 @@ class CrawlScheduler:
                 refreshed += 1
         finally:
             fetcher.close()
-        log.info(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} top PageRank pages")
+        log.info(f"[scheduler] Refreshed {refreshed}/{len(top_rows)} {label} pages")
 
     def _run_scheduled(self, schedule_id: str):
         conn = get_connection()
