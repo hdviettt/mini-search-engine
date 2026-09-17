@@ -54,6 +54,5 @@ packages = [
     "rag",
     "ranker",
     "search",
-    "sports",
 ]
 py-modules = ["auth", "config", "db", "logging_config", "main", "models"]

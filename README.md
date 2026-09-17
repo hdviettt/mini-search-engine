@@ -8,7 +8,7 @@
 
 ---
 
-A mini search engine built from scratch that covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking**, **AI Overviews**, and **Sports OneBox**.
+A mini search engine built from scratch that covers the core pipeline behind Google Search — **Crawling, Indexing, Ranking** — plus **Neural Reranking** and **AI Overviews**.
 
 I work in SEO, and I wanted to understand search at the engineering level. Not just what Google does, but how and why. It is no coincidence that the research problems search engines had to solve — understanding language, ranking relevance across billions of documents — drove the breakthroughs that became modern AI. The transformer paper came out of Google. So did Word2Vec and BERT. Search is where it started.
 
@@ -39,9 +39,8 @@ measurement and [`CLAUDE.md`](CLAUDE.md) for the fix order.
 | **Neural Reranker** | Refines top results with a cross-encoder | ONNX inference with ms-marco-MiniLM-L-6-v2 (22M params), runs locally on CPU | Reranks top 40 candidates, ~10 ms each |
 | **Ranking** | Combines signals | 80% BM25 + 20% PageRank, exponential freshness decay, 7-day recency bonus | min-max normalized, tunable live in the UI |
 | **Spell correction** | Fixes typos before searching | Levenshtein edit-distance ≤ 2, vocabulary from page titles + indexed stems | Proper nouns protected via terms table |
-| **AI Overview** | Generates a summary with citations | Co-occurrence fan-out → hybrid retrieval (vector + keyword) → Groq streaming with retry | Llama 3.3 70B, cached 24h |
+| **AI Overview** | Generates a summary with citations | Co-occurrence fan-out → hybrid retrieval (vector + keyword) → Groq streaming with retry | `openai/gpt-oss-120b`, cached 24h |
 | **AI Chat** | Follow-up conversation with context | Multi-turn chat grounded in retrieved chunks, inline citations | Groq streaming |
-| **Sports OneBox** | Live match cards above results | Keyword detection for teams/leagues → API-Football integration | Live scores, standings, fixtures |
 
 ## The UI
 
@@ -53,7 +52,6 @@ The frontend is a **React Flow canvas** that visualizes the entire pipeline as a
 - **Live WebSocket** progress during crawl/index/embed jobs
 - **Google-style results** with score breakdowns, AI Overview with citations, and follow-up chat
 - **DuckDuckGo-style hero** with live dashboard charts on the landing page
-- **Sports OneBox** — live match cards, standings, and fixtures for sports queries
 
 ## Tech Stack
 
@@ -63,9 +61,8 @@ The frontend is a **React Flow canvas** that visualizes the entire pipeline as a
 | Backend | FastAPI, Python 3.12+ |
 | Database | PostgreSQL 16 + pgvector |
 | Reranking | ONNX Runtime (ms-marco-MiniLM-L-6-v2, 22M params, CPU) |
-| LLM | Groq API (Llama 3.3 70B via `llama-3.3-70b-versatile`) |
+| LLM | Groq API (`openai/gpt-oss-120b`) |
 | Embeddings | Voyage AI API (voyage-3-lite, 512d) |
-| Sports Data | API-Football |
 | Hosting | Railway |
 
 ## Project Structure
@@ -79,7 +76,6 @@ backend/
 ├── search/         # query engine, spell correction, pipeline explainer
 ├── rag/            # chunker, embedder, retriever, query fan-out
 ├── ai_overview/    # Groq streaming, response caching, follow-up chat
-├── sports/         # sports query detection + API-Football integration
 ├── api/            # REST endpoints + WebSocket jobs + scheduling
 └── scripts/        # CLI: crawl, index, pagerank, build_rag
 

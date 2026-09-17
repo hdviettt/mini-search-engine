@@ -83,44 +83,12 @@ def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 2
 def _empty(query: str, start_time: float) -> dict:
     return {
         "query": query,
-        "sports": None,
         "results": [],
         "total_results": 0,
         "page": 1,
         "per_page": 0,
         "time_ms": round((time.time() - start_time) * 1000, 2),
     }
-
-
-def _detect_sports(query: str) -> dict | None:
-    """Live match / standings OneBox. Never allowed to break a search."""
-    try:
-        from sports.api import (
-            get_league_fixtures,
-            get_live_scores,
-            get_standings,
-            get_upcoming_fixtures,
-        )
-        from sports.detector import detect_sports
-
-        detection = detect_sports(query)
-        if not detection:
-            return None
-
-        payload = {"detection": detection.to_dict()}
-        if detection.action == "upcoming" and detection.teams:
-            return {**payload, "type": "fixtures", "data": get_upcoming_fixtures(detection.teams[0])}
-        if detection.action == "upcoming" and detection.leagues:
-            return {**payload, "type": "fixtures", "data": get_league_fixtures(detection.leagues[0])}
-        if detection.action == "standings" and detection.leagues:
-            return {**payload, "type": "standings", "data": get_standings(detection.leagues[0])}
-        if detection.action == "live":
-            return {**payload, "type": "live", "data": get_live_scores()}
-    except Exception:
-        import logging
-
-        logging.getLogger(__name__).warning("Sports detection failed", exc_info=True)
-    return None
 
 
 def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 10) -> dict:
@@ -234,7 +202,6 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
 
     return {
         "query": query,
-        "sports": _detect_sports(query) if page == 1 else None,
         "results": results,
         "total_results": max(0, total_results - len(dropped)),
         "page": page,

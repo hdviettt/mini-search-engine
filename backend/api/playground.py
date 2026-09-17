@@ -599,42 +599,6 @@ def dashboard(conn: psycopg.Connection = Depends(get_db)):
     }
 
 
-# --- Sports data endpoints ---
-
-@router.get("/sports/matches")
-def sports_matches(team: str | None = None):
-    """Get upcoming matches for a team."""
-    from sports.api import get_upcoming_fixtures
-    from sports.detector import TEAM_MAP
-
-    if not team:
-        raise HTTPException(status_code=400, detail="team parameter required")
-    team_id = TEAM_MAP.get(team.lower())
-    if not team_id:
-        raise HTTPException(status_code=404, detail=f"Unknown team: {team}")
-    return {"team": team, "fixtures": get_upcoming_fixtures(team_id)}
-
-
-@router.get("/sports/standings")
-def sports_standings(league: str):
-    """Get league standings."""
-    from sports.api import get_standings
-    from sports.detector import LEAGUE_MAP
-
-    league_id = LEAGUE_MAP.get(league.lower())
-    if not league_id:
-        raise HTTPException(status_code=404, detail=f"Unknown league: {league}")
-    return {"league": league, "standings": get_standings(league_id)}
-
-
-@router.get("/sports/live")
-def sports_live():
-    """Get all live scores."""
-    from sports.api import get_live_scores
-
-    return {"live": get_live_scores()}
-
-
 # --- WebSocket for live progress ---
 
 async def websocket_jobs(websocket: WebSocket):
