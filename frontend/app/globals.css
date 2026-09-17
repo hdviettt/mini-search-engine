@@ -351,10 +351,10 @@ html:has(.hero-lock) body { overflow: hidden; height: var(--vph); }
     box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 .md-field:hover { border-color: hsl(var(--md-sys-color-outline)); }
-/* A ring, not a thicker border — growing the border shifts the text sideways. */
+/* The border carries the state. Never widen it: growing the border shifts
+   the text sideways. */
 .md-field:focus {
-  border-color: hsl(var(--md-sys-color-primary));
-  box-shadow: 0 0 0 3px hsl(var(--md-sys-color-primary) / 0.14);
+  border-color: hsl(var(--md-sys-color-on-surface) / 0.55);
 }
 .md-field::placeholder { color: hsl(var(--md-sys-color-on-surface-variant)); }
 
@@ -454,24 +454,23 @@ html:has(.hero-lock) body { overflow: hidden; height: var(--vph); }
 
 /* The search field. A ring rather than a thicker border, for the same reason
    .md-field gives: growing the border nudges the text sideways. */
+/* The search field. Deliberately no ring, no glow and no shadow: the state
+   is carried entirely by the border darkening, which is the quietest thing
+   that still meets the requirement for a visible focus indicator. The border
+   width never changes, because growing it nudges the text sideways. */
 .search-shell {
   border: 1px solid hsl(var(--md-sys-color-outline-variant));
   background: hsl(var(--md-sys-color-surface-container-low));
   transition:
     border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
-    box-shadow var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate),
     background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 .search-shell:hover {
   border-color: hsl(var(--md-sys-color-outline));
-  box-shadow: 0 1px 3px hsl(var(--md-sys-color-shadow) / 0.06);
 }
 .search-shell:focus-within {
-  border-color: hsl(var(--md-sys-color-primary) / 0.55);
+  border-color: hsl(var(--md-sys-color-on-surface) / 0.55);
   background: hsl(var(--md-sys-color-surface));
-  box-shadow:
-    0 0 0 4px hsl(var(--md-sys-color-primary) / 0.10),
-    0 2px 10px hsl(var(--md-sys-color-shadow) / 0.05);
 }
 
 /* Assist chip. Lifts a hair on hover and settles on press, which is the
@@ -495,9 +494,8 @@ html:has(.hero-lock) body { overflow: hidden; height: var(--vph); }
 }
 .chip:active { transform: translateY(0); }
 .chip:focus-visible {
-  outline: none;
-  border-color: hsl(var(--md-sys-color-primary) / 0.6);
-  box-shadow: 0 0 0 3px hsl(var(--md-sys-color-primary) / 0.12);
+  outline: 2px solid hsl(var(--md-sys-color-on-surface) / 0.55);
+  outline-offset: 2px;
 }
 
 /* Icon button. p-1 around a 14px glyph is a ~22px target, under the 24px
@@ -522,8 +520,8 @@ html:has(.hero-lock) body { overflow: hidden; height: var(--vph); }
 }
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px hsl(var(--md-sys-color-primary) / 0.14);
+  outline: 2px solid hsl(var(--md-sys-color-on-surface) / 0.55);
+  outline-offset: 2px;
 }
 .icon-btn-accent:hover { color: hsl(var(--md-sys-color-primary)); }
 
@@ -537,12 +535,11 @@ html:has(.hero-lock) body { overflow: hidden; height: var(--vph); }
     box-shadow var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
 }
 .seg-tab-on {
-  box-shadow: var(--md-sys-elevation-level1);
-  border: 1px solid hsl(var(--md-sys-color-outline-variant) / 0.7);
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
 }
 .seg-tab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px hsl(var(--md-sys-color-primary) / 0.14);
+  outline: 2px solid hsl(var(--md-sys-color-on-surface) / 0.55);
+  outline-offset: 2px;
 }
 
 .stat-card {
