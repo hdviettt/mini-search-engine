@@ -22,6 +22,7 @@ import psycopg
 
 from config import BM25_B, BM25_K1
 from indexer.tokenizer import tokenize
+from search.ranking import min_should_match
 
 # Field weights for BM25F — title matches are far more relevant
 TITLE_WEIGHT = 4.0
@@ -79,6 +80,9 @@ def search_bm25(
 
     idf_cache: dict[str, float] = {}
     scores: dict[int, float] = {}
+    # Which distinct query terms each page actually contains, for the
+    # minimum-should-match filter below.
+    matched: dict[int, set[str]] = {}
 
     for term, page_id, tf, title_freq, body_freq, doc_length, doc_freq in rows:
         idf = idf_cache.get(term)
@@ -96,5 +100,14 @@ def search_bm25(
         term_score = idf * (numerator / denominator) * term_counts.get(term, 1)
 
         scores[page_id] = scores.get(page_id, 0.0) + term_score
+        matched.setdefault(page_id, set()).add(term)
+
+    # Minimum should match. Policy lives in search/ranking.py so the engine and
+    # the explainer cannot disagree about what counts as a candidate; it is
+    # applied here because this is where matching happens, which means both
+    # paths inherit it without either having to remember.
+    required = min_should_match(len(set(query_terms)))
+    if required > 1:
+        scores = {pid: sc for pid, sc in scores.items() if len(matched.get(pid, ())) >= required}
 
     return scores

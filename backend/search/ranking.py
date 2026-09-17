@@ -5,6 +5,7 @@ canvas shows) both rank results. When they each carried their own copy of the
 freshness formula they drifted, and the canvas explained scoring the engine
 did not actually perform. Everything either of them needs to score lives here.
 """
+import math
 import os
 from math import exp
 
@@ -117,6 +118,28 @@ def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONU
             if len(tok) >= 4 and tok in label:
                 return bonus
     return 1.0
+
+
+# How many distinct query terms a document must contain to be a candidate.
+#
+# BM25 as written admits any document matching any single term, which is fine
+# for "messi" and useless for a four-word query about something the corpus has
+# never heard of. "sourdough starter hydration ratio" matches football pages on
+# "starter" alone, because a starter is also a player who starts. Two of the
+# five nonsense queries in the eval leak this way.
+#
+# The ramp is deliberately gentle. Requiring every term would wreck recall on
+# long natural-language queries, which is the opposite failure and a quieter
+# one. Short queries are left alone entirely: with one or two terms there is no
+# redundancy to exploit and demanding both only loses results.
+MIN_SHOULD_MATCH_RATIO = 0.5
+
+
+def min_should_match(n_distinct_terms: int) -> int:
+    """Minimum distinct query terms a document must contain."""
+    if n_distinct_terms <= 2:
+        return 1
+    return max(2, math.ceil(n_distinct_terms * MIN_SHOULD_MATCH_RATIO))
 
 
 def normalize_scores(scores: dict[int, float]) -> dict[int, float]:
