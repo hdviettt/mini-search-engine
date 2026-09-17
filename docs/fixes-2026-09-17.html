@@ -81,8 +81,8 @@
 chat   -> 404  {"error":{"message":"The model `llama-3.3-70b-versatile`
                 does not exist or you do not have access to it.",
                 "code":"model_not_found"}}</div>
-  <p>Groq now serves five chat models on the account. <code>openai/gpt-oss-120b</code> is the largest and is the new default, verified against the real overview prompt at <code>AI_OVERVIEW_MAX_TOKENS = 300</code>: 1.08 s, five sources, citations parsing correctly as <code>[1]</code>.</p>
-  <p>Two traps for the next model change, both found by testing rather than reading docs. The <code>gpt-oss</code> family are reasoning models and reasoning tokens come out of <code>max_tokens</code>, so <code>gpt-oss-20b</code> spends the whole 300 thinking and returns an empty string. And setting <code>reasoning_effort: low</code> makes the model emit fullwidth <code>【1】</code> brackets, which the frontend's <code>[1]</code> citation parser does not match.</p>
+  <p>Groq now serves five chat models on the account. <code>openai/gpt-oss-120b</code> is the largest and is the new default, verified against the real overview prompt: 1.08 s, five sources, citations parsing correctly as <code>[1]</code>. (The token cap needed raising too, see finding 06.)</p>
+  <p>Two traps for the next model change, both found by testing rather than reading docs. The <code>gpt-oss</code> family are reasoning models and reasoning tokens come out of <code>max_tokens</code>, so <code>gpt-oss-20b</code> spent the whole original 300 thinking and returned an empty string. And setting <code>reasoning_effort: low</code> makes the model emit fullwidth <code>【1】</code> brackets, which the frontend's <code>[1]</code> citation parser does not match.</p>
 </div>
 
 <div class="finding fixed">
