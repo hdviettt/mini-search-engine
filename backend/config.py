@@ -170,9 +170,24 @@ BM25_B = 0.75
 RANK_ALPHA = 0.8
 
 # Freshness signal — exponential decay: floor + (1-floor)*exp(-days*decay)
-# Pages < 7 days old receive a 1.15x bonus to surface recent news
-FRESHNESS_DECAY = 0.02   # decay constant (90 days old ≈ 0.58 multiplier)
-FRESHNESS_FLOOR = 0.5    # minimum multiplier for very stale content
+#
+# Read what this is actually measuring before tuning it. The input is
+# COALESCE(last_checked_at, crawled_at): when *we* last fetched the page, not
+# when it was written or updated. Those are different things, and conflating
+# them makes crawl scheduling leak into relevance.
+#
+# With a floor of 0.5 the swing was 2.4x, from 1.2 for anything fetched this
+# week down to 0.5 for anything fetched six months ago. A single crawl that
+# added 300 news pages therefore demoted the entire reference corpus by
+# construction: "offside rule" started returning Independent and Mirror
+# comment pieces above "Offside (association football)", not because they are
+# better answers but because they had been fetched more recently.
+#
+# Narrowed to a 0.85-1.0 band until freshness is computed from a published
+# date rather than a crawl date. It should be a tiebreak between comparable
+# results, not a signal strong enough to reorder the corpus.
+FRESHNESS_DECAY = 0.02   # decay constant (90 days old ≈ 0.91 multiplier)
+FRESHNESS_FLOOR = 0.85   # minimum multiplier for content we fetched long ago
 
 # PageRank
 PAGERANK_DAMPING = 0.85

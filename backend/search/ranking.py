@@ -43,10 +43,13 @@ RERANK_MIN_SCORE = -8.0
 MAX_PER_DOMAIN = 2
 
 # Pages newer than this get an extra nudge, capped so a fresh-but-weak page
-# cannot outrank a strong one.
+# cannot outrank a strong one. "Newer" means recently fetched, see the note on
+# FRESHNESS_FLOOR in config.py; until that reflects a published date the nudge
+# stays small, because otherwise it rewards whatever the crawler happened to
+# visit last.
 RECENT_DAYS = 7
-RECENT_BONUS = 1.15
-RECENT_BONUS_CAP = 1.2
+RECENT_BONUS = 1.05
+RECENT_BONUS_CAP = 1.06
 
 
 # Multiplier when a query term names the host a result sits on.
