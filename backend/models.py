@@ -25,6 +25,11 @@ class SearchResponse(BaseModel):
     page: int = 1
     per_page: int = 10
     time_ms: float
+    # Set when the results shown are for a corrected spelling. `query` stays
+    # the corrected one that produced these results; `original_query` is what
+    # was typed, so the UI can say "showing results for X, search instead for Y".
+    correction: str | None = None
+    original_query: str | None = None
 
 
 class OverviewSource(BaseModel):

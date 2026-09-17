@@ -18,6 +18,7 @@ from db import close_pool, db_conn, get_db, init_db, streaming_conn
 from logging_config import setup_logging
 from models import ChatRequest, OverviewResponse, SearchResponse
 from search.engine import search
+from search.spellcheck import spell_checker
 
 setup_logging()
 log = logging.getLogger(__name__)
@@ -166,6 +167,7 @@ def api_search(
     conn: psycopg.Connection = Depends(get_db),
 ):
     result = search(conn, q, page, per_page)
+    result = _maybe_correct(conn, q, page, per_page, result)
     try:
         conn.execute(
             "INSERT INTO query_log (query, results_count, time_ms) VALUES (%s, %s, %s)",
@@ -175,6 +177,40 @@ def api_search(
     except Exception:
         conn.rollback()
         log.warning("Failed to log query %r", q, exc_info=True)
+    return result
+
+
+def _maybe_correct(conn, q: str, page: int, per_page: int, result: dict) -> dict:
+    """Retry a misspelled query against the corrected spelling.
+
+    Spell correction existed and was wired to /api/search/explain only, so it
+    had never run for a real search. The trigger there was `total_results == 0`,
+    which is the wrong test for the common case: in "premeir league" the word
+    "league" matches thousands of documents on its own, so the result count is
+    never zero and the misspelling is simply ignored. That query scored 0.356.
+
+    The right signal is whether a word is in the corpus vocabulary at all,
+    which is what correct_query already decides; it returns None when nothing
+    needed changing, and it will not touch a word that appears in the index,
+    so real names stay untouched.
+
+    The corrected query has to earn the swap by matching strictly more
+    documents. That keeps a novel proper noun, absent from the corpus and so
+    technically out of vocabulary, from being rewritten into something wrong.
+    """
+    if not q.strip() or page != 1:
+        return result
+    try:
+        correction = spell_checker.correct_query(q, conn)
+        if not correction or correction.lower() == q.lower():
+            return result
+        corrected = search(conn, correction, page, per_page)
+        if corrected.get("total_results", 0) > result.get("total_results", 0):
+            corrected["correction"] = correction
+            corrected["original_query"] = q
+            return corrected
+    except Exception:
+        log.warning("Spell correction failed for %r", q, exc_info=True)
     return result
 
 
