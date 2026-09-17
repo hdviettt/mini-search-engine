@@ -86,34 +86,47 @@ def _scope():
 
 def test_a_sites_own_football_paths_are_in_scope():
     ok = _scope()
-    assert ok("https://www.bbc.com/sport/football/premier-league")
-    assert ok("https://www.espn.com/soccer/scoreboard")
-    assert ok("https://www.theguardian.com/football/2026/sep/01/match-report")
-    assert ok("https://www.premierleague.com/news/12345")
+    assert ok("https://www.skysports.com/football/news/12345")
+    assert ok("https://www.mirror.co.uk/sport/football/news/123")
+    assert ok("https://www.independent.co.uk/sport/football/match-report")
+    assert ok("https://en.wikipedia.org/wiki/Lionel_Messi")
 
 
-def test_general_news_on_a_football_source_is_out_of_scope():
-    """The two headlines that actually reached the index."""
+def test_general_sections_of_a_mixed_publisher_are_out_of_scope():
+    """A general news site is in scope only for its football section."""
     ok = _scope()
-    assert not ok("https://www.bbc.com/news/business/pound-sterling")
-    assert not ok("https://www.bbc.com/news/world-europe-12345")
+    assert not ok("https://www.mirror.co.uk/news/politics/123")
+    assert not ok("https://www.independent.co.uk/news/world/123")
+    assert not ok("https://www.skysports.com/boxing/news/1")
 
 
-def test_other_sections_of_a_football_source_are_out_of_scope():
+def test_a_single_topic_site_is_in_scope_everywhere():
+    """football365, teamtalk and caughtoffside publish nothing but football."""
     ok = _scope()
-    assert not ok("https://www.theguardian.com/money/2001/apr/14/houseprices")
-    assert not ok("https://www.espn.com/boxing/story/123")
-    assert not ok("https://www.theguardian.com/film/movie/69348/fever-pitch")
+    assert ok("https://www.football365.com/news/anything")
+    assert ok("https://www.football365.com/f365-features/x")
+    assert ok("https://www.teamtalk.com/arsenal/story")
+    assert ok("https://www.caughtoffside.com/2026/09/17/some-story/")
 
 
-def test_a_news_path_is_only_honoured_for_the_site_it_was_written_for():
-    ok = _scope()
-    assert ok("https://www.premierleague.com/news/999")
-    assert not ok("https://www.bbc.com/news/999")
+def test_the_wildcard_is_scoped_to_its_own_domain():
+    """The distinction the bare "/" in the old shared list did not make.
 
-
-def test_an_unlisted_domain_falls_back_to_the_conservative_default():
+    That entry was added for one site and matched every path on every host,
+    which turned the whole filter into a no-op.
+    """
     from config import ALLOWED_PATH_PATTERNS, DOMAIN_PATH_PATTERNS
+    assert "*" in DOMAIN_PATH_PATTERNS["www.football365.com"]
+    assert "*" not in DOMAIN_PATH_PATTERNS["www.mirror.co.uk"]
+    assert "*" not in ALLOWED_PATH_PATTERNS
     assert "/" not in ALLOWED_PATH_PATTERNS
-    assert all("/" != p for p in ALLOWED_PATH_PATTERNS)
-    assert "www.bbc.com" in DOMAIN_PATH_PATTERNS
+
+
+def test_a_removed_source_is_no_longer_crawled():
+    """Dropped for yielding no extractable text. Re-test before re-adding."""
+    ok = _scope()
+    for url in ("https://www.bbc.com/sport/football/x",
+                "https://www.espn.com/soccer/x",
+                "https://www.theguardian.com/football/x",
+                "https://www.goal.com/en/x"):
+        assert not ok(url), url

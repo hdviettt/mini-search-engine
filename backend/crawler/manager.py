@@ -251,6 +251,8 @@ class CrawlManager:
         # Other domains: match against that domain's own path patterns, with
         # the conservative default for anything not listed.
         patterns = DOMAIN_PATH_PATTERNS.get(domain, ALLOWED_PATH_PATTERNS)
+        if "*" in patterns:
+            return True  # single-topic site, the whole thing is in scope
         return any(pattern in path for pattern in patterns)
 
     def _get_next_url(self) -> tuple[str, int] | None:

@@ -48,57 +48,62 @@ SEED_URLS = [
     "https://en.wikipedia.org/wiki/List_of_association_football_stadiums_by_capacity",
 
     # ── News ──
-    # Every source below was checked with the crawler's own user agent before
-    # being listed: 200, real HTML, and a useful number of relative links.
-    # Anything that answers 401/403/405 or ships an empty JS shell is in the
-    # rejected list at the bottom of this block, with the reason.
-    "https://www.bbc.com/sport/football",
-    "https://www.bbc.com/sport/football/premier-league",
-    "https://www.bbc.com/sport/football/champions-league",
-    "https://www.bbc.com/sport/football/european",
-    "https://www.espn.com/soccer/",
-    "https://www.espn.com/soccer/scoreboard",
+    # Chosen on measured article yield: how many words the parser actually
+    # extracts from a story page. Hub pages are link lists and yield almost
+    # nothing everywhere, so counting their bytes or their links says nothing
+    # about a source. That mistake is what put five JS-rendered sites on this
+    # list; the rejection table under ALLOWED_DOMAINS records each one.
+    #
+    #   source          indexed/crawled   median article
+    #   football365          (new)           607 words
+    #   mirror.co.uk         67/68 = 99%     603 words
+    #   teamtalk             (new)           428 words
+    #   caughtoffside        (new)           407 words
+    #   independent.co.uk    62/69 = 90%     345 words
+    #   skysports.com        72/145 = 50%
+    "https://www.football365.com/",
+    "https://www.football365.com/news",
+    "https://www.teamtalk.com/",
+    "https://www.teamtalk.com/news",
+    "https://www.caughtoffside.com/",
+    "https://www.mirror.co.uk/sport/football/",
+    "https://www.independent.co.uk/sport/football",
     "https://www.skysports.com/football",
     "https://www.skysports.com/football/news",
     "https://www.skysports.com/premier-league-news",
-    "https://www.theguardian.com/football",
-    "https://www.theguardian.com/football/premierleague",
-    "https://www.theguardian.com/football/championsleague",
-    "https://www.goal.com/en",
-    "https://www.goal.com/en/premier-league/ppfcs6ldw3ex9kbwh6d4qs2nv",
-    "https://www.independent.co.uk/sport/football",
-    "https://talksport.com/football/",
-    "https://www.mirror.co.uk/sport/football/",
-
-    # ── Governing bodies and leagues ──
-    "https://www.uefa.com/uefachampionsleague/",
-    "https://www.uefa.com/uefaeuropaleague/",
-    "https://www.premierleague.com/news",
 ]
 ALLOWED_DOMAINS = [
     "en.wikipedia.org",
-    "www.bbc.com",
-    "www.espn.com",
-    "www.skysports.com",
-    "www.theguardian.com",
-    "www.goal.com",
-    "www.independent.co.uk",
-    "talksport.com",
+    "www.football365.com",
+    "www.teamtalk.com",
+    "www.caughtoffside.com",
     "www.mirror.co.uk",
-    "www.uefa.com",
-    "www.premierleague.com",
-    # Dropped, and why. Re-test before re-adding any of these; all were checked
-    # on 2026-09-17 with the crawler's user agent.
-    #   www.transfermarkt.com  405 Method Not Allowed to any bot UA
-    #   fbref.com              403 Forbidden
-    #   www.reuters.com        401
-    #   apnews.com             403
-    #   www.90min.com          404 on its football hub
-    #   www.football365.com    200 but 4 relative links, JS-rendered shell
-    #   www.eurosport.com      200 but 5 relative links, JS-rendered shell
-    #   www.fifa.com           200 but a 4.5KB SPA shell
-    #   www.givemesport.com    bot-blocked
-    #   www.fourfourtwo.com    broken URL structure
+    "www.independent.co.uk",
+    "www.skysports.com",
+    # Removed, with the measurement that removed them. Each answers 200 with
+    # plenty of bytes and plenty of links, then renders its article text in the
+    # browser, so the crawler stores a shell. The fraction is pages that passed
+    # the quality gate out of pages crawled.
+    #
+    #   www.bbc.com            0/24   median 0 chars of extracted body
+    #   www.espn.com           0/46   median 129 chars
+    #   www.theguardian.com    1/60   median 0 chars
+    #   www.goal.com           0/39   median 62 chars
+    #   www.premierleague.com  0/2    median 44 chars
+    #   www.uefa.com          11/73   mostly JS, median 233 chars
+    #   talksport.com                 disallowed by robots.txt
+    #   www.sportsmole.co.uk          403
+    #   www.transfermarkt.com         405 to any bot UA
+    #   fbref.com                     403
+    #   www.reuters.com               401
+    #   apnews.com                    403
+    #   www.90min.com                 404 on its football hub
+    #   www.eurosport.com             JS shell
+    #   www.fourfourtwo.com           JS shell, 0 words extracted
+    #
+    # Pages already crawled from these domains stay in the index if they passed
+    # the quality gate. Dropping a source stops us fetching more of it; it is
+    # not a reason to discard content that is already good.
 ]
 MAX_PAGES = 3000
 MAX_DEPTH = 3
@@ -116,20 +121,17 @@ REQUEST_TIMEOUT = 10  # seconds
 # football index and then ranked for "bbc sport football".
 #
 # A path pattern is only ever meaningful for the site it was written for.
+# "*" means the whole site is in scope. Honest for a site that publishes only
+# football, and not the same trap as the bare "/" that used to sit in the
+# shared list: this applies solely to the domain it is written under.
 DOMAIN_PATH_PATTERNS = {
-    "www.bbc.com":           ["/sport/football", "/sport/soccer"],
-    "www.espn.com":          ["/soccer"],
+    "www.football365.com":   ["*"],
+    "www.teamtalk.com":      ["*"],
+    "www.caughtoffside.com": ["*"],
     "www.skysports.com":     ["/football", "/premier-league"],
-    "www.theguardian.com":   ["/football"],
-    "www.goal.com":          ["/en/", "/premier-league", "/champions-league"],
-    "www.independent.co.uk": ["/sport/football"],
-    "talksport.com":         ["/football"],
     "www.mirror.co.uk":      ["/sport/football"],
-    "www.uefa.com":          ["/uefachampionsleague", "/uefaeuropaleague", "/uefaeuro",
-                              "/uefanationsleague", "/uefaconferenceleague"],
-    "www.premierleague.com": ["/news", "/clubs", "/players", "/fixtures", "/tables", "/stats"],
+    "www.independent.co.uk": ["/sport/football"],
 }
-
 # Applied to an allowed domain that has no entry above. Conservative, because
 # an unlisted domain is one nobody has looked at yet.
 ALLOWED_PATH_PATTERNS = ["/football", "/soccer"]
