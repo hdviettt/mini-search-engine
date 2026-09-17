@@ -31,19 +31,28 @@ class SpellChecker:
     def __init__(self):
         self._vocab: set[str] = set()
         self._by_len: dict[int, list[str]] = {}
+        self._freq: dict[str, int] = {}
         self._loaded = False
         self._lock = threading.Lock()
 
     def _load(self, conn):
+        # No LIMIT. It was 5000 while the corpus was already larger, so the
+        # tail of the index was invisible to the corrector.
         rows = conn.execute(
-            "SELECT title FROM pages WHERE title IS NOT NULL AND is_dead = false LIMIT 5000"
+            "SELECT title FROM pages WHERE title IS NOT NULL AND is_dead = false"
         ).fetchall()
         words: set[str] = set()
+        freq: dict[str, int] = {}
         for (title,) in rows:
             for raw in title.split():
                 word = re.sub(r"[^a-z]", "", raw.lower())
                 if 3 <= len(word) <= 20:
                     words.add(word)
+                    # How often a word appears across page titles. Titles are
+                    # where entity names live, so this is a good stand-in for
+                    # "how likely was this the intended word", and it is cheap
+                    # next to counting postings over 3.5M rows.
+                    freq[word] = freq.get(word, 0) + 1
 
         # Add all indexed stems — these are known-valid words (player names, entities, etc.)
         # Any word whose stem appears in the index is treated as valid and won't be over-corrected.
@@ -57,6 +66,7 @@ class SpellChecker:
             by_len.setdefault(len(w), []).append(w)
         self._vocab = words
         self._by_len = by_len
+        self._freq = freq
         self._loaded = True
 
     def correct_query(self, query: str, conn) -> str | None:
@@ -83,9 +93,17 @@ class SpellChecker:
                 corrected.append(word)
                 continue
 
-            # Find closest word within edit distance 2
+            # Closest word within edit distance 2, ties broken by how common
+            # the word is.
+            #
+            # Distance alone is not enough to pick a winner. In a 200k-word
+            # vocabulary a great many words sit exactly two edits from any
+            # given typo, and the old `d < best_dist` test kept whichever one
+            # set iteration happened to reach first. "premeir league" is two
+            # edits from "premier", and also from a pile of words nobody meant;
+            # it drew one of those and the query stayed broken.
             best: str | None = None
-            best_dist = 3
+            best_key: tuple[int, int] | None = None
             wlen = len(clean)
             candidates: list[str] = []
             for delta in range(-2, 3):
@@ -93,8 +111,13 @@ class SpellChecker:
 
             for candidate in candidates:
                 d = _levenshtein(clean, candidate, cutoff=2)
-                if d < best_dist:
-                    best_dist = d
+                if d > 2:
+                    continue
+                # Smaller distance wins; at equal distance, the word that
+                # appears in more page titles wins.
+                key = (d, -self._freq.get(candidate, 0))
+                if best_key is None or key < best_key:
+                    best_key = key
                     best = candidate
 
             if best:
