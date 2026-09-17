@@ -69,6 +69,26 @@ _HOST_NOISE = frozenset({
 })
 
 
+# The same signal again, in the units the reranked head is sorted in.
+#
+# Anything multiplied into the combined score only decides which candidates
+# enter the cross-encoder. The head is then ordered by the model's logits
+# alone, so a pre-rerank bonus is invisible in the final ranking. The
+# cross-encoder was trained on passage relevance and has no concept of "the
+# user named this publisher", so the signal has to be reapplied afterwards.
+#
+# Additive because logits are not a ratio scale; they run roughly -11 to +11
+# here and RERANK_MIN_SCORE sits at -8. Two logits is a firm nudge, not an
+# override: a page the model considers badly irrelevant still loses.
+SITE_MATCH_RERANK_BONUS = 2.0
+
+
+def site_match_rerank_bonus(query_tokens, url: str) -> float:
+    """Logit bonus for a reranked result whose host the query named."""
+    matched = site_match_multiplier(query_tokens, url) > 1.0
+    return SITE_MATCH_RERANK_BONUS if matched else 0.0
+
+
 def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONUS) -> float:
     """Boost a result whose host is named in the query.
 

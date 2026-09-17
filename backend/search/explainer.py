@@ -15,6 +15,7 @@ from search.ranking import (
     freshness_multiplier,
     normalize_scores,
     site_match_multiplier,
+    site_match_rerank_bonus,
 )
 
 
@@ -239,6 +240,13 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
             pre_rerank_order[page_id] = i + 1
 
     reranked = rerank(query, rerank_candidates, top_k=len(rerank_candidates))
+    # Same logit bonus the engine applies, for the same reason: the head is
+    # ordered by rerank score, so a signal left in the combined score alone
+    # would not reach the ranking this view claims to explain.
+    for c in reranked:
+        if c.get("rerank_score") is not None:
+            c["rerank_score"] += site_match_rerank_bonus(site_tokens, c.get("url") or "")
+    reranked.sort(key=lambda c: (c.get("rerank_score") is not None, c.get("rerank_score") or 0), reverse=True)
     # Filter clearly irrelevant results
     reranked = [c for c in reranked if c.get("rerank_score") is None or c["rerank_score"] > RERANK_MIN_SCORE]
 

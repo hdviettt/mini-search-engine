@@ -20,6 +20,7 @@ from search.ranking import (
     freshness_multiplier,
     normalize_scores,
     site_match_multiplier,
+    site_match_rerank_bonus,
 )
 
 # Re-exported for search.explainer, which shares this scoring path.
@@ -168,7 +169,13 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
         ]
         for c in rerank(query, candidates, top_k=len(candidates)):
             if c.get("rerank_score") is not None:
-                rerank_scores[c["page_id"]] = c["rerank_score"]
+                # The site signal is reapplied here, in logit space. Applied
+                # only to `combined` it would decide which pages reach the
+                # model and then vanish, because the head is ordered by the
+                # model's scores alone.
+                rerank_scores[c["page_id"]] = c["rerank_score"] + site_match_rerank_bonus(
+                    site_tokens, c.get("url") or ""
+                )
 
     # Reranked pages keep the reranker's order at the head; anything it judged
     # clearly irrelevant drops out entirely.
