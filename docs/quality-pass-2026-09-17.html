@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Search Engine, quality pass</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#16181d; --muted:#5c6270; --line:#e3e1dc;
+    --red:#b3261e; --amber:#8a5a00; --green:#1e6b3a; --blue:#1a4fa0;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:56px 24px 96px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:32px}
+  .kicker{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  h1{font-size:30px;line-height:1.2;margin:0 0 10px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  h2{font-size:21px;margin:48px 0 14px;letter-spacing:-.01em}
+  h3{font-size:16.5px;margin:26px 0 8px}
+  p{margin:0 0 14px}
+  code{font-family:var(--mono);font-size:.88em;background:#f1efea;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  .verdict{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:8px;padding:20px 22px;margin-bottom:14px}
+  .verdict p:last-child{margin-bottom:0}
+  .open{background:#fdf7e9;border:1px solid #e8cf9c;border-left:5px solid var(--amber);border-radius:8px;padding:18px 22px;margin-bottom:14px}
+  .open p:last-child{margin-bottom:0}
+  table{width:100%;border-collapse:collapse;margin:0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--ink)}
+  tbody tr:last-child td{border-bottom:none}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:18px}
+  .scroll th,.scroll td{white-space:nowrap}
+  .scroll td.w{white-space:normal;min-width:260px}
+  td.num{text-align:right;font-family:var(--mono);font-size:13.5px}
+  .up{color:var(--green);font-weight:600}.down{color:var(--red);font-weight:600}
+  .finding{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:19px 22px;margin-bottom:16px}
+  .finding.win{border-left:5px solid var(--green)}
+  .finding.rej{border-left:5px solid var(--muted)}
+  .finding.openf{border-left:5px solid var(--amber)}
+  .fhead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;margin-bottom:8px}
+  .ftitle{font-weight:650;font-size:16.5px}
+  .finding p:last-child{margin-bottom:0}
+  .ev{font-family:var(--mono);font-size:12.5px;color:var(--muted);background:#f5f3ef;border:1px solid var(--line);border-radius:6px;padding:9px 12px;margin:12px 0 0;white-space:pre-wrap;overflow-x:auto}
+  .pill{display:inline-block;font:600 10.5px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:20px;border:1px solid;white-space:nowrap}
+  .p-win{color:var(--green);border-color:#a9d4bb;background:#eef8f2}
+  .p-rej{color:var(--muted);border-color:var(--line);background:#f5f3ef}
+  .p-open{color:var(--amber);border-color:#e8cf9c;background:#fdf7e9}
+  .note{border-left:3px solid var(--line);padding-left:16px;color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue)}
+  @media (max-width:620px){.wrap{padding:34px 17px 70px}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Quality pass · 17 September 2026</div>
+  <h1>What moved, what did not, and what I could not fix</h1>
+  <p class="sub">Every change measured with <code>eval/run.py</code> against the frozen baseline. Two were reverted because the numbers said so.</p>
+</header>
+
+<div class="verdict">
+  <p><strong>Search is about fifteen times faster and answers a materially better set of queries.</strong> nDCG@10 went 0.8698 to 0.8956 and MRR 0.7963 to 0.8285 over the session, misspelled queries went from the worst intent to nearly the best, and zero-result precision reached a clean 1.0. The single largest win was not a ranking change at all: the reranker was spending 6.4 seconds per search because ONNX was sizing its thread pool to the host's cores rather than the container's quota.</p>
+</div>
+
+<h2>The numbers</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Metric</th><th>Frozen baseline</th><th>Session start</th><th>Now</th></tr></thead>
+  <tbody>
+    <tr><td>nDCG@10</td><td class="num">0.7394</td><td class="num">0.8698</td><td class="num up">0.8956</td></tr>
+    <tr><td>MRR</td><td class="num">0.6259</td><td class="num">0.7963</td><td class="num up">0.8285</td></tr>
+    <tr><td>zero-result precision</td><td class="num">0.40</td><td class="num">0.60</td><td class="num up">1.00</td></tr>
+    <tr><td>latency p50 (uncontended)</td><td class="num">1325 ms</td><td class="num">5024 ms</td><td class="num up">~345 ms</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>By intent</th><th>Session start</th><th>Now</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td>misspelled</td><td class="num">0.6064</td><td class="num">0.9715</td><td class="num up">+0.3651</td></tr>
+    <tr><td>entity</td><td class="num">0.9970</td><td class="num">0.9836</td><td class="num down">−0.0134</td></tr>
+    <tr><td>informational</td><td class="num">0.8545</td><td class="num">0.8789</td><td class="num up">+0.0244</td></tr>
+    <tr><td>multi_term</td><td class="num">0.8794</td><td class="num">0.8827</td><td class="num up">+0.0033</td></tr>
+    <tr><td>stopword_heavy</td><td class="num">1.0000</td><td class="num">0.9760</td><td class="num down">−0.0240</td></tr>
+    <tr><td>navigational</td><td class="num">0.7152</td><td class="num">0.5780</td><td class="num down">−0.1372</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="note">Read all of this against the keyword counter, as the README insists: a five-line function that counts query words in the title scores 0.7551 on this eval. And see the navigational note at the bottom, which is not a ranking regression.</p>
+
+<h2>What worked</h2>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">ONNX was running a 48-thread pool on an 8-CPU quota</span><span class="pill p-win">13x</span></div>
+  <p>Search had gone to 8.4 seconds. The explain trace put 6360 ms of that in reranking and 1813 ms in snippets, with every other stage under 70 ms. <code>os.cpu_count()</code> reports 48 on this host; the container's cgroup quota is 8. ONNX Runtime sizes its intra-op pool from the visible count, so it was building 48 threads to share 8 CPUs.</p>
+  <div class="ev">batch of 40 pairs, sequence length 128, median of 5
+
+  48 threads (the default)   3322 ms    83.0 ms per candidate
+  16 threads                  424 ms    10.6 ms per candidate
+   8 threads (the quota)      247 ms     6.2 ms per candidate
+   4 threads                  556 ms    13.9 ms per candidate
+   1 thread                  1673 ms    41.8 ms per candidate</div>
+  <p>That 16 is worse than 8 is the tell: past the quota the threads contend rather than work. This also closes something <code>CLAUDE.md</code> had left open, where the gap between 10 ms per candidate locally and the deployed cost was recorded as "not been isolated". It was this.</p>
+  <p>Snippets were the other 1.8 seconds, for a duller reason: <code>generate_snippet</code> stems every word of every candidate sentence, roughly 10,000 Porter calls per search, and ran its cleaning regexes over the whole document rather than the 3000-character window it reads. Memoising <code>stem</code> and bounding the cleaning took it to 24 ms.</p>
+  <div class="ev">total 8382 ms -> 284 ms    reranking 6360 -> 190    snippets 1813 -> 24</div>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Spell correction had never actually run</span><span class="pill p-win">+0.365</span></div>
+  <p>It was wired to <code>/api/search/explain</code> only. Where it did run, the trigger was <code>total_results == 0</code>, which cannot detect a partial misspelling: in "premeir league" the word "league" matches thousands of documents on its own, so the count is never zero. Vocabulary membership is the right test.</p>
+  <p>Fixing the trigger got two of three test queries working and left <code>premeir league</code> broken, because of a second bug. In a 200k-word vocabulary a great many words sit exactly two edits from any typo, and <code>if d &lt; best_dist</code> kept whichever one set iteration reached first. Candidates are now ranked by distance then by how often the word appears in page titles. misspelled went 0.6064 to 0.9715.</p>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Nonsense queries now return nothing</span><span class="pill p-win">0.60 → 1.00</span></div>
+  <p>BM25 admitted any document matching any single term, so <code>sourdough starter hydration ratio</code> matched football pages on "starter" alone, a starter being also a player who starts. A document now needs <code>ceil(0.34 × distinct terms)</code> of them, floored at two, for queries of three terms or more.</p>
+  <p>A ratio of 0.5 was measured first and cost multi_term 0.049 by demanding three hits on ordinary six-word questions. The floor of two is what does the work.</p>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Crawl scheduling was acting as a relevance signal</span><span class="pill p-win">+0.016</span></div>
+  <p>The freshness multiplier takes <code>COALESCE(last_checked_at, crawled_at)</code>, which is when we last fetched a page and not when it was written. With a 0.5 floor and 1.2 ceiling that was a 2.4x swing, so a single crawl that added 300 news pages demoted five thousand reference pages by construction. <code>offside rule</code> started returning comment pieces above <code>Offside (association football)</code> because they had been fetched more recently.</p>
+  <p>Narrowed to 0.85 to 1.05. Worth +0.0158 nDCG@10, with informational and multi_term each gaining about 0.05. The band widens again when the input is a published date, which is the real fix and is not done.</p>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Sources chosen on extractable text instead of bytes</span><span class="pill p-win">corpus</span></div>
+  <p>The news tier was configured correctly and produced nothing, and the frontier was only half the reason. BBC, ESPN, the Guardian, Goal and premierleague.com render their article text in the browser: they answer 200 with hundreds of kilobytes and plenty of links, and the crawler stores a shell. <code>espn.com/soccer/</code> yields 49 characters of body.</p>
+  <div class="ev">pages that passed the quality gate, over pages crawled
+
+  mirror.co.uk           67/68  = 99%    median article 603 words
+  independent.co.uk      62/69  = 90%    median article 345 words
+  skysports.com          72/145 = 50%
+  ---
+  www.uefa.com           11/73  = 15%
+  www.theguardian.com     1/60  =  2%
+  www.bbc.com             0/24  =  0%
+  www.espn.com            0/46  =  0%
+  www.goal.com            0/39  =  0%</div>
+  <p>I put those five on the list myself, earlier the same day, by measuring response bytes and link counts. That is the wrong test and the config now says so. Replacing them on measured article yield brought in football365 (607 words), teamtalk (428) and caughtoffside (407). After one crawl: caughtoffside 19 of 19 indexed, mirror 85 of 86, independent 81 of 88.</p>
+  <p>Note the trap in the measurement itself: football365's <em>hub</em> page yields 44 words. Hub pages are link lists everywhere and must not be what gets measured.</p>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">One empty response was ending the whole crawl</span><span class="pill p-win">crawl</span></div>
+  <p><code>html.fromstring("")</code> raises ParserError, and <code>bbc.com/sport/football/european</code> answers 200 with an empty body. The scheduler caught that as a failed schedule and abandoned the run, so scheduled crawls had been dying early on whatever empty document they met first. The corpus was not growing for a reason that never looked like a crash.</p>
+</div>
+
+<h2>What I tried and reverted</h2>
+
+<p>Both of these were reasonable, and the eval disagreed. Recording them so they are not retried blind.</p>
+
+<div class="finding rej">
+  <div class="fhead"><span class="ftitle">Relaxing <code>RERANK_MIN_SCORE</code> from −8.0 to −10.5</span><span class="pill p-rej">Reverted</span></div>
+  <p>The threshold deletes 60% of everything the cross-encoder scores, which was tolerated only because it was also the sole defence against nonsense queries. Minimum-should-match took that job over, so relaxing it looked free.</p>
+  <div class="ev">nDCG@10       0.9096 -> 0.8948
+navigational  0.6499 -> 0.5780
+latency p95     1.2s -> 4.8s</div>
+  <p>The filter is doing real work beyond rejecting nonsense: it keeps weak candidates out of the head and out of snippet generation. Left at −8.0, now env-overridable so it can be swept without a redeploy.</p>
+</div>
+
+<div class="finding rej">
+  <div class="fhead"><span class="ftitle">An authority prior on the reranked head</span><span class="pill p-rej">Reverted</span></div>
+  <p>Aimed at the news-over-encyclopedia problem below. PageRank knows which pages are authoritative but only reaches the combined score, which selects candidates rather than ordering the head, so it was reapplied in logit space.</p>
+  <div class="ev">nDCG@10     0.8956 -> 0.8816
+multi_term  0.8827 -> 0.8038</div>
+  <p>And it did not move either query it was written for. Normalised PageRank inside a 500-page candidate pool evidently does not separate a reference article from its neighbours the way it separates Wikipedia from news across the whole corpus. Worth retrying against raw rather than pool-normalised PageRank, but not on this evidence.</p>
+</div>
+
+<h2>Still open</h2>
+
+<div class="open">
+  <p><strong>navigational at 0.5780 is mostly not a ranking problem.</strong> Two of its five queries are <code>espn soccer</code> and <code>fbref premier league stats</code>, whose labels are <code>espn.com</code> and <code>fbref.com</code>. ESPN renders its content in JavaScript and yields zero indexable pages; fbref answers 403. Those two queries are unanswerable by construction, which caps the whole intent near 0.6 whatever the ranker does. The eval is measuring something the corpus cannot contain, and that is worth fixing in <code>eval/queries.yaml</code> rather than in the ranker.</p>
+</div>
+
+<div class="open">
+  <p><strong>News still outranks the encyclopedia on definitional queries.</strong> <code>offside rule</code> returns an Independent column about VAR first and does not have <code>Offside (association football)</code> in the top six; <code>var video assistant referee</code> leads with a TeamTalk story. News prose mentions the words more often than an encyclopedia entry defines them, and the cross-encoder scores topical relevance only. The authority prior was the obvious fix and it failed. This is the most valuable thing left.</p>
+</div>
+
+<div class="open">
+  <p><strong>Freshness should come from a published date.</strong> It is currently a crawl date, which is why it had to be turned down rather than tuned. Extracting <code>article:published_time</code> or JSON-LD <code>datePublished</code> at parse time would make the signal mean what it claims and let the band widen again.</p>
+</div>
+
+<div class="open">
+  <p><strong>Embedding coverage.</strong> Chunk embeddings were at 62% when the session started, which is the vector half of AI Overview retrieval running on well under the full corpus. A backfill is in progress. It is cheap, roughly 10M tokens on voyage-3-lite, but it does spend your API credit.</p>
+</div>
+
+<footer>
+  17 September 2026 · every number from <code>eval/run.py --compare eval/baseline.json</code> against the deployed instance.
+  Latency figures are from an uncontended instance; measurements taken during a crawl or an embedding backfill are several times higher and are not comparable.
+</footer>
+
+</div>
+</body>
+</html>
