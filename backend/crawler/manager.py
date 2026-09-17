@@ -8,6 +8,7 @@ from config import (
     ALLOWED_DOMAINS,
     ALLOWED_PATH_PATTERNS,
     BLOCKED_DOMAINS,
+    DOMAIN_PATH_PATTERNS,
     MAX_DEPTH,
     MAX_PAGES,
     WIKIPEDIA_FOOTBALL_KEYWORDS,
@@ -247,12 +248,10 @@ class CrawlManager:
             path_lower = path.lower()
             return any(kw.lower() in path_lower for kw in WIKIPEDIA_FOOTBALL_KEYWORDS)
 
-        # Other domains: match against allowed path patterns
-        for pattern in ALLOWED_PATH_PATTERNS:
-            if pattern in path:
-                return True
-
-        return False
+        # Other domains: match against that domain's own path patterns, with
+        # the conservative default for anything not listed.
+        patterns = DOMAIN_PATH_PATTERNS.get(domain, ALLOWED_PATH_PATTERNS)
+        return any(pattern in path for pattern in patterns)
 
     def _get_next_url(self) -> tuple[str, int] | None:
         """Pop the next pending URL, rotating fairly across domains.

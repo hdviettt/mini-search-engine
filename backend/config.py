@@ -106,26 +106,33 @@ CRAWL_DELAY = 1.5  # seconds between requests to same domain
 USER_AGENT = "Mozilla/5.0 (compatible; MiniSearchBot/1.0; +https://github.com/hdviettt/mini-search-engine)"
 REQUEST_TIMEOUT = 10  # seconds
 
-# URL filtering — only crawl football-related paths
-# Wikipedia is handled separately via WIKIPEDIA_FOOTBALL_KEYWORDS in crawler/manager.py
-# Substring match against the URL path. Note the trap this used to contain: a
-# bare "/" entry was added for Transfermarkt, and since every path contains "/"
-# it matched everything, which made this whole list a no-op for every
-# non-Wikipedia domain. Transfermarkt is gone and so is the catch-all.
-ALLOWED_PATH_PATTERNS = [
-    "/sport/football",      # BBC
-    "/sport/soccer",        # BBC alternate
-    "/soccer",              # ESPN
-    "/football",            # Sky Sports, Guardian, Independent, Mirror, talkSPORT
-    "/premier-league",      # Sky Sports, Goal
-    "/premierleague",       # Guardian
-    "/championsleague",     # Guardian
-    "/uefachampionsleague", # UEFA
-    "/uefaeuropaleague",    # UEFA
-    "/uefaeuro",            # UEFA
-    "/news",                # premierleague.com, Sky Sports
-    "/en/",                 # Goal locale paths
-]
+# URL filtering — only crawl football-related paths.
+#
+# Per domain, not one global list, and that matters. A shared list was used
+# once and it had two failure modes. A bare "/" entry added for Transfermarkt
+# matched every path on every host, making the whole filter a no-op. Then a
+# "/news" entry added for premierleague.com matched bbc.com/news, which is how
+# "Pound Sterling (GBP) - BBC News" and "Ukraine War - BBC News" ended up in a
+# football index and then ranked for "bbc sport football".
+#
+# A path pattern is only ever meaningful for the site it was written for.
+DOMAIN_PATH_PATTERNS = {
+    "www.bbc.com":           ["/sport/football", "/sport/soccer"],
+    "www.espn.com":          ["/soccer"],
+    "www.skysports.com":     ["/football", "/premier-league"],
+    "www.theguardian.com":   ["/football"],
+    "www.goal.com":          ["/en/", "/premier-league", "/champions-league"],
+    "www.independent.co.uk": ["/sport/football"],
+    "talksport.com":         ["/football"],
+    "www.mirror.co.uk":      ["/sport/football"],
+    "www.uefa.com":          ["/uefachampionsleague", "/uefaeuropaleague", "/uefaeuro",
+                              "/uefanationsleague", "/uefaconferenceleague"],
+    "www.premierleague.com": ["/news", "/clubs", "/players", "/fixtures", "/tables", "/stats"],
+}
+
+# Applied to an allowed domain that has no entry above. Conservative, because
+# an unlisted domain is one nobody has looked at yet.
+ALLOWED_PATH_PATTERNS = ["/football", "/soccer"]
 
 # Wikipedia: only crawl pages whose URL path contains a football-related keyword
 WIKIPEDIA_FOOTBALL_KEYWORDS = [
