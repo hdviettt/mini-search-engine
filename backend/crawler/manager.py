@@ -123,6 +123,11 @@ def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_tex
 
 
 class CrawlManager:
+    # How many pops between refreshes of the pending-domain list. The GROUP BY
+    # behind it scans the frontier, and the frontier changes slowly relative to
+    # a crawl rate limited to one page per 1.5s per domain.
+    DOMAIN_REFRESH_EVERY = 50
+
     def __init__(self, conn: psycopg.Connection, extra_domains: list[str] | None = None, restrict_domains: bool = True):
         self.conn = conn
         self.fetcher = Fetcher()
@@ -130,6 +135,10 @@ class CrawlManager:
         self.allowed_domains = set(ALLOWED_DOMAINS)
         if extra_domains:
             self.allowed_domains.update(extra_domains)
+        # Frontier rotation state, see _get_next_url.
+        self._rr_index = 0
+        self._domains_cache: list[str] | None = None
+        self._pops_since_refresh = 0
 
     def seed(self, urls: list[str], clear_queue: bool = False):
         """Add seed URLs to the crawl queue.
@@ -152,8 +161,9 @@ class CrawlManager:
                 log.warning("[seed] rejected out-of-scope URL: %s", url)
                 continue
             self.conn.execute(
-                "INSERT INTO crawl_queue (url, depth) VALUES (%s, 0) ON CONFLICT (url) DO NOTHING",
-                (url,),
+                """INSERT INTO crawl_queue (url, depth, domain) VALUES (%s, 0, %s)
+                   ON CONFLICT (url) DO NOTHING""",
+                (url, urlparse(url).netloc.lower()),
             )
             accepted += 1
         self.conn.commit()
@@ -213,18 +223,68 @@ class CrawlManager:
         return False
 
     def _get_next_url(self) -> tuple[str, int] | None:
-        """Pop the next pending URL from the queue."""
-        row = self.conn.execute(
-            "SELECT id, url, depth FROM crawl_queue WHERE status = 'pending' ORDER BY id LIMIT 1"
-        ).fetchone()
-        if row is None:
+        """Pop the next pending URL, rotating fairly across domains.
+
+        This used to be `ORDER BY id LIMIT 1`, strict FIFO over the whole
+        frontier, and that quietly destroyed the corpus. A Wikipedia article
+        carries 300 to 600 outgoing links and a news article carries a handful,
+        so two levels in, the queue is essentially all Wikipedia, and FIFO then
+        guarantees it stays that way forever. Measured before this change:
+        188,121 pending URLs, of which a 60,000 sample held 59,965 Wikipedia,
+        21 ESPN, 7 Guardian and 7 BBC. BBC and ESPN were seeds and had one
+        page each in the index. Every news URL sat behind ~180,000 Wikipedia
+        URLs it would never get past, so the whole corpus aged into Wikipedia
+        while the sources that carry current events were never fetched.
+
+        Round-robin fixes the cause rather than the symptom: each domain with
+        pending work gets a turn, so a prolific link graph can no longer starve
+        a sparse one. Within a domain the cheapest URL wins, shallowest first.
+        """
+        domains = self._pending_domains()
+        if not domains:
             return None
-        queue_id, url, depth = row
-        self.conn.execute(
-            "UPDATE crawl_queue SET status = 'crawling' WHERE id = %s", (queue_id,)
-        )
-        self.conn.commit()
-        return url, depth
+
+        # Continue the rotation from wherever the last pop left it, so a long
+        # crawl keeps cycling instead of restarting at the same domain.
+        start = self._rr_index % len(domains)
+        for offset in range(len(domains)):
+            domain = domains[(start + offset) % len(domains)]
+            row = self.conn.execute(
+                """SELECT id, url, depth FROM crawl_queue
+                   WHERE status = 'pending' AND domain = %s
+                   ORDER BY depth, id LIMIT 1""",
+                (domain,),
+            ).fetchone()
+            if row is None:
+                continue
+            queue_id, url, depth = row
+            self.conn.execute(
+                "UPDATE crawl_queue SET status = 'crawling' WHERE id = %s", (queue_id,)
+            )
+            self.conn.commit()
+            self._rr_index = (start + offset + 1) % len(domains)
+            return url, depth
+
+        return None
+
+    def _pending_domains(self) -> list[str]:
+        """Domains with pending work, refreshed periodically rather than per pop.
+
+        The GROUP BY is over the whole frontier, so it is not something to run
+        before every fetch. Crawling is rate limited to one page per 1.5s per
+        domain anyway, so a list that is a few dozen pages stale costs nothing.
+        """
+        if self._domains_cache is None or self._pops_since_refresh >= self.DOMAIN_REFRESH_EVERY:
+            rows = self.conn.execute(
+                """SELECT domain FROM crawl_queue
+                   WHERE status = 'pending' AND domain IS NOT NULL
+                   GROUP BY domain ORDER BY domain"""
+            ).fetchall()
+            self._domains_cache = [d for (d,) in rows]
+            self._pops_since_refresh = 0
+        else:
+            self._pops_since_refresh += 1
+        return self._domains_cache
 
     def _count_crawled(self) -> int:
         row = self.conn.execute("SELECT COUNT(*) FROM pages").fetchone()
@@ -269,9 +329,9 @@ class CrawlManager:
             # Enqueue if in scope and within depth limit
             if self._is_in_scope(link_url, depth=depth + 1) and depth + 1 <= MAX_DEPTH:
                 self.conn.execute(
-                    """INSERT INTO crawl_queue (url, depth)
-                       VALUES (%s, %s) ON CONFLICT (url) DO NOTHING""",
-                    (link_url, depth + 1),
+                    """INSERT INTO crawl_queue (url, depth, domain)
+                       VALUES (%s, %s, %s) ON CONFLICT (url) DO NOTHING""",
+                    (link_url, depth + 1, urlparse(link_url).netloc.lower()),
                 )
 
     def _mark_queue_status(self, url: str, status: str):

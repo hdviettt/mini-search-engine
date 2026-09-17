@@ -413,26 +413,36 @@ class CrawlScheduler:
 
         log.info("[scheduler] No schedules found. Creating defaults...")
 
-        # Weekly: re-crawl top 50 pages by PageRank to keep high-value content fresh
+        # Daily: re-crawl the highest-authority pages so they do not go stale.
         self.add(
             seed_urls=[],
-            max_pages=50,
-            interval_hours=168.0,  # 7 days
+            max_pages=300,
+            interval_hours=24.0,
             strategy="top_pagerank",
             max_depth=0,
         )
 
-        # Daily: discover new content from seed URLs
+        # Every six hours: discover new content from the seeds.
+        #
+        # The old numbers were 30 pages a day at depth 1, which cannot grow a
+        # corpus: 5,381 pages had accumulated over six months and 72% of them
+        # had not been re-fetched in three. Depth 2 matters for the news tier,
+        # where a section page links to articles that link to more articles.
+        #
+        # 600 is affordable because the rate limit is per-domain and the
+        # frontier now rotates across domains: consecutive fetches are usually
+        # different hosts, so the 1.5s delay rarely actually sleeps. Under the
+        # old FIFO every fetch was Wikipedia and so every fetch paid it.
         from config import SEED_URLS
         self.add(
             seed_urls=SEED_URLS,
-            max_pages=30,
-            interval_hours=24.0,
+            max_pages=600,
+            interval_hours=6.0,
             strategy="seed",
-            max_depth=1,
+            max_depth=2,
         )
 
-        log.info("[scheduler] Created 2 default schedules (weekly top-pagerank refresh, daily seed discovery).")
+        log.info("[scheduler] Created 2 default schedules (daily top-pagerank refresh, 6-hourly seed discovery).")
 
     def add(self, seed_urls: list[str], max_pages: int, interval_hours: float,
             strategy: str = "seed", max_depth: int = 1) -> str:

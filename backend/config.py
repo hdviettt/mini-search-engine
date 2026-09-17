@@ -47,32 +47,33 @@ SEED_URLS = [
     "https://en.wikipedia.org/wiki/Association_football_tactics_and_skills",
     "https://en.wikipedia.org/wiki/List_of_association_football_stadiums_by_capacity",
 
-    # ── News: BBC Sport ──
+    # ── News ──
+    # Every source below was checked with the crawler's own user agent before
+    # being listed: 200, real HTML, and a useful number of relative links.
+    # Anything that answers 401/403/405 or ships an empty JS shell is in the
+    # rejected list at the bottom of this block, with the reason.
     "https://www.bbc.com/sport/football",
     "https://www.bbc.com/sport/football/premier-league",
     "https://www.bbc.com/sport/football/champions-league",
-
-    # ── News: ESPN Soccer ──
+    "https://www.bbc.com/sport/football/european",
     "https://www.espn.com/soccer/",
-
-    # ── News: Sky Sports ──
+    "https://www.espn.com/soccer/scoreboard",
     "https://www.skysports.com/football",
-
-    # ── News: The Guardian ──
+    "https://www.skysports.com/football/news",
+    "https://www.skysports.com/premier-league-news",
     "https://www.theguardian.com/football",
+    "https://www.theguardian.com/football/premierleague",
+    "https://www.theguardian.com/football/championsleague",
+    "https://www.goal.com/en",
+    "https://www.goal.com/en/premier-league/ppfcs6ldw3ex9kbwh6d4qs2nv",
+    "https://www.independent.co.uk/sport/football",
+    "https://talksport.com/football/",
+    "https://www.mirror.co.uk/sport/football/",
 
-    # ── Data: Transfermarkt ──
-    "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1",
-    "https://www.transfermarkt.com/laliga/startseite/wettbewerb/ES1",
-    "https://www.transfermarkt.com/serie-a/startseite/wettbewerb/IT1",
-
-    # ── Stats: FBref (clean HTML, no JS, all football data) ──
-    "https://fbref.com/en/comps/9/Premier-League-Stats",
-    "https://fbref.com/en/comps/12/La-Liga-Stats",
-    "https://fbref.com/en/comps/11/Serie-A-Stats",
-    "https://fbref.com/en/comps/20/Bundesliga-Stats",
-    "https://fbref.com/en/comps/13/Ligue-1-Stats",
-    "https://fbref.com/en/comps/8/Champions-League-Stats",
+    # ── Governing bodies and leagues ──
+    "https://www.uefa.com/uefachampionsleague/",
+    "https://www.uefa.com/uefaeuropaleague/",
+    "https://www.premierleague.com/news",
 ]
 ALLOWED_DOMAINS = [
     "en.wikipedia.org",
@@ -80,10 +81,24 @@ ALLOWED_DOMAINS = [
     "www.espn.com",
     "www.skysports.com",
     "www.theguardian.com",
-    "www.transfermarkt.com",
-    "fbref.com",
-    # Dropped: www.goal.com (404/JS SPA), www.givemesport.com (bot-blocked),
-    #          www.fourfourtwo.com (broken URL structure)
+    "www.goal.com",
+    "www.independent.co.uk",
+    "talksport.com",
+    "www.mirror.co.uk",
+    "www.uefa.com",
+    "www.premierleague.com",
+    # Dropped, and why. Re-test before re-adding any of these; all were checked
+    # on 2026-09-17 with the crawler's user agent.
+    #   www.transfermarkt.com  405 Method Not Allowed to any bot UA
+    #   fbref.com              403 Forbidden
+    #   www.reuters.com        401
+    #   apnews.com             403
+    #   www.90min.com          404 on its football hub
+    #   www.football365.com    200 but 4 relative links, JS-rendered shell
+    #   www.eurosport.com      200 but 5 relative links, JS-rendered shell
+    #   www.fifa.com           200 but a 4.5KB SPA shell
+    #   www.givemesport.com    bot-blocked
+    #   www.fourfourtwo.com    broken URL structure
 ]
 MAX_PAGES = 3000
 MAX_DEPTH = 3
@@ -93,12 +108,23 @@ REQUEST_TIMEOUT = 10  # seconds
 
 # URL filtering — only crawl football-related paths
 # Wikipedia is handled separately via WIKIPEDIA_FOOTBALL_KEYWORDS in crawler/manager.py
+# Substring match against the URL path. Note the trap this used to contain: a
+# bare "/" entry was added for Transfermarkt, and since every path contains "/"
+# it matched everything, which made this whole list a no-op for every
+# non-Wikipedia domain. Transfermarkt is gone and so is the catch-all.
 ALLOWED_PATH_PATTERNS = [
-    "/sport/football",   # BBC
-    "/soccer/",          # ESPN
-    "/football",         # Sky Sports, Guardian
-    "/en/",              # FBref (all stats pages under /en/)
-    "/",                 # Transfermarkt (all football)
+    "/sport/football",      # BBC
+    "/sport/soccer",        # BBC alternate
+    "/soccer",              # ESPN
+    "/football",            # Sky Sports, Guardian, Independent, Mirror, talkSPORT
+    "/premier-league",      # Sky Sports, Goal
+    "/premierleague",       # Guardian
+    "/championsleague",     # Guardian
+    "/uefachampionsleague", # UEFA
+    "/uefaeuropaleague",    # UEFA
+    "/uefaeuro",            # UEFA
+    "/news",                # premierleague.com, Sky Sports
+    "/en/",                 # Goal locale paths
 ]
 
 # Wikipedia: only crawl pages whose URL path contains a football-related keyword

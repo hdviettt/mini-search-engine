@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS crawl_queue (
     url      TEXT UNIQUE NOT NULL,
     depth    INTEGER DEFAULT 0,
     status   TEXT DEFAULT 'pending',
+    -- Denormalised host. The frontier schedules round-robin across domains,
+    -- which needs to group by host on every pop; parsing 188k URLs in Python
+    -- to do that is not a query plan.
+    domain   TEXT,
     added_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -100,6 +104,11 @@ CREATE INDEX IF NOT EXISTS idx_crawl_queue_status_depth ON crawl_queue(status, d
 CREATE INDEX IF NOT EXISTS idx_pages_last_checked_at ON pages(last_checked_at);
 CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = true;
 CREATE INDEX IF NOT EXISTS idx_chunks_page ON chunks(page_id);
+-- Serves the round-robin pop: narrow the partial index to pending rows, then
+-- the leading domain column makes "cheapest pending URL for this host" a
+-- single index seek instead of a scan of the whole frontier.
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_frontier
+    ON crawl_queue(domain, depth, id) WHERE status = 'pending';
 
 -- Query log: track every search for analytics and quality measurement
 CREATE TABLE IF NOT EXISTS query_log (
@@ -267,6 +276,17 @@ ALTER TABLE pages ADD COLUMN IF NOT EXISTS is_dead BOOLEAN NOT NULL DEFAULT fals
 CREATE INDEX IF NOT EXISTS idx_crawl_queue_status_depth ON crawl_queue(status, depth);
 CREATE INDEX IF NOT EXISTS idx_pages_last_checked_at ON pages(last_checked_at);
 CREATE INDEX IF NOT EXISTS idx_pages_is_dead ON pages(is_dead) WHERE is_dead = true;
+
+-- Phase 3: per-domain frontier scheduling. Backfilled from the URL, because a
+-- strict-FIFO frontier let Wikipedia's 300-to-600 outgoing links per article
+-- colonise the queue: 188k pending URLs, of which a 60k sample held 59,965
+-- Wikipedia and 7 BBC. News sources were seeded and then never reached.
+ALTER TABLE crawl_queue ADD COLUMN IF NOT EXISTS domain TEXT;
+UPDATE crawl_queue
+   SET domain = split_part(split_part(regexp_replace(url, '^https?://', ''), '/', 1), ':', 1)
+ WHERE domain IS NULL;
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_frontier
+    ON crawl_queue(domain, depth, id) WHERE status = 'pending';
 """
 
 
