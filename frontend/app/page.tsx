@@ -405,6 +405,10 @@ export default function Home() {
   }, []);
 
   const isHero = !hasResults && !isSearching;
+  // Typing hides everything below the field. It is what the screen is for at
+  // that moment, and it also removes the overlap: the suggestion list sits
+  // exactly where the chips and the stat cards are.
+  const isComposing = isHero && headerInput.trim().length > 0;
 
   return (
     <div
@@ -412,7 +416,7 @@ export default function Home() {
       style={!isHero ? { height: 'var(--vph, 100vh)' } : undefined}
     >
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
-      <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
+      <div className={`shrink-0 ${isHero ? "relative z-30" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
         <div className={`${isHero ? "max-w-[608px]" : "max-w-[640px]"} mx-auto flex items-center px-4 ${isHero ? "" : "gap-2.5"}`}>
           <div ref={searchFormRef} className={`flex-1 relative ${isHero ? "rise" : ""}`}>
             <form onSubmit={(e) => { e.preventDefault(); if (headerInput.trim()) commitSearch(headerInput.trim()); }}
@@ -473,14 +477,21 @@ export default function Home() {
       </div>
 
       {isHero && (
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 rise" style={{ animationDelay: "260ms" }}>
+        <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 rise transition-opacity duration-200 ${isComposing ? "opacity-0 pointer-events-none" : ""}`}
+          style={{ animationDelay: "260ms" }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       )}
 
       {/* ═══════════════════ Hero content ═══════════════════ */}
       {isHero && (
-        <div className="flex flex-col items-center px-4 pt-7">
+        <div
+          className="flex flex-col items-center px-4 pt-7 transition-opacity duration-200"
+          style={isComposing
+            ? { opacity: 0, pointerEvents: "none", visibility: "hidden" }
+            : undefined}
+          aria-hidden={isComposing}
+        >
           {/* Suggestion chips. Staggered a beat behind the field so the eye
               lands on the input first, then reads across the examples. */}
           <div className="flex flex-wrap justify-center gap-2 mb-9">
