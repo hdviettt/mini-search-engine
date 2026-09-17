@@ -1,8 +1,11 @@
 import hashlib
+import logging
 import re
 from urllib.parse import urldefrag, urljoin, urlparse
 
 from lxml import html
+
+log = logging.getLogger(__name__)
 
 # Elements to remove entirely before text extraction
 _STRIP_TAGS = [
@@ -105,9 +108,37 @@ def _find_main_content(tree, domain: str = "") -> str:
     return content_root
 
 
+def _empty_page() -> dict:
+    """What an unparseable response yields. Same shape, no content.
+
+    The crawler's quality gate rejects this on word count, so the page is
+    skipped exactly as if it had been thin, which is what it is.
+    """
+    return {"title": "", "body_text": "", "links": set(), "content_hash": ""}
+
+
 def parse_page(url: str, raw_html: str) -> dict:
-    """Parse HTML into structured data: title, clean body text, and links."""
-    tree = html.fromstring(raw_html)
+    """Parse HTML into structured data: title, clean body text, and links.
+
+    Never raises. A crawl is a walk through other people's servers and some of
+    them answer 200 with an empty body or something lxml will not accept; a
+    parse failure is an ordinary event on one page, not a reason to end the
+    run. It was, though: `html.fromstring("")` raises ParserError, the
+    scheduler caught it as a failed schedule, and the whole crawl was abandoned
+    on the first empty response it met. bbc.com/sport/football/european serves
+    one.
+    """
+    if not raw_html or not raw_html.strip():
+        log.debug("[parse] empty response for %s", url)
+        return _empty_page()
+
+    try:
+        tree = html.fromstring(raw_html)
+    except Exception:
+        log.warning("[parse] could not parse %s, skipping the page", url, exc_info=True)
+        return _empty_page()
+    if tree is None:
+        return _empty_page()
 
     # Extract title
     title_elements = tree.xpath("//title/text()")
