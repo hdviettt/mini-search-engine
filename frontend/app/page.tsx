@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, memo } from "react";
-import Link from "next/link";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import AIChat from "@/components/AIChat";
@@ -40,7 +39,8 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
     <button
       type="button"
       onClick={onToggle}
-      className="p-1.5 rounded-full text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+      className="icon-btn cursor-pointer"
+      aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
       title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
     >
       {theme === "light" ? (
@@ -70,9 +70,9 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
             key={t.id}
             type="button"
             onClick={() => onChange(t.id)}
-            className={`px-2.5 sm:px-3 py-1 rounded-full transition-all cursor-pointer ${
+            className={`px-3 sm:px-3.5 py-1 rounded-full cursor-pointer seg-tab ${
               view === t.id
-                ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm font-medium"
+                ? "bg-[var(--bg-card)] text-[var(--text)] font-medium seg-tab-on"
                 : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"
             }`}
           >
@@ -221,7 +221,8 @@ const SerpSidePanel = memo(function SerpSidePanel({
             {engine.searchData.results.map((r, i) => {
               const { domain, breadcrumb } = urlBreadcrumb(r.url);
               return (
-                <article key={i} className="group">
+                <article key={i} className="group rise"
+                  style={{ animationDelay: `${Math.min(i, 9) * 40}ms` }}>
                   {/* Site info — favicon + domain + breadcrumb */}
                   <div className="flex items-center gap-3.5 mb-2">
                     <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center shrink-0">
@@ -234,7 +235,7 @@ const SerpSidePanel = memo(function SerpSidePanel({
                   </div>
                   {/* Title */}
                   <a href={r.url} target="_blank" rel="noopener noreferrer" className="block">
-                    <h3 className="text-[22px] text-[var(--link-blue)] group-hover:underline leading-snug">{r.title}</h3>
+                    <h3 className="text-[22px] text-[var(--link-blue)] leading-snug tracking-[-0.011em] group-hover:underline underline-offset-[3px] decoration-[1.5px] transition-colors">{r.title}</h3>
                   </a>
                   {/* Snippet */}
                   <p className="text-[16px] text-[var(--snippet)] leading-[1.6] line-clamp-2 sm:line-clamp-3 mt-1">{r.snippet}</p>
@@ -300,7 +301,7 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
   ];
 
   return (
-    <div className="w-full max-w-[640px]" style={{ animation: "fade-in 0.5s ease-out 0.15s both" }}>
+    <div className="w-full max-w-[640px]">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {charts.map((c, i) => {
           const hasData = c.data.length >= 2;
@@ -316,15 +317,20 @@ function HeroDashboard({ onSearch }: { onSearch: (q: string) => void }) {
             const pts = values.map((v, j) => `${(j / (values.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`).join(" ");
             sparkline = (
               <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[36px] mt-1.5 opacity-40" preserveAspectRatio="none">
-                <polyline points={pts} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* pathLength normalises the geometry to 1 so a single dash
+                    length in CSS draws any of these lines end to end. */}
+                <polyline className="sparkline" pathLength={1} points={pts} fill="none"
+                  stroke={lineColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ animationDelay: `${420 + i * 70}ms` }} />
               </svg>
             );
           }
 
           return (
-            <div key={i} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 pt-2.5 pb-1.5">
-              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">{c.title}</div>
-              <div className="text-[17px] font-semibold text-[var(--text)] tabular-nums leading-tight">{displayValue}</div>
+            <div key={i} className="stat-card rise bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3.5 pt-3 pb-2"
+              style={{ animationDelay: `${330 + i * 70}ms` }}>
+              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-[0.09em] font-medium">{c.title}</div>
+              <div className="text-[18px] font-semibold text-[var(--text)] tabular-nums leading-tight tracking-[-0.015em] mt-0.5">{displayValue}</div>
               {sparkline || <div className="h-[36px] mt-1.5 rounded bg-[var(--bg-elevated)]" />}
             </div>
           );
@@ -402,19 +408,15 @@ export default function Home() {
 
   return (
     <div
-      className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:fixed lg:top-0 lg:left-0 lg:right-0 lg:flex lg:flex-col min-h-[var(--vph)] lg:min-h-0"}`}
+      className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full flex flex-col justify-center relative" : "lg:fixed lg:top-0 lg:left-0 lg:right-0 lg:flex lg:flex-col min-h-[var(--vph)] lg:min-h-0"}`}
       style={!isHero ? { height: 'var(--vph, 100vh)' } : undefined}
     >
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}
       <div className={`shrink-0 ${isHero ? "" : "sticky top-0 z-30 bg-[var(--bg)]/95 backdrop-blur-md"} pt-2 sm:pt-3 pb-2 sm:pb-3`}>
-        <div className="max-w-[640px] mx-auto flex items-center gap-2.5 px-4">
-          <Link href="/" className="text-[18px] font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors tracking-tight shrink-0">
-            FS
-          </Link>
-
-          <div ref={searchFormRef} className="flex-1 relative">
+        <div className={`${isHero ? "max-w-[608px]" : "max-w-[640px]"} mx-auto flex items-center px-4 ${isHero ? "" : "gap-2.5"}`}>
+          <div ref={searchFormRef} className={`flex-1 relative ${isHero ? "rise" : ""}`}>
             <form onSubmit={(e) => { e.preventDefault(); if (headerInput.trim()) commitSearch(headerInput.trim()); }}
-              className="flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full hover:border-[var(--border-hover)] focus-within:border-[var(--text-dim)] transition-all px-3 sm:px-4"
+              className={`search-shell flex items-center rounded-full ${isHero ? "gap-2 px-5 sm:px-6" : "gap-1.5 px-3 sm:px-4"}`}
             >
               <input type="text"
                 value={headerInput}
@@ -428,16 +430,18 @@ export default function Home() {
                 }}
                 placeholder={isHero ? PLACEHOLDERS[placeholderIdx] : "Search..."}
                 autoFocus={isHero}
-                className="flex-1 py-2.5 bg-transparent text-[var(--text)] text-[15px] placeholder:text-[var(--text-dim)] focus:outline-none min-w-0" />
+                className={`flex-1 bg-transparent text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none min-w-0 ${
+                  isHero ? "py-4 text-[17px] tracking-[-0.01em]" : "py-2.5 text-[15px]"
+                }`} />
               {(hasResults || isSearching) && (
                 <button type="button" onClick={() => { window.location.href = "/"; }}
-                  className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0">
+                  className="icon-btn cursor-pointer shrink-0" aria-label="Clear search">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 6 6 18" /><path d="m6 6 12 12" />
                   </svg>
                 </button>
               )}
-              <button type="submit" className="p-1 text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors cursor-pointer shrink-0">
+              <button type="submit" className="icon-btn icon-btn-accent cursor-pointer shrink-0" aria-label="Search">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                 </svg>
@@ -464,18 +468,26 @@ export default function Home() {
             )}
           </div>
 
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          {!isHero && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
         </div>
       </div>
 
+      {isHero && (
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 rise" style={{ animationDelay: "260ms" }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+      )}
+
       {/* ═══════════════════ Hero content ═══════════════════ */}
       {isHero && (
-        <div className="flex flex-col items-center px-4 pt-6" style={{ animation: "content-in 0.3s ease-out" }}>
-          {/* Suggestion chips */}
-          <div className="flex flex-wrap justify-center gap-2 mb-10">
-            {SUGGESTIONS.map((q) => (
+        <div className="flex flex-col items-center px-4 pt-7">
+          {/* Suggestion chips. Staggered a beat behind the field so the eye
+              lands on the input first, then reads across the examples. */}
+          <div className="flex flex-wrap justify-center gap-2 mb-9">
+            {SUGGESTIONS.map((q, i) => (
               <button key={q} onClick={() => engine.handleSearch(q)}
-                className="text-[12px] px-3 py-1 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--chip-hover)] cursor-pointer transition-colors">
+                className="chip rise text-[12.5px] leading-none px-3.5 py-2 rounded-full cursor-pointer"
+                style={{ animationDelay: `${120 + i * 45}ms` }}>
                 {q}
               </button>
             ))}
