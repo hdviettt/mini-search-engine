@@ -194,8 +194,12 @@ async def api_overview(q: str = Query("")):
             "sources": result["sources"],
             "trace": result.get("trace", {}),
             "from_cache": result.get("from_cache", False),
+            "error": result.get("error"),
         }
-    return {"query": q, "overview": None, "sources": [], "trace": {}, "from_cache": False}
+    return {
+        "query": q, "overview": None, "sources": [], "trace": {}, "from_cache": False,
+        "error": "AI Overview is not configured (no GROQ_API_KEY).",
+    }
 
 
 @app.get("/api/overview/stream")

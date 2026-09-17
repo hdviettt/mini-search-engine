@@ -25,7 +25,6 @@ class SearchResponse(BaseModel):
     page: int = 1
     per_page: int = 10
     time_ms: float
-    sports: dict[str, Any] | None = None
 
 
 class OverviewSource(BaseModel):
@@ -42,6 +41,9 @@ class OverviewResponse(BaseModel):
     sources: list[OverviewSource] = Field(default_factory=list)
     trace: dict[str, Any] = Field(default_factory=dict)
     from_cache: bool = False
+    # Why there is no overview. None when one was produced. Exists because a
+    # bare `overview: null` hid a decommissioned model for days.
+    error: str | None = None
 
 
 class ChatRequest(BaseModel):

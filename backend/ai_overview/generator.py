@@ -106,7 +106,13 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
     }
 
     if len(chunks) < 2:
-        return None
+        # Genuinely nothing to summarise. Say so, so it is distinguishable
+        # from a synthesis failure — both used to surface as a bare null.
+        trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
+        return {
+            "overview": None, "sources": [], "trace": trace, "from_cache": False,
+            "error": f"not enough grounded context ({len(chunks)} chunk(s) retrieved, need 2)",
+        }
 
     context = ""
     sources = []
@@ -145,8 +151,17 @@ def generate_overview(conn: psycopg.Connection, query: str) -> dict | None:
         trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
         return {"overview": overview, "sources": sources, "trace": trace, "from_cache": False}
     except Exception as e:
+        # Return the reason rather than a bare None. A silent null here is how
+        # a decommissioned Groq model went unnoticed for days: /api/overview
+        # answered 200 with overview:null and an empty trace, which is
+        # indistinguishable from "this query had nothing to summarise".
         log.error(f"AI Overview error: {e}")
-        return None
+        detail = str(e)
+        if isinstance(e, httpx.HTTPStatusError):
+            detail = f"{e.response.status_code} from Groq: {e.response.text[:200]}"
+        trace["synthesis"] = {"model": GROQ_MODEL, "error": detail}
+        trace["total_ms"] = round((time.time() - total_start) * 1000, 1)
+        return {"overview": None, "sources": sources, "trace": trace, "from_cache": False, "error": detail}
 
 
 def generate_overview_stream(conn: psycopg.Connection, query: str) -> Generator[str, None, None]:

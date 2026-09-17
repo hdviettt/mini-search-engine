@@ -147,7 +147,13 @@ PAGERANK_ITERATIONS = 20
 
 # AI Overview (Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Groq retires models without warning and the endpoint answers 404 with
+# `model_not_found`, which looked exactly like an outage: AI Overviews
+# returned null for days while the key was fine and /api/overview still
+# answered 200. llama-3.3-70b-versatile went that way in September 2026.
+# If overviews stop again, check this first:
+#   curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 # Embeddings (Voyage AI)
 VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
@@ -157,5 +163,3 @@ VOYAGE_DIMENSIONS = 512
 AI_OVERVIEW_MAX_TOKENS = 300
 AI_CACHE_TTL_HOURS = 24
 
-# Live Sports Data (API-Football)
-FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY", "")
