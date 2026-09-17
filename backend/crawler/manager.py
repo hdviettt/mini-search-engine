@@ -31,7 +31,10 @@ log = logging.getLogger(__name__)
 # Real error titles lead with the error. Real headlines mention it in passing.
 _BAD_TITLE_RE = re.compile(
     r"^\s*(?:"
-    r"\d{3}(?:\s|$|[-–—:|])"          # "404 - Page Not Found", "403 Forbidden"
+    # Real HTTP status codes only. A bare \d{3} also matches "999-year
+    # lease" and "100-metre sprint", and it de-indexed the first of those.
+    r"(?:400|401|402|403|404|405|408|410|418|429|500|502|503|504)"
+    r"(?:\s|$|[-–—:|])"
     r"|error\b"                        # "Error 404", "Error"
     r"|page not found|not found"
     r"|access denied|access to this page"

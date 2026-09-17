@@ -57,6 +57,14 @@ def test_thin_pages_rejected_regardless_of_title():
 
 
 def test_football_words_in_title_are_not_false_positives():
-    """The patterns are substrings, so check they do not eat real headlines."""
+    """Anchored, not substring, so a headline may mention the word in passing."""
     assert check("Liverpool loading up for the transfer window - Sky Sports")
     assert check("VAR error costs Arsenal a point - The Guardian")
+
+
+def test_titles_that_merely_start_with_three_digits_survive():
+    r"""A bare \d{3} caught these. It de-indexed "999-year lease" in production."""
+    assert check("999-year lease - Wikipedia")
+    assert check("100-metre sprint records")
+    assert check("1966 World Cup final - Wikipedia")
+    assert check("777 Partners takeover of Everton - The Guardian")
