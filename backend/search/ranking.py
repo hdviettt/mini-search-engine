@@ -132,7 +132,13 @@ def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONU
 # long natural-language queries, which is the opposite failure and a quieter
 # one. Short queries are left alone entirely: with one or two terms there is no
 # redundancy to exploit and demanding both only loses results.
-MIN_SHOULD_MATCH_RATIO = 0.5
+# 0.5 was measured and was too tight. It took zero-result precision to a clean
+# 1.0, which is the point of the whole filter and worth keeping, but it also
+# cost multi_term 0.049 and informational 0.017 by demanding three hits on
+# perfectly ordinary six-word questions. The floor of two is what rejects the
+# nonsense queries; the ratio only starts to bite past five terms, so it is the
+# part to give back.
+MIN_SHOULD_MATCH_RATIO = 0.34
 
 
 def min_should_match(n_distinct_terms: int) -> int:

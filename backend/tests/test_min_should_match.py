@@ -23,8 +23,8 @@ def test_three_or_more_terms_need_at_least_two():
 
 def test_the_requirement_grows_with_the_query():
     assert min_should_match(6) == 3
-    assert min_should_match(8) == 4
-    assert min_should_match(10) == 5
+    assert min_should_match(9) == 4
+    assert min_should_match(12) == 5
 
 
 def test_it_never_demands_every_term():
@@ -45,5 +45,9 @@ def test_the_queries_this_was_written_for():
 
 
 def test_a_real_multi_term_query_is_not_over_constrained():
-    """"messi barcelona champions league goals" stems to 5 distinct terms."""
-    assert min_should_match(5) == 3
+    """"messi barcelona champions league goals" stems to 5 distinct terms.
+
+    At ratio 0.5 this demanded 3 and cost multi_term 0.049 in the eval. The
+    floor of 2 is what rejects nonsense; the ratio is what was overreaching.
+    """
+    assert min_should_match(5) == 2
