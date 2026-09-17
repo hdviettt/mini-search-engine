@@ -51,3 +51,29 @@ def test_degenerate_input_is_safe():
 def test_the_bonus_is_modest():
     """It should lift a named site over an equal rival, not over a better page."""
     assert 1.2 <= SITE_MATCH_BONUS <= 2.0
+
+
+# Authority in rerank space. The cross-encoder scores topical relevance and
+# nothing else, so once the news tier grew, "offside rule" returned an opinion
+# column about VAR first and did not have "Offside (association football)"
+# anywhere in the top six. PageRank knows better but only reaches the combined
+# score, which selects candidates rather than ordering the head.
+
+def test_authority_bonus_is_bounded():
+    from search.ranking import AUTHORITY_RERANK_WEIGHT, authority_rerank_bonus
+    assert authority_rerank_bonus(0.0) == 0.0
+    assert authority_rerank_bonus(1.0) == AUTHORITY_RERANK_WEIGHT
+    assert authority_rerank_bonus(0.5) == AUTHORITY_RERANK_WEIGHT * 0.5
+
+
+def test_authority_bonus_clamps_and_ignores_nonsense():
+    from search.ranking import AUTHORITY_RERANK_WEIGHT, authority_rerank_bonus
+    assert authority_rerank_bonus(3.0) == AUTHORITY_RERANK_WEIGHT
+    assert authority_rerank_bonus(-1.0) == 0.0
+    assert authority_rerank_bonus(None) == 0.0
+
+
+def test_authority_cannot_outweigh_relevance():
+    """At most one logit, against a range of roughly -11 to +11."""
+    from search.ranking import AUTHORITY_RERANK_WEIGHT
+    assert AUTHORITY_RERANK_WEIGHT <= 2.0
