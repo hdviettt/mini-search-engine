@@ -43,13 +43,16 @@ RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "40"))
 # the filter was also the only thing rejecting nonsense queries, and
 # zero-result precision depended on it.
 #
-# It no longer is. minimum-should-match now rejects nonsense upstream, at the
-# matching stage where it belongs, and took zero-result precision to 1.0 on its
-# own. So the threshold can go back to doing one job rather than two, and this
-# is the value to tune if recall looks thin.
+# Minimum-should-match now rejects nonsense upstream and takes zero-result
+# precision to 1.0 on its own, so the obvious next move was to relax this and
+# get the recall back. It was measured and it lost: -10.5 cost 0.0148 nDCG@10
+# and 0.072 on navigational, and pushed p95 from 1.2s to 4.8s by leaving far
+# more candidates to snippet. The filter is doing real work beyond rejecting
+# nonsense, which is what this file claimed and is now checked.
 #
-# Env-overridable so it can be swept against a live instance.
-RERANK_MIN_SCORE = float(os.getenv("RERANK_MIN_SCORE", "-10.5"))
+# Left at -8.0. Env-overridable so the next person can sweep it without a
+# redeploy rather than reasoning about it.
+RERANK_MIN_SCORE = float(os.getenv("RERANK_MIN_SCORE", "-8.0"))
 
 # At most this many results from any single domain, so one site cannot own
 # the whole page.
