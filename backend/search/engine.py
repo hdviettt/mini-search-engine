@@ -19,6 +19,7 @@ from search.ranking import (
     dedupe_by_domain,
     freshness_multiplier,
     normalize_scores,
+    site_match_multiplier,
 )
 
 # Re-exported for search.explainer, which shares this scoring path.
@@ -132,10 +133,17 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     ).fetchall()
     url_by_id = {row[0]: row[1] for row in meta_rows}
 
+    # Raw query words, not stems: a host label is not an English word, and
+    # stemming "guardian" or "espn" only risks moving them away from the host.
+    site_tokens = [w for w in query.lower().split() if len(w) >= 3]
+
     now = datetime.now(UTC)
     for page_id, _url, crawled_at in meta_rows:
-        if page_id in combined and crawled_at:
+        if page_id not in combined:
+            continue
+        if crawled_at:
             combined[page_id] *= freshness_multiplier((now - crawled_at).days)
+        combined[page_id] *= site_match_multiplier(site_tokens, _url)
 
     ranked = sorted(combined.items(), key=lambda kv: kv[1], reverse=True)
 

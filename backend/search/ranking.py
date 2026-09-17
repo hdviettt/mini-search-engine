@@ -48,6 +48,57 @@ RECENT_BONUS = 1.15
 RECENT_BONUS_CAP = 1.2
 
 
+# Multiplier when a query term names the host a result sits on.
+#
+# "bbc sport football", "espn soccer", "guardian football" are navigational:
+# the user has named the site and wants that site. BM25F scores title and body
+# only, so unless the page happens to print its own publisher in the text,
+# there is nothing for "bbc" to match and the query cannot be satisfied.
+# navigational was the weakest intent in the eval at 0.7152 for this reason.
+#
+# Kept modest on purpose. It should be enough to lift the named site above
+# equally-relevant pages, not enough to drag an off-topic page from that site
+# above a strongly matching one elsewhere.
+SITE_MATCH_BONUS = 1.5
+
+# Dropped before matching: present in most hosts, so they discriminate nothing
+# and would make "co" or "com" in a query match everything.
+_HOST_NOISE = frozenset({
+    "www", "com", "org", "net", "co", "uk", "us", "io", "app", "edu", "gov",
+    "info", "me", "tv", "news2", "amp",
+})
+
+
+def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONUS) -> float:
+    """Boost a result whose host is named in the query.
+
+    Matches a whole host label ("espn" in espn.com) or a query token contained
+    in one ("guardian" in theguardian.com). Containment needs four characters,
+    which keeps short tokens from matching inside unrelated hosts.
+    """
+    from urllib.parse import urlparse
+
+    if not url or not query_tokens:
+        return 1.0
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        return 1.0
+    labels = [lbl for lbl in host.split(".") if lbl and lbl not in _HOST_NOISE]
+    if not labels:
+        return 1.0
+
+    for tok in query_tokens:
+        tok = (tok or "").lower()
+        if len(tok) < 3:
+            continue
+        for label in labels:
+            if tok == label:
+                return bonus
+            if len(tok) >= 4 and tok in label:
+                return bonus
+    return 1.0
+
+
 def normalize_scores(scores: dict[int, float]) -> dict[int, float]:
     """Min-max normalize to [0, 1] so BM25 and PageRank are comparable."""
     if not scores:

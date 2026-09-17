@@ -14,6 +14,7 @@ from search.ranking import (
     RERANK_TOP_K,
     freshness_multiplier,
     normalize_scores,
+    site_match_multiplier,
 )
 
 
@@ -177,16 +178,21 @@ def search_explain(conn: psycopg.Connection, query: str, params: dict | None = N
     t0 = time.time()
     now = datetime.now(UTC)
     freshness_rows = conn.execute(
-        "SELECT id, COALESCE(last_checked_at, crawled_at) FROM pages WHERE id = ANY(%s)",
+        "SELECT id, url, COALESCE(last_checked_at, crawled_at) FROM pages WHERE id = ANY(%s)",
         (matching_ids,),
     ).fetchall()
+    site_tokens = [w for w in query.lower().split() if len(w) >= 3]
     freshness_details = []
-    for page_id, crawled_at in freshness_rows:
+    for page_id, page_url, crawled_at in freshness_rows:
         if page_id in combined and crawled_at:
             days_old = (now - crawled_at).days
             # Same formula the engine uses — see search/ranking.py.
             boost = freshness_multiplier(days_old)
             combined[page_id] *= boost
+        if page_id in combined:
+            # The engine applies this too. If the canvas skipped it, the
+            # explanation would not match the ranking it claims to explain.
+            combined[page_id] *= site_match_multiplier(site_tokens, page_url)
             if page_id in combined_rank:
                 freshness_details.append({
                     "page_id": page_id,
