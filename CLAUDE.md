@@ -204,6 +204,22 @@ queue outlives the config. Without the pop-time check, a domain removed from
 carried on being crawled, and answering 403, after it was dropped for
 answering 403.
 
+**`/api/embedding/rebuild` is not a backfill, and the names are one word
+apart.** It calls `chunk_all_pages` first, which replaces the chunks table and
+discards every embedding with it, then buys the whole corpus again from Voyage.
+`embed_all_chunks` on its own is the backfill: it only touches rows
+`WHERE embedding IS NULL`. Calling rebuild when a backfill was meant destroyed
+44,429 embeddings and turned a 10M-token job into a 20M-token one. There is now
+an `/api/embedding/backfill` endpoint, and both responses name the mode they
+ran. Use rebuild only when the chunking itself has changed.
+
+**A long job must run inside the app, not inside an ssh session.**
+`railway ssh` kills its children when the session ends, `nohup` included, so a
+40-minute embedding run dies partway every time and silently leaves the job
+half done. Start it through the admin endpoint so it runs in the API process's
+own thread. Note the other side of that: deploying restarts the container and
+kills the job, so do not push while one is running.
+
 **`parse_page` must never raise.** `html.fromstring("")` raises ParserError,
 and some servers answer 200 with an empty body:
 `bbc.com/sport/football/european` is one. The scheduler caught that as a failed

@@ -258,10 +258,25 @@ def index_rebuild():
     return {"job_id": job_id, "status": "started"}
 
 
+@admin.post("/embedding/backfill")
+def embedding_backfill():
+    """Embed chunks that have no embedding. The usual operation."""
+    job_id = job_manager.start_embed_backfill()
+    return {"job_id": job_id, "status": "started", "mode": "backfill"}
+
+
 @admin.post("/embedding/rebuild")
 def embedding_rebuild():
+    """Re-chunk every page and re-embed the whole corpus.
+
+    Destructive: this drops existing chunks, and their embeddings with them,
+    then buys them all again from the provider. Use /embedding/backfill unless
+    the chunking has actually changed. The response says which one this is,
+    because the two names are one word apart and the difference is the bill.
+    """
     job_id = job_manager.start_embed_rebuild()
-    return {"job_id": job_id, "status": "started"}
+    return {"job_id": job_id, "status": "started", "mode": "rebuild",
+            "warning": "re-chunks every page and discards all existing embeddings"}
 
 
 @router.get("/jobs")

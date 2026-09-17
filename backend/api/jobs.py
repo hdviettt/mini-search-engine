@@ -208,7 +208,48 @@ class JobManager:
         thread.start()
         return job_id
 
+    def start_embed_backfill(self) -> str:
+        """Embed the chunks that have no embedding. Does not re-chunk.
+
+        This is what you almost always want. `start_embed_rebuild` re-chunks
+        every page first, which drops the chunks table and takes every existing
+        embedding with it, so it re-buys the whole corpus from the embedding
+        provider. Calling that when a backfill was meant destroyed 44,429
+        embeddings and turned a 10M-token job into a 20M-token one.
+        """
+        job_id = f"embed-{uuid.uuid4().hex[:8]}"
+
+        def run():
+            conn = get_connection()
+            try:
+                def on_progress(data):
+                    self._emit({"type": "embed_progress", "job_id": job_id, "data": data})
+
+                embed_all_chunks(conn, progress_callback=on_progress)
+                with self.lock:
+                    self.jobs[job_id]["status"] = "completed"
+                self._emit({"type": "embed_complete", "job_id": job_id, "data": {"status": "completed"}})
+            except Exception as e:
+                with self.lock:
+                    self.jobs[job_id]["status"] = "failed"
+                self._emit({"type": "embed_complete", "job_id": job_id,
+                            "data": {"status": "failed", "error": str(e)}})
+            finally:
+                conn.close()
+
+        thread = threading.Thread(target=run, daemon=True)
+        with self.lock:
+            self.jobs[job_id] = {"job_id": job_id, "type": "embed", "status": "running", "started_at": time.time()}
+        thread.start()
+        return job_id
+
     def start_embed_rebuild(self) -> str:
+        """Re-chunk every page, then embed everything from scratch.
+
+        Destructive and expensive: `chunk_all_pages` replaces the chunks table,
+        so every existing embedding is discarded and re-bought. Use
+        `start_embed_backfill` unless the chunking itself has changed.
+        """
         job_id = f"embed-{uuid.uuid4().hex[:8]}"
 
         def run():
