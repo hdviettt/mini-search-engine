@@ -20,11 +20,35 @@ from rag.chunker import chunk_page
 log = logging.getLogger(__name__)
 
 
-# Titles that indicate error/placeholder pages
-_BAD_TITLES = {
-    "page not found", "404", "error", "not found", "access denied",
-    "403 forbidden", "untitled", "redirect", "loading", "just a moment",
-}
+# Titles that indicate an error or placeholder page.
+#
+# Anchored at the start rather than matched anywhere, and that distinction is
+# the whole point. The original test was exact set membership, so "Error 404"
+# equalled neither "error" nor "404" and three such pages were indexed. The
+# obvious repair, a substring match, is worse: it throws away "Liverpool
+# loading up for the transfer window" and "VAR error costs Arsenal a point".
+#
+# Real error titles lead with the error. Real headlines mention it in passing.
+_BAD_TITLE_RE = re.compile(
+    r"^\s*(?:"
+    r"\d{3}(?:\s|$|[-–—:|])"          # "404 - Page Not Found", "403 Forbidden"
+    r"|error\b"                        # "Error 404", "Error"
+    r"|page not found|not found"
+    r"|access denied|access to this page"
+    r"|forbidden"
+    r"|untitled"
+    r"|redirect(?:ing)?\b"
+    r"|just a moment"
+    r"|are you a robot"
+    r"|service unavailable|bad gateway|too many requests"
+    r"|loading\s*(?:\.{2,}|…)?\s*$"   # only when that is the entire title
+    r")",
+    re.IGNORECASE,
+)
+
+# A site suffix hides the anchor: "404 - Page Not Found | Sky Sports" is fine,
+# but so is stripping it before testing.
+_TITLE_SUFFIX_RE = re.compile(r"\s*[|–—-]\s*[^|–—-]{1,40}$")
 
 # Patterns in body_text that indicate a redirect or soft-404
 _REDIRECT_PATTERNS = re.compile(
@@ -101,7 +125,12 @@ def is_quality_page(conn: psycopg.Connection, page_id: int, title: str, body_tex
         return False
 
     # 2. Title quality
-    if not title or title.lower().strip() in _BAD_TITLES:
+    lowered = title.strip()
+    if not lowered:
+        log.debug("[quality] skip page %s: empty title", page_id)
+        return False
+    stripped = _TITLE_SUFFIX_RE.sub("", lowered).strip() or lowered
+    if _BAD_TITLE_RE.match(lowered) or _BAD_TITLE_RE.match(stripped):
         log.debug("[quality] skip page %s: bad title %r", page_id, title)
         return False
 
@@ -383,6 +412,16 @@ class CrawlManager:
                 continue
 
             if self._page_already_crawled(url):
+                self._mark_queue_status(url, "skipped")
+                continue
+
+            # Scope is checked again here, not only at enqueue time. The queue
+            # outlives the config: 188k URLs were sitting in it, admitted under
+            # rules that have since changed, and without this a domain removed
+            # from ALLOWED_DOMAINS keeps being fetched from the backlog. That
+            # is how fbref carried on being crawled, and answering 403, after
+            # it was dropped for answering 403.
+            if not self._is_in_scope(url, depth=depth):
                 self._mark_queue_status(url, "skipped")
                 continue
 
