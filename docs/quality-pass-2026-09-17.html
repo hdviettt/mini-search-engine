@@ -75,7 +75,8 @@
     <tr><td>nDCG@10</td><td class="num">0.7394</td><td class="num">0.8698</td><td class="num up">0.8956</td></tr>
     <tr><td>MRR</td><td class="num">0.6259</td><td class="num">0.7963</td><td class="num up">0.8285</td></tr>
     <tr><td>zero-result precision</td><td class="num">0.40</td><td class="num">0.60</td><td class="num up">1.00</td></tr>
-    <tr><td>latency p50 (uncontended)</td><td class="num">1325 ms</td><td class="num">5024 ms</td><td class="num up">~345 ms</td></tr>
+    <tr><td>latency p50, quiet host</td><td class="num">1325 ms</td><td class="num">5024 ms</td><td class="num up">~345 ms</td></tr>
+    <tr><td>latency p50, busy host</td><td class="num">&mdash;</td><td class="num">&mdash;</td><td class="num">~1260 ms</td></tr>
   </tbody>
 </table>
 </div>
@@ -175,6 +176,35 @@ multi_term  0.8827 -> 0.8038</div>
   <p>And it did not move either query it was written for. Normalised PageRank inside a 500-page candidate pool evidently does not separate a reference article from its neighbours the way it separates Wikipedia from news across the whole corpus. Worth retrying against raw rather than pool-normalised PageRank, but not on this evidence.</p>
 </div>
 
+<h2>Two things found after the first write-up</h2>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Tables and reference lists were being retrieved as chunks</span><span class="pill p-win">AI Overview</span></div>
+  <p>Asking "how does var work" returned Paris Saint-Germain season tables and a citation fragment. The "Video assistant referee" article is in the corpus, fully chunked, and all 337 of its chunks were embedded. Retrieval simply preferred the noise.</p>
+  <p>There was no quality gate on chunking at all, so every fragment of a page became a chunk: squad tables, fixture grids, ISBN citations, translator credits, manager tenure lists. Against a 3,000-chunk sample the new gate keeps 89% and drops 11%, and the 11% is exactly that material. 6,923 junk chunks were removed from the live store, which needed no re-embedding because the surviving chunks keep their vectors.</p>
+  <div class="ev">before   "how does var work"
+         -> World XI charity match, PSG season-by-season tables
+
+after    "explain the video assistant referee system"
+         -> correct VAR definition, citing Video assistant referee - Wikipedia
+         "what does offside mean in football"
+         -> Law 11 definition, citing Offside (association football)
+         "which club has the most premier league titles"
+         -> Manchester United, 13</div>
+  <p>The gate runs per paragraph before chunks are assembled, not only on finished chunks. The test for that failed first: the splitter packs a page into 300-token chunks, so one squad table merged into the same chunk as real prose would take that prose down with it.</p>
+</div>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Citations were rendering as literal junk</span><span class="pill p-win">AI Overview</span></div>
+  <p>gpt-oss sometimes emits CJK fullwidth brackets rather than the ASCII ones the prompt asks for, so a citation appears as visible garbage beside the sentence it marks. I had recorded this as a consequence of <code>reasoning_effort: low</code>; it happens at the default effort too, so that note was incomplete. The output is now normalised on both the blocking and the streaming path.</p>
+</div>
+
+<div class="finding openf">
+  <div class="fhead"><span class="ftitle">I destroyed 44,429 embeddings</span><span class="pill p-open">My error</span></div>
+  <p>Meaning to backfill the chunks that had no embedding, I called <code>/api/embedding/rebuild</code>. That endpoint calls <code>chunk_all_pages</code> first, which replaces the chunks table and discards every embedding with it, then re-buys the whole corpus. A 10M-token backfill became a 20M-token rebuild, and vector retrieval sat near zero coverage for half an hour while it ran.</p>
+  <p><code>embed_all_chunks</code> on its own was always the backfill: it only touches rows <code>WHERE embedding IS NULL</code>. There is now an <code>/api/embedding/backfill</code> endpoint that calls just that, the rebuild docstring states what it costs, and both responses name the mode they ran.</p>
+</div>
+
 <h2>Still open</h2>
 
 <div class="open">
@@ -190,7 +220,7 @@ multi_term  0.8827 -> 0.8038</div>
 </div>
 
 <div class="open">
-  <p><strong>Embedding coverage.</strong> Chunk embeddings were at 62% when the session started, which is the vector half of AI Overview retrieval running on well under the full corpus. A backfill is in progress. It is cheap, roughly 10M tokens on voyage-3-lite, but it does spend your API credit.</p>
+  <p><strong>Reranker latency varies with the host, not with the code.</strong> The thread-pool fix is correct and verified in production at 8 threads. But the same 40-candidate batch measured 6.2 ms per candidate earlier in the day and 19.6 ms later, on identical code and settings, which is Railway CPU contention. Search p50 is therefore somewhere between 345 ms and 1.3 s depending on the neighbours. If that matters, <code>RERANK_TOP_K</code> 40 to 20 is the lever: CLAUDE.md records 0.8920 against 0.8884 nDCG for those depths, which is a wash, at roughly half the rerank cost.</p>
 </div>
 
 <footer>
