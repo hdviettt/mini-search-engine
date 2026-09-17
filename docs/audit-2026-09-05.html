@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Search Engine — Outage Report, 5 Sep 2026</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#16181d; --muted:#5c6270; --line:#e3e1dc;
+    --red:#b3261e; --amber:#8a5a00; --green:#1e6b3a; --blue:#1a4fa0;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:56px 24px 96px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:32px}
+  .kicker{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  h1{font-size:31px;line-height:1.2;margin:0 0 10px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  h2{font-size:21px;margin:48px 0 14px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:24px 0 8px}
+  p{margin:0 0 14px}
+  code{font-family:var(--mono);font-size:.88em;background:#f1efea;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  pre{background:#1c1e24;color:#e6e6e6;padding:15px 17px;border-radius:8px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;margin:0 0 16px}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .add{color:#7ee2a8}.del{color:#ff9d96}
+
+  .verdict{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:8px;padding:20px 22px;margin-bottom:14px}
+  .verdict p:last-child{margin-bottom:0}
+  .open{background:#fdf7e9;border:1px solid #e8cf9c;border-left:5px solid var(--amber);border-radius:8px;padding:18px 22px;margin-bottom:14px}
+  .open p:last-child{margin-bottom:0}
+
+  table{width:100%;border-collapse:collapse;margin:0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--ink)}
+  tbody tr:last-child td{border-bottom:none}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:18px}
+  .scroll th,.scroll td{white-space:nowrap}
+  .scroll td.w{white-space:normal;min-width:250px}
+  td.num{text-align:right;font-family:var(--mono);font-size:13.5px}
+  .up{color:var(--green);font-weight:600}.down{color:var(--red);font-weight:600}
+
+  .pill{display:inline-block;font:600 10.5px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:20px;border:1px solid;white-space:nowrap}
+  .p-fixed{color:var(--green);border-color:#a9d4bb;background:#eef8f2}
+  .p-open{color:var(--amber);border-color:#e8cf9c;background:#fdf7e9}
+  .p-you{color:var(--red);border-color:#e6b5b1;background:#fdf0ef}
+
+  .finding{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:16px}
+  .finding.fixed{border-left:5px solid var(--green)}
+  .finding.openf{border-left:5px solid var(--amber)}
+  .fhead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;margin-bottom:8px}
+  .fnum{font:700 12px/1 var(--mono);color:var(--muted)}
+  .ftitle{font-weight:650;font-size:16.5px}
+  .finding p:last-child{margin-bottom:0}
+  .ev{font-family:var(--mono);font-size:12.5px;color:var(--muted);background:#f5f3ef;border:1px solid var(--line);border-radius:6px;padding:9px 12px;margin:12px 0 0;white-space:pre-wrap;overflow-x:auto}
+
+  .chain{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 22px 18px;margin-bottom:18px}
+  ol.cascade{list-style:none;padding:0;margin:0;counter-reset:c}
+  ol.cascade li{counter-increment:c;position:relative;padding:14px 0 14px 46px;border-bottom:1px dashed var(--line)}
+  ol.cascade li:last-child{border-bottom:none}
+  ol.cascade li::before{content:counter(c);position:absolute;left:0;top:13px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font:700 12px/26px var(--mono);text-align:center}
+  ol.cascade b{display:block;margin-bottom:2px}
+  ol.cascade span{color:var(--muted);font-size:14.5px}
+  .note{border-left:3px solid var(--line);padding-left:16px;color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue)}
+  @media (max-width:620px){.wrap{padding:34px 17px 70px}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Outage report · 5 September 2026</div>
+  <h1>Crawling stopped, and why the whole engine went with it</h1>
+  <p class="sub">Railway project <code>mini-search-engine</code>. Diagnosed, fixed and deployed — <code>54360d9</code> → <code>8f4b91e</code>, seven commits.</p>
+</header>
+
+<div class="verdict">
+  <p><strong>Production is serving again, and measurably better than its previous best.</strong></p>
+  <p>No data was lost — 5,022 pages, 200,260 terms, 3.44 M postings, 61,364 chunks. Search is back to sub-second, and the evaluation against the frozen baseline moved from <b>0.7394 to 0.9101 nDCG@10</b>. One thing is still open and it needs you: app sleeping is still enabled on the Postgres service.</p>
+</div>
+
+<div class="open">
+  <p><b>Still to do, dashboard only.</b> Railway → <code>mini-search-engine</code> → <b>Postgres</b> → Settings → turn off <b>App Sleeping</b>. There is no CLI or config-as-code path for a database service, so I could not do this one. Until it is off, Postgres keeps being hard-killed and crash-recovered every few minutes, and requests that land during a recovery window will still fail.</p>
+</div>
+
+<h2>What actually happened</h2>
+
+<div class="chain">
+<ol class="cascade">
+  <li><b>App sleeping was enabled on the Postgres service</b>
+    <span>Designed for stateless web services: when inbound HTTP traffic stops, Railway stops the container. Database clients speak raw TCP on 5432, so the signal Railway watches is not the signal that matters.</span></li>
+  <li><b>Postgres was hard-killed, not shut down</b>
+    <span><code>database system was not properly shut down</code>, and a stale <code>postmaster.pid</code> removed on each boot. Every wake ran crash recovery.</span></li>
+  <li><b>During recovery it refused connections</b>
+    <span><code>FATAL: the database system is starting up</code>. In-flight connections died mid-query — that is where <code>SSL error: unexpected eof while reading</code> came from. A symptom, not the disease.</span></li>
+  <li><b>The backend restarted too, and replayed every overdue schedule at once</b>
+    <span><code>load_from_db</code> floored past-due schedules to <code>max(1.0, remaining)</code>, so all of them fired within the same second of boot.</span></li>
+  <li><b>Two concurrent crawls deadlocked on <code>terms</code>, and crawling stopped</b>
+    <span>The crawl died one page in. <code>pages.crawled_at</code> had not moved since 18:15:13 on 4 September.</span></li>
+</ol>
+</div>
+
+<h2>Findings and what was done</h2>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">01</span><span class="ftitle">The indexer deadlocked against itself</span><span class="pill p-fixed">Fixed</span></div>
+  <p>The fault that stopped crawling. <code>index_page</code> upserted terms in unsorted <code>Counter</code> order, which is page-dependent, and <code>ON CONFLICT DO UPDATE SET term = EXCLUDED.term</code> takes an exclusive row lock even though the write is a no-op. Two football pages share vocabulary, so they took the same locks in opposite orders.</p>
+  <pre><code>backend/indexer/indexer.py
+
+<span class="del">-    for term in all_counts:</span>
+<span class="add">+    for term in sorted(all_counts):</span></code></pre>
+  <p>Verified against a restored copy of the index rather than argued from first principles — two threads presenting the same vocabulary in different orders, with and without the fix:</p>
+  <div class="ev">PRE-FIX  (iterate page order): pageA=ok, pageB=DEADLOCK
+POST-FIX (iterate sorted)    : pageA=ok, pageB=ok</div>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">02</span><span class="ftitle">The scheduler guaranteed the collision</span><span class="pill p-fixed">Fixed</span></div>
+  <p>Finding 01 needed two crawls running at the same instant, and this made that certain rather than occasional: every overdue schedule fired one second after boot, together. Both default schedules started at <code>18:15:08</code>. Because the database kept restarting, the backend kept restarting, and both were always overdue.</p>
+  <p>Overdue schedules are now staggered; a Postgres advisory lock guards the whole build path so two crawls can never write the index concurrently regardless of timing; and a deadlock is retried with backoff instead of ending the run. The skip path deliberately falls through to the reschedule — returning early there would have silently retired the schedule forever.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">03</span><span class="ftitle">The pool served dead connections</span><span class="pill p-fixed">Fixed</span></div>
+  <p>No <code>check</code>, no <code>max_lifetime</code>. After a Postgres restart the pool kept its dead sockets and handed them to requests, producing the <code>SSL error: unexpected eof while reading</code> traceback. <code>check_connection</code> validates before handing over, for one round trip, and turns that into a transparent reconnect. This is why search works today <em>despite</em> the restart loop still running.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">04</span><span class="ftitle">Startup hung for 6.5 minutes instead of erroring</span><span class="pill p-fixed">Fixed</span></div>
+  <p><code>get_connection()</code> passed no <code>connect_timeout</code> and <code>DATABASE_URL</code> set none, so an unreachable host burned the OS TCP timeout — measured at <b>130 seconds per attempt</b>, three times in sequence at boot. That is why <code>uvicorn</code> appeared to freeze on "Waiting for application startup." Local startup is now 3 seconds.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">05</span><span class="ftitle">The health check could not fail</span><span class="pill p-fixed">Fixed</span></div>
+  <p><code>/health</code> was <code>return {"status": "ok"}</code> — a literal, on a service whose only real dependency is Postgres. It reported healthy through a day of 500s, which is why this was found by hand rather than by an alert. It now runs <code>SELECT 1</code> and returns 503 on failure.</p>
+  <p><code>/health/live</code> was added for liveness and never touches the database. Railway's healthcheck points there deliberately: restarting the API does not fix a broken database, it only adds a crash loop to the outage. <code>/health</code> is for external uptime monitoring — which is the thing that should actually page you, and is worth setting up.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">06</span><span class="ftitle">PageRank was ranking Wikipedia's furniture</span><span class="pill p-fixed">Fixed</span></div>
+  <p>Not part of the outage, found in the same logs. The most authoritative pages in the index were <code>Help:Category</code>, <code>Wikipedia:Protection policy</code> and <code>File:Commons-logo.svg</code>; "Association football" was fourth. The <code>depth&lt;=1</code> shortcut admitted any <code>/wiki/</code> URL, and every article links to those namespaces, so they collected in-degree from the whole corpus.</p>
+  <p>Removing the namespaces alone was not enough — the citation-identifier articles moved straight into the vacancy, and the top five became Digital object identifier, ISBN, ISSN, Wayback Machine and OCLC. Those live in the article namespace, so they are matched by exact title. Both filters now apply at every depth, and <code>scripts/purge_wiki_meta.py</code> cleaned the pages crawled before they existed: 169 pages, 24,594 links and 6,460 queued URLs.</p>
+  <div class="ev">production, top of the link graph, before and after
+
+  before                              after
+  Help:Category                       Association football
+  Wikipedia:Protection policy         United States
+  File:Commons-logo.svg               World War II
+  Association football   (4th)        Geographic coordinate system
+  ISBN                                World War I
+                                      FIFA</div>
+</div>
+
+<div class="finding openf">
+  <div class="fhead"><span class="fnum">07</span><span class="ftitle">Postgres app sleeping</span><span class="pill p-you">Needs you</span></div>
+  <p>The root cause of the instability, and the only finding still open. A database service has no repository, so config-as-code cannot reach it and there is no CLI command — it is a dashboard toggle. The backend now pins <code>sleepApplication: false</code> in <code>backend/railway.json</code>; Postgres still reads <code>true</code>, and its logs still show the stop/start cycle.</p>
+</div>
+
+<div class="finding openf">
+  <div class="fhead"><span class="fnum">08</span><span class="ftitle">Schema drift, and stale backups</span><span class="pill p-open">Open</span></div>
+  <p>Two things worth knowing, neither urgent.</p>
+  <p>Production carries three tables this repository does not define — <code>page_entities</code>, <code>entity_attributes</code>, <code>entity_relationships</code>. The purge script found them the hard way, by failing on a foreign key it had never heard of. <code>CLAUDE.md</code> says the schema lives only in <code>db.py</code>; right now that is not true.</p>
+  <p>And the local database was genuinely deleted — the README's <code>docker run</code> had no <code>-v</code>, so the data lived in the container layer. It has been restored from <code>full_backup.sql</code> onto a named volume, and the README is fixed. But both dumps are gitignored, dated 16 March, and exist as one copy on one disk. Worth copying somewhere else.</p>
+</div>
+
+<h2>Measured result</h2>
+
+<p>Fifty labelled queries against production, compared with the frozen baseline in <code>eval/baseline.json</code>:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Metric</th><th>Baseline</th><th>Now</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td>nDCG@10</td><td class="num">0.7394</td><td class="num">0.9101</td><td class="num up">+0.1707</td></tr>
+    <tr><td>MRR</td><td class="num">0.6259</td><td class="num">0.8370</td><td class="num up">+0.2111</td></tr>
+    <tr><td>zero-result precision</td><td class="num">0.40</td><td class="num">0.60</td><td class="num up">+0.20</td></tr>
+    <tr><td>latency p50</td><td class="num">1325 ms</td><td class="num">538 ms</td><td class="num up">−788 ms</td></tr>
+    <tr><td>latency p95</td><td class="num">2180 ms</td><td class="num">840 ms</td><td class="num up">−1341 ms</td></tr>
+    <tr><td>empty responses</td><td class="num">8</td><td class="num">1</td><td class="num up">−7</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>By intent</th><th>Baseline</th><th>Now</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td>entity</td><td class="num">0.7525</td><td class="num">0.9895</td><td class="num up">+0.2370</td></tr>
+    <tr><td>navigational</td><td class="num">0.6402</td><td class="num">0.9257</td><td class="num up">+0.2855</td></tr>
+    <tr><td>informational</td><td class="num">0.7217</td><td class="num">0.9537</td><td class="num up">+0.2320</td></tr>
+    <tr><td>multi_term</td><td class="num">0.8172</td><td class="num">0.8866</td><td class="num up">+0.0694</td></tr>
+    <tr><td>stopword_heavy</td><td class="num">0.9598</td><td class="num">1.0000</td><td class="num up">+0.0402</td></tr>
+    <tr><td>misspelled</td><td class="num">0.6218</td><td class="num">0.5707</td><td class="num down">−0.0511</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>That is also <b>+0.0217 nDCG@10 against the depth-40 run</b> recorded in <code>CLAUDE.md</code>, at identical MRR.</p>
+
+<p class="note"><b>Quote the keyword counter beside these, as your README already insists.</b> A five-line function that counts query words in the title scores 0.7551 on this eval. The improvement is real, but the ruler rewards string overlap by construction, and a number from it should never travel alone.</p>
+
+<h3>The one regression</h3>
+<p>Misspelled queries fell 0.6218 → 0.5707, driven almost entirely by <code>premeir league</code> going 0.631 → 0.000. This is defect 3 in your own notes, not a new fault: spell correction is wired to <code>/api/search/explain</code> but never runs on <code>/api/search</code>, so the query searches the single stem <code>leagu</code> and which league pages surface was always luck. The purge changed the luck. Fixing defect 3 is the way to move that number — it is the obvious next piece of work, and it would likely take misspelled from 0.57 to something near the others.</p>
+
+<h2>What shipped</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Commit</th><th class="w">What</th></tr></thead>
+  <tbody>
+    <tr><td><code>00c7193</code></td><td class="w">Sort the terms upsert so concurrent crawls cannot deadlock</td></tr>
+    <tr><td><code>d0eb888</code></td><td class="w">Stop the scheduler stampeding the indexer on every restart</td></tr>
+    <tr><td><code>3168503</code></td><td class="w">Check pooled connections, and stop waiting 130s on a dead host</td></tr>
+    <tr><td><code>359ed70</code></td><td class="w">Make the health check able to fail</td></tr>
+    <tr><td><code>ead9baf</code></td><td class="w">Keep Wikipedia's furniture out of the link graph</td></tr>
+    <tr><td><code>3dc7478</code></td><td class="w">Write down what this outage taught, and the missing <code>-v</code></td></tr>
+    <tr><td><code>74c3dc4</code></td><td class="w">Read the purge's dependants from the catalogue, not a list</td></tr>
+    <tr><td><code>8f4b91e</code></td><td class="w">Record the measurement after the link-graph cleanup</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Test suite went from 89 to 105 — the new ones cover the lock ordering and both crawl filters, so a future "simplification" back to unsorted terms fails CI rather than a crawl.</p>
+
+<footer>
+  5 September 2026 · production verified live at <a href="https://search.hoangducviet.work">search.hoangducviet.work</a> ·
+  local database restored from <code>full_backup.sql</code> onto a named volume ·
+  the only outstanding item is the Postgres app-sleeping toggle.
+</footer>
+
+</div>
+</body>
+</html>

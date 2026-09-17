@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Search Engine, fixes 17 Sep 2026</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#16181d; --muted:#5c6270; --line:#e3e1dc;
+    --red:#b3261e; --amber:#8a5a00; --green:#1e6b3a; --blue:#1a4fa0;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:56px 24px 96px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:32px}
+  .kicker{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  h1{font-size:30px;line-height:1.2;margin:0 0 10px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  h2{font-size:21px;margin:46px 0 14px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:24px 0 8px}
+  p{margin:0 0 14px}
+  code{font-family:var(--mono);font-size:.88em;background:#f1efea;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  pre{background:#1c1e24;color:#e6e6e6;padding:15px 17px;border-radius:8px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;margin:0 0 16px}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .add{color:#7ee2a8}.del{color:#ff9d96}
+
+  .verdict{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:8px;padding:20px 22px;margin-bottom:14px}
+  .verdict p:last-child{margin-bottom:0}
+  .open{background:#fdf7e9;border:1px solid #e8cf9c;border-left:5px solid var(--amber);border-radius:8px;padding:18px 22px;margin-bottom:14px}
+  .open p:last-child{margin-bottom:0}
+
+  table{width:100%;border-collapse:collapse;margin:0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--ink)}
+  tbody tr:last-child td{border-bottom:none}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:18px}
+  .scroll th,.scroll td{white-space:nowrap}
+  .scroll td.w{white-space:normal;min-width:240px}
+  td.num{text-align:right;font-family:var(--mono);font-size:13.5px}
+  .good{color:var(--green);font-weight:600}.bad{color:var(--red);font-weight:600}
+
+  .pill{display:inline-block;font:600 10.5px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:20px;border:1px solid;white-space:nowrap}
+  .p-fixed{color:var(--green);border-color:#a9d4bb;background:#eef8f2}
+  .p-open{color:var(--amber);border-color:#e8cf9c;background:#fdf7e9}
+
+  .finding{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:16px}
+  .finding.fixed{border-left:5px solid var(--green)}
+  .finding.openf{border-left:5px solid var(--amber)}
+  .fhead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;margin-bottom:8px}
+  .fnum{font:700 12px/1 var(--mono);color:var(--muted)}
+  .ftitle{font-weight:650;font-size:16.5px}
+  .finding p:last-child{margin-bottom:0}
+  .ev{font-family:var(--mono);font-size:12.5px;color:var(--muted);background:#f5f3ef;border:1px solid var(--line);border-radius:6px;padding:9px 12px;margin:12px 0 0;white-space:pre-wrap;overflow-x:auto}
+  .note{border-left:3px solid var(--line);padding-left:16px;color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue)}
+  @media (max-width:620px){.wrap{padding:34px 17px 70px}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Fixes · 17 September 2026</div>
+  <h1>AI Overviews, the football API, and the scrollbars</h1>
+  <p class="sub">Four commits, <code>8f4b91e</code> to <code>c821b3b</code>. All deployed and verified against production.</p>
+</header>
+
+<div class="verdict">
+  <p><strong>All four are done.</strong> AI Overviews were not out of tokens: Groq had retired the model. The football API is gone from both services. The scrollbars were one bug with one cause, and it is measured before and after. Nothing needs a local LLM.</p>
+</div>
+
+<h2>1. AI Overviews</h2>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">01</span><span class="ftitle">Groq retired the model, the key was always fine</span><span class="pill p-fixed">Fixed</span></div>
+  <p>This is the part worth knowing, because it changes the answer to your last question. The API key authenticates perfectly: <code>/openai/v1/models</code> returns 200. It is the model that no longer exists.</p>
+  <div class="ev">models -> 200  {"object":"list","data":[...]}
+chat   -> 404  {"error":{"message":"The model `llama-3.3-70b-versatile`
+                does not exist or you do not have access to it.",
+                "code":"model_not_found"}}</div>
+  <p>Groq now serves five chat models on the account. <code>openai/gpt-oss-120b</code> is the largest and is the new default, verified against the real overview prompt at <code>AI_OVERVIEW_MAX_TOKENS = 300</code>: 1.08 s, five sources, citations parsing correctly as <code>[1]</code>.</p>
+  <p>Two traps for the next model change, both found by testing rather than reading docs. The <code>gpt-oss</code> family are reasoning models and reasoning tokens come out of <code>max_tokens</code>, so <code>gpt-oss-20b</code> spends the whole 300 thinking and returns an empty string. And setting <code>reasoning_effort: low</code> makes the model emit fullwidth <code>【1】</code> brackets, which the frontend's <code>[1]</code> citation parser does not match.</p>
+</div>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">02</span><span class="ftitle">The failure was invisible, which is why it lasted</span><span class="pill p-fixed">Fixed</span></div>
+  <p><code>/api/overview</code> answered <code>200</code> with <code>overview: null</code> and an empty trace, which is exactly what a query with nothing worth summarising looks like. The only evidence anywhere was a single log line. Both no-overview paths now return an <code>error</code> string: the Groq status and body when synthesis failed, or how many chunks were retrieved when there genuinely was not enough context.</p>
+</div>
+
+<h2>2. The football API</h2>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">03</span><span class="ftitle">Removed from both services</span><span class="pill p-fixed">Fixed</span></div>
+  <p><code>backend/sports/</code>, the three <code>/api/sports/*</code> endpoints, the detection hook in both the engine and the explainer, the <code>sports</code> field on <code>SearchResponse</code>, <code>MatchCard.tsx</code> and its types, the OneBox colour tokens, and <code>FOOTBALL_API_KEY</code>. <code>SiuPose.tsx</code> and <code>ronaldo.svg</code> went too: they were the OneBox easter egg and nothing imported them any more.</p>
+  <p>The crawl seeds are deliberately untouched. Sky Sports, BBC Sport and ESPN are content sources for the index and have nothing to do with the live scores API.</p>
+  <div class="ev">/api/sports/live       -> 404
+/api/sports/standings  -> 404
+/api/sports/matches    -> 404
+/api/search?q=messi    -> 200  n=352, no `sports` key, Lionel Messi first</div>
+</div>
+
+<h2>3. The scrollbars</h2>
+
+<p>One cause, and it only shows above 1280px, which is why it seemed to be everywhere for you and nowhere in the code. <code>html</code> carries <code>zoom: 1.2</code> above 1280px and <code>1.3</code> above 1600px. <code>zoom</code> scales rendered output but does not rescale viewport units, so <code>100vh</code> resolves to the full viewport in CSS pixels and is then multiplied by the zoom. <code>body</code> was <code>min-h-screen</code>.</p>
+
+<p>Measured with Playwright on the deployed site, four viewports, before any change:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Viewport</th><th>zoom</th><th>Page overflow</th><th class="w">Arithmetic</th></tr></thead>
+  <tbody>
+    <tr><td>1280 x 800</td><td class="num">1.2</td><td class="num bad">160px</td><td class="w">800 x 1.2 − 800</td></tr>
+    <tr><td>1728 x 1000</td><td class="num">1.3</td><td class="num bad">300px</td><td class="w">1000 x 1.3 − 1000</td></tr>
+    <tr><td>1100 x 800</td><td class="num">1</td><td class="num good">0px</td><td class="w">no zoom, no overflow</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>So every page at desktop width carried a page scrollbar that scrolled nothing, sitting a few pixels from the results list's own scrollbar. That is the two bars at the right edge in your screenshot. At 1100px, where no zoom applies, there was correctly only ever one.</p>
+
+<h3>The fix</h3>
+<p><code>--vph</code> is now the viewport height already divided by the zoom in force. A pure-CSS fallback per breakpoint in <code>globals.css</code>, overridden before first paint from the measured <code>window.innerHeight</code> in <code>layout.tsx</code>, so it is also correct on browsers that do rescale <code>vh</code> under zoom and on mobile when the URL bar shows or hides. Every <code>100vh</code>, <code>h-screen</code> and <code>min-h-screen</code> in the app is now <code>var(--vph)</code>, and the local copy of this workaround that already existed in <code>page.tsx</code> is gone in favour of the global one.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Page</th><th>Bars before</th><th>Bars after</th><th class="w">What is left</th></tr></thead>
+  <tbody>
+    <tr><td>hero</td><td class="num">0</td><td class="num good">0</td><td class="w">viewport locked, correct</td></tr>
+    <tr><td>results</td><td class="num bad">2</td><td class="num good">1</td><td class="w">the results list, which genuinely scrolls</td></tr>
+    <tr><td>/pipeline</td><td class="num">1</td><td class="num good">1</td><td class="w">page scroll, the diagram is genuinely taller than the viewport</td></tr>
+    <tr><td>/dashboard</td><td class="num">1</td><td class="num good">1</td><td class="w">page scroll, content genuinely exceeds the viewport</td></tr>
+    <tr><td>Explore</td><td class="num">2</td><td class="num">2</td><td class="w">left alone on purpose, see below</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="note">The Explore view keeps two scrollbars deliberately. It is a two pane split, pipeline canvas on the left and results on the right, and each pane scrolls its own content. That is a normal split view, not the bug you reported, so I did not touch it.</p>
+
+<h2>4. A deploy failure the healthcheck caught</h2>
+
+<div class="finding fixed">
+  <div class="fhead"><span class="fnum">04</span><span class="ftitle">A leaked connection was blocking startup</span><span class="pill p-fixed">Fixed</span></div>
+  <p>The first deploy of this work failed, and it was right to. The healthcheck added in the previous session finally had something to catch, and what it caught had probably been true for a long time.</p>
+  <div class="ev">Attempt #4 failed with service unavailable
+1/1 replicas never became healthy!
+...
+INFO: Waiting for application startup.      <- and never finishes</div>
+  <p><code>pg_stat_activity</code> said why:</p>
+  <div class="ev">pid 36012  idle in transaction  15m56s  SELECT c.id, c.page_id, ...
+pid 36225  active Lock/relation 13m28s  ALTER TABLE postings ...
+pid 36239  active Lock/relation  6m54s  CREATE TABLE IF NOT EXISTS ...</div>
+  <p><code>/api/overview/stream</code> held a pooled connection for the whole Server-Sent Events response. psycopg opens a transaction on the first statement and holds it until the block exits, so the retrieval <code>SELECT</code> kept its locks for as long as the stream lived, which with a failing LLM call and a client that walked away was sixteen minutes. <code>init_db()</code>'s <code>ALTER TABLE</code> needs <code>ACCESS EXCLUSIVE</code>, so it queued behind it and startup never finished.</p>
+  <p>Note the shape of it: a zero-downtime deploy cannot recover from this on its own, because the leaked connection belongs to the old container and the old container is not retired until the new one is healthy. Three changes break it.</p>
+  <ul>
+    <li><code>init_db()</code> sets <code>lock_timeout = 10s</code> and <code>statement_timeout = 60s</code>. Both blocks already tolerate not applying, the schema is unchanged on nearly every boot, and a migration that cannot get its lock will get it next time. Startup must never be able to block forever on a lock.</li>
+    <li><code>streaming_conn()</code> runs the SSE connection in autocommit, so each statement releases its locks immediately and an abandoned stream cannot block DDL again.</li>
+    <li><code>healthcheckTimeout</code> 60s to 300s, which left no room for the schema migration against a cold Postgres.</li>
+  </ul>
+  <p>Verified after redeploy: four sessions, all <code>idle</code> on <code>Client</code>, oldest 38 seconds. No <code>idle in transaction</code>, nothing waiting on a lock.</p>
+</div>
+
+<h2>Still open</h2>
+
+<div class="open">
+  <p><strong><code>CLAUDE.md</code> could not be updated.</strong> The workspace voice hook rebuilds the whole file and rejects any edit while it contains an em dash, and that file has 30 of them in your own prose. So the lessons from today are in code comments next to the code they concern, in <code>config.py</code>, <code>db.py</code>, <code>globals.css</code> and <code>layout.tsx</code>, but not in the file an agent reads first. Say the word and I will normalise the punctuation in one pass and add the notes.</p>
+</div>
+
+<div class="open">
+  <p><strong><code>FOOTBALL_API_KEY</code> is still set on the Railway backend service.</strong> Nothing reads it now. Deleting it needs the dashboard, since reading and writing service variables is blocked from here.</p>
+</div>
+
+<h2>What shipped</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Commit</th><th class="w">What</th></tr></thead>
+  <tbody>
+    <tr><td><code>1ee1b17</code></td><td class="w">Point AI Overviews at a model Groq still serves</td></tr>
+    <tr><td><code>bd1aefa</code></td><td class="w">Remove the live sports OneBox and API-Football</td></tr>
+    <tr><td><code>7a9fd17</code></td><td class="w">Stop CSS zoom putting a phantom scrollbar on every page</td></tr>
+    <tr><td><code>c821b3b</code></td><td class="w">Stop a leaked connection from blocking startup forever</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>105 backend tests pass, ruff clean, frontend <code>tsc</code> and <code>eslint</code> clean, Next build clean.</p>
+
+<footer>
+  17 September 2026 · verified against the deployed backend and <a href="https://search.hoangducviet.work">search.hoangducviet.work</a>.
+  Postgres app sleeping is now off and the restart loop from the previous session is gone.
+</footer>
+
+</div>
+</body>
+</html>
