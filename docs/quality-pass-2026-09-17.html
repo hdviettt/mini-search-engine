@@ -205,10 +205,38 @@ after    "explain the video assistant referee system"
   <p><code>embed_all_chunks</code> on its own was always the backfill: it only touches rows <code>WHERE embedding IS NULL</code>. There is now an <code>/api/embedding/backfill</code> endpoint that calls just that, the rebuild docstring states what it costs, and both responses name the mode they ran.</p>
 </div>
 
+<h2>The corpus was stale, not junk</h2>
+
+<div class="finding win">
+  <div class="fhead"><span class="ftitle">Right pages, wrong snapshots</span><span class="pill p-win">Fixed</span></div>
+  <p>"who won the 2026 world cup" returned nothing useful, and it was reasonable to conclude the corpus was worthless. It was not. <code>2026 FIFA World Cup final</code> had been in the index the whole time. It was crawled on 2026-03-25, months before the tournament was played on 19 July, so what we served was the pre-tournament stub: the right page, frozen before the event it describes.</p>
+  <div class="ev">crawled or last checked, before
+
+  under 7 days      989
+  7 to 30 days      186
+  1 to 3 months     259
+  over 3 months   4,678      <- 77% of the corpus
+
+last_checked_at was NULL for essentially all of them</div>
+  <p>Nothing refreshed by age. The only refresh that existed walked the PageRank ranking 300 pages a day, so it revisited the same head over and over and never reached the tail. <code>refresh_stale</code> orders by <code>COALESCE(last_checked_at, crawled_at)</code> ascending instead, so it rotates over the whole corpus: 800 pages every four hours, roughly 4,800 a day against 6,100 pages, which puts the worst case around a day and a half out of date.</p>
+  <p>Refreshing the 28 World Cup pages by hand proved it end to end. The page went from a stub to 33,307 characters, and the answer followed:</p>
+  <div class="ev">before   "The provided results do not mention the champion of the
+          2026 FIFA World Cup"
+
+after    "The 2026 FIFA World Cup final was played on July 19, 2026 at
+          MetLife Stadium ... Spain emerged as the champions, securing
+          their second World Cup title"</div>
+  <p>The rotation is running and clearing the backlog at roughly 290 pages an hour. It should be caught up within a day or so without further intervention.</p>
+</div>
+
 <h2>Still open</h2>
 
 <div class="open">
   <p><strong>navigational at 0.5780 is mostly not a ranking problem.</strong> Two of its five queries are <code>espn soccer</code> and <code>fbref premier league stats</code>, whose labels are <code>espn.com</code> and <code>fbref.com</code>. ESPN renders its content in JavaScript and yields zero indexable pages; fbref answers 403. Those two queries are unanswerable by construction, which caps the whole intent near 0.6 whatever the ranker does. The eval is measuring something the corpus cannot contain, and that is worth fixing in <code>eval/queries.yaml</code> rather than in the ranker.</p>
+</div>
+
+<div class="open">
+  <p><strong>RAG retrieval is inconsistent on short queries.</strong> "who won the 2026 world cup final" now answers correctly; "2026 world cup winner" still retrieves CONCACAF and UEFA qualification pages instead of the final. Same corpus, same embeddings, three words shorter. The fan-out and hybrid weighting are the place to look.</p>
 </div>
 
 <div class="open">
