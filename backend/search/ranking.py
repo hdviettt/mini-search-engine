@@ -7,7 +7,9 @@ did not actually perform. Everything either of them needs to score lives here.
 """
 import math
 import os
+from functools import lru_cache
 from math import exp
+from urllib.parse import urlparse
 
 from config import FRESHNESS_DECAY, FRESHNESS_FLOOR
 
@@ -109,6 +111,22 @@ def site_match_rerank_bonus(query_tokens, url: str) -> float:
     return SITE_MATCH_RERANK_BONUS if matched else 0.0
 
 
+@lru_cache(maxsize=100_000)
+def _host_labels(url: str) -> tuple[str, ...]:
+    """Meaningful host labels for a URL, cached.
+
+    This runs for every page in the 500-candidate pool on every query, and the
+    same URLs recur constantly across queries. Parsing them each time cost
+    about 130 ms per search, which is more than the whole BM25 stage.
+    """
+    if not url:
+        return ()
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        return ()
+    return tuple(lbl for lbl in host.split(".") if lbl and lbl not in _HOST_NOISE)
+
+
 def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONUS) -> float:
     """Boost a result whose host is named in the query.
 
@@ -116,14 +134,9 @@ def site_match_multiplier(query_tokens, url: str, bonus: float = SITE_MATCH_BONU
     in one ("guardian" in theguardian.com). Containment needs four characters,
     which keeps short tokens from matching inside unrelated hosts.
     """
-    from urllib.parse import urlparse
-
     if not url or not query_tokens:
         return 1.0
-    host = (urlparse(url).hostname or "").lower()
-    if not host:
-        return 1.0
-    labels = [lbl for lbl in host.split(".") if lbl and lbl not in _HOST_NOISE]
+    labels = _host_labels(url)
     if not labels:
         return 1.0
 
@@ -212,8 +225,6 @@ def dedupe_by_domain(
     Applied to the whole candidate pool before pagination — deduping per page
     instead would make page 2 depend on what page 1 happened to drop.
     """
-    from urllib.parse import urlparse
-
     seen: dict[str, int] = {}
     kept: list[int] = []
     for page_id in ordered_ids:
