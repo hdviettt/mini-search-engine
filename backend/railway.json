@@ -3,7 +3,8 @@
   "deploy": {
     "sleepApplication": false,
     "healthcheckPath": "/health/live",
-    "healthcheckTimeout": 60,
+    "_healthcheckTimeout": "Generous on purpose. Startup runs the schema migration, and a cold Postgres can take a while to answer. 60s was too tight and failed a deploy.",
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

@@ -202,6 +202,36 @@ def db_conn() -> Iterator[psycopg.Connection]:
         yield conn
 
 
+@contextmanager
+def streaming_conn() -> Iterator[psycopg.Connection]:
+    """Pooled connection for a request that stays open for a long time.
+
+    A Server-Sent Events handler holds its connection for the whole stream,
+    which includes an LLM call and its retries, and longer still if the client
+    disconnects before the generator is drained. Under the default
+    `autocommit = False` psycopg opens a transaction on the first statement and
+    keeps it until the block exits, so that connection sits `idle in
+    transaction` holding relation locks the entire time.
+
+    That is not theoretical. One of these held a lock for sixteen minutes, the
+    `ALTER TABLE` in `init_db()` queued behind it, application startup never
+    finished, and two deploys failed their healthcheck as a result.
+
+    Autocommit means each statement releases its locks immediately, so a slow
+    or abandoned stream can no longer block a migration.
+    """
+    with get_pool().connection() as conn:
+        prev = conn.autocommit
+        conn.autocommit = True
+        try:
+            yield conn
+        finally:
+            try:
+                conn.autocommit = prev
+            except Exception:
+                pass
+
+
 def get_db() -> Iterator[psycopg.Connection]:
     """FastAPI dependency wrapping the pool."""
     with get_pool().connection() as conn:
@@ -250,6 +280,23 @@ def init_db():
     while the query path had already started selecting it.
     """
     with get_connection() as conn:
+        # Bound the wait for a lock. `ALTER TABLE` needs ACCESS EXCLUSIVE, so a
+        # single session left `idle in transaction` blocks it forever, and this
+        # runs during startup: one leaked connection stops the app becoming
+        # ready and every subsequent deploy fails its healthcheck. That is not
+        # hypothetical, it happened — a streaming request held a pooled
+        # connection open for 16 minutes and two deploys hung behind it.
+        #
+        # Failing fast is right here. Both blocks below are already tolerant of
+        # not applying, the schema is unchanged on the vast majority of boots,
+        # and a migration that cannot get its lock now will get it next boot.
+        try:
+            conn.execute("SET lock_timeout = '10s'")
+            conn.execute("SET statement_timeout = '60s'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
         try:
             conn.execute(_schema_sql())
             conn.commit()

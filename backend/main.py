@@ -14,7 +14,7 @@ from ai_overview.generator import generate_overview, generate_overview_stream
 from api.playground import admin as admin_router
 from api.playground import capture_stats_snapshot, websocket_jobs
 from api.playground import router as playground_router
-from db import close_pool, db_conn, get_db, init_db
+from db import close_pool, db_conn, get_db, init_db, streaming_conn
 from logging_config import setup_logging
 from models import ChatRequest, OverviewResponse, SearchResponse
 from search.engine import search
@@ -205,7 +205,9 @@ async def api_overview(q: str = Query("")):
 @app.get("/api/overview/stream")
 def api_overview_stream(q: str = Query("")):
     def event_stream():
-        with db_conn() as conn:
+        # streaming_conn, not db_conn: this generator holds its connection for
+        # the whole SSE response, and an open transaction here blocks DDL.
+        with streaming_conn() as conn:
             yield from generate_overview_stream(conn, q)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
