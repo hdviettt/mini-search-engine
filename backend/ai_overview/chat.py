@@ -11,6 +11,7 @@ from collections.abc import Generator
 
 import httpx
 
+from ai_overview.generator import _normalise_citations
 from config import GROQ_API_KEY, GROQ_MODEL
 from db import get_connection
 
@@ -118,6 +119,11 @@ def generate_chat_stream(messages: list[dict]) -> Generator[str, None, None]:
                         chunk = json.loads(line[6:])
                         delta = chunk["choices"][0].get("delta", {}).get("content", "")
                         if delta:
+                            # Same normalisation the overview path does. AI Mode streams
+                            # through here and was left out, so citations arrived as
+                            # literal CJK brackets and the frontend's [N] parser showed
+                            # them as text.
+                            delta = _normalise_citations(delta)
                             yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
                     except (json.JSONDecodeError, KeyError, IndexError):
                         pass

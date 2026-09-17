@@ -36,6 +36,17 @@ function SparkleIcon() {
 }
 
 /** Render text matching AI Overview style: **bold**, bullets, [N] citations */
+/** Citation brackets the model actually produces.
+ *
+ * The prompt asks for [1]. gpt-oss also emits the CJK fullwidth forms, and
+ * those reached the UI as literal text because this parser only knew about
+ * the ASCII ones. The backend normalises its output now, but answers cached
+ * before that fix still contain them, so accept both here rather than rely on
+ * the producer alone.
+ */
+const CITE_SPLIT = /(\*\*[^*]+\*\*|[[\u3010\uff3b]\s*\d+(?:\s*,\s*\d+)*\s*[\]\u3011\uff3d])/;
+const CITE_MATCH = /^[[\u3010\uff3b]\s*(\d+(?:\s*,\s*\d+)*)\s*[\]\u3011\uff3d]$/;
+
 function RichText({ text, sources, streaming }: { text: string; sources: Source[]; streaming?: boolean }) {
   const lines = text.split("\n");
 
@@ -48,11 +59,11 @@ function RichText({ text, sources, streaming }: { text: string; sources: Source[
         const isBullet = /^[-•*]\s/.test(trimmed);
         const content = isBullet ? trimmed.replace(/^[-•*]\s/, "") : trimmed;
 
-        const parts = content.split(/(\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\])/).flatMap((part, pi) => {
+        const parts = content.split(CITE_SPLIT).flatMap((part, pi) => {
           if (part.startsWith("**") && part.endsWith("**")) {
             return <strong key={pi}>{part.slice(2, -2)}</strong>;
           }
-          const citMatch = part.match(/^\[(\d+(?:\s*,\s*\d+)*)\]$/);
+          const citMatch = part.match(CITE_MATCH);
           if (citMatch) {
             return citMatch[1].split(",").map((s, ci) => {
               const idx = parseInt(s.trim());
