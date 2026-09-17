@@ -150,6 +150,67 @@ It just adds a crash loop to the outage. `/health` is for external uptime
 monitoring, which is what should page you. It used to be a hardcoded
 `{"status": "ok"}`, which is why nothing noticed the outage above.
 
+**Size the ONNX thread pool to the CPU quota, never to `os.cpu_count()`.**
+That call reports the host's cores, which inside a container is a fiction: the
+cgroup quota is what the scheduler enforces. This box shows 48 cores and allows
+8. ONNX Runtime defaults its intra-op pool to the visible count, so it built a
+48-thread pool against an 8-CPU allowance and spent the difference context
+switching. A batch of 40 pairs at sequence length 128 took 3322 ms at the
+default, 247 ms at 8 threads, and 424 ms at 16. That 16 is worse than 8 is the
+tell: past the quota the threads contend rather than work. `_cpu_allowance` in
+`ranker/reranker.py` reads cgroup v2, then v1, then affinity. It is 13x, and it
+is the answer to the per-request overhead this file used to record as
+unexplained.
+
+**The freshness signal measures when we fetched a page, not when it was
+written.** The input is `COALESCE(last_checked_at, crawled_at)`. With the
+original 0.5 floor and 1.2 ceiling that was a 2.4x swing, so a single crawl
+that added 300 news pages demoted five thousand reference pages by
+construction: `offside rule` began returning comment pieces above
+`Offside (association football)` because they had been fetched more recently,
+not because they were better answers. Narrowing the band to 0.85-1.05 was worth
++0.0158 nDCG@10, and informational and multi_term each gained about 0.05.
+Widen it again only when the input is a published date.
+
+**A ranking signal applied before the reranker does not survive it.** The head
+is ordered by `sorted(rerank_scores, ...)`, so anything multiplied into the
+combined score only decides which candidates reach the cross-encoder. The site
+signal was added that way first and moved navigational by 0.0002. It has to be
+reapplied in logit space afterwards, which is what `site_match_rerank_bonus`
+does. Additive, because logits are not a ratio scale.
+
+**Choose a crawl source on extractable text, never on bytes or link count.**
+BBC, ESPN, the Guardian, Goal and premierleague.com all answer 200 with
+hundreds of kilobytes and plenty of links, and render their article text in the
+browser. Of 24 BBC pages crawled, 0 passed the quality gate;
+`espn.com/soccer/` yields 49 characters of body. They were added to the source
+list on a byte-and-link measurement, which is how all five got through at once.
+The test that matters is what `parse_page` extracts from a story page.
+Hub pages yield almost nothing everywhere and must not be the thing measured:
+football365's hub gives 44 words and its articles give 607.
+
+**The crawl frontier rotates across domains, and must.** A Wikipedia article
+carries 300 to 600 outgoing links and a news article carries a handful, so
+under the strict FIFO this used to run, the queue became all Wikipedia within
+two levels and stayed that way. 188,121 pending URLs, of which a 60,000 sample
+held 59,965 Wikipedia and 7 BBC. The news tier was configured correctly and
+never ran. Note the second-order effect: the rate limiter is keyed per domain,
+so FIFO also made every fetch pay the full delay, and rotation made the crawl
+roughly an order of magnitude faster as a side effect.
+
+**Scope is checked when a URL is popped, not only when it is enqueued.** The
+queue outlives the config. Without the pop-time check, a domain removed from
+`ALLOWED_DOMAINS` keeps being fetched out of the backlog, which is how fbref
+carried on being crawled, and answering 403, after it was dropped for
+answering 403.
+
+**`parse_page` must never raise.** `html.fromstring("")` raises ParserError,
+and some servers answer 200 with an empty body:
+`bbc.com/sport/football/european` is one. The scheduler caught that as a failed
+schedule and abandoned the whole run, so scheduled crawls were dying early on
+whatever empty document they met first, and the corpus was not growing for
+reasons that never looked like a crash.
+
 **Nothing in the frontend may use `100vh`, `h-screen` or `min-h-screen`.**
 `html` carries `zoom: 1.2` above 1280px and `1.3` above 1600px, and `zoom`
 scales rendered output without rescaling viewport units: `100vh` resolves to the
@@ -409,15 +470,31 @@ Ranked by what the numbers say, not by feel. Fix one, re-run
    precision. A higher `RERANK_MIN_SCORE` would raise 0.40 and cost recall.
    Measure both.
 
-1. **No minimum-should-match.** BM25 admits any document matching any term, so
-   `kubernetes ingress controller annotations` returns 1,429 football pages.
-   Zero-result precision is 0.40: three of five nonsense queries leak.
-2. **No phrase or proximity signal.** `serie a` loses "a" to the stopword list
-   and searches the single stem `seri`; top result is LDU Quito.
-3. **Spell correction is wired to `/api/search/explain` but not `/api/search`.**
-   It has never run for a real query. `bundesliaga` returns nothing.
-4. **No domain signal in the ranker.** `bbc sport football` names a host; BM25F
-   scores title and body only, so it can never reach it.
+1. **No minimum-should-match.** FIXED. BM25 admitted any document matching any
+   single term, so `sourdough starter hydration ratio` matched football pages
+   on "starter" alone, a starter being also a player who starts. A document
+   now needs `ceil(0.34 * distinct terms)` of them, floored at two, for queries
+   of three terms or more. Zero-result precision went 0.60 to 1.0. The floor of
+   two is what does the work; a ratio of 0.5 was measured first and cost
+   multi_term 0.049 for nothing.
+2. **No phrase or proximity signal.** Largely moot. `serie a` still loses "a"
+   to the stopword list, but at rerank depth 40 the cross-encoder puts
+   `Serie A - Wikipedia` first anyway, and `la liga` likewise. The note about
+   LDU Quito predates the depth change. A positional index is still the honest
+   fix and is still not built.
+3. **Spell correction is wired to `/api/search/explain` but not
+   `/api/search`.** FIXED, and there were two bugs. It had never run for a real
+   query, and where it did run the trigger was `total_results == 0`, which
+   cannot detect a partial misspelling: in "premeir league" the word "league"
+   matches thousands of documents, so the count is never zero. Vocabulary
+   membership is the right test. Ties are now broken by how often a word
+   appears in page titles, because in a 200k-word vocabulary a great many words
+   sit exactly two edits from any typo and the old code kept whichever one set
+   iteration reached first. misspelled went 0.6064 to 0.9718.
+4. **No domain signal in the ranker.** FIXED, with a lesson attached. See the
+   invariant about signals applied before the reranker: the first attempt put
+   the bonus on the combined score, where the cross-encoder then discarded it,
+   and moved navigational by 0.0002.
 
 Still open, still tuned by eye: `RANK_ALPHA = 0.8`, `RERANK_MIN_SCORE = -8.0`,
 `CANDIDATE_POOL = 500`.
