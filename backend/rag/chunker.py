@@ -7,6 +7,87 @@ import psycopg
 log = logging.getLogger(__name__)
 
 
+# Minimum words for a chunk to be worth embedding and retrieving.
+MIN_CHUNK_WORDS = 25
+
+# Above this share of digits the text is a grid of numbers, not prose.
+MAX_DIGIT_RATIO = 0.18
+
+# Prose uses longer words than a results table does.
+MIN_AVG_WORD_LEN = 3.4
+
+# Fragments of a reference list. "^" is the Wikipedia citation backlink.
+_CITATION_NOISE = re.compile(
+    r'(\^\s*"|retrieved\s+\d|archived from the original|\bISBN\b|\bdoi:)',
+    re.IGNORECASE,
+)
+
+# Column headers that mark a squad or fixture table.
+_TABLE_HEADER = re.compile(
+    r"\b(pos\s+nat\s+player|p\s+w\s+d\s+l|gp\s+g\s+a\b|apps?\s+goals)\b",
+    re.IGNORECASE,
+)
+
+
+def is_noise_fragment(para: str) -> bool:
+    """Is this paragraph table or reference debris rather than text?
+
+    Applied per paragraph, before paragraphs are accumulated into chunks. Doing
+    it only after accumulation loses good prose: the splitter packs a page into
+    300-token chunks, so one squad table merged into the same chunk as a real
+    paragraph would take that paragraph down with it.
+
+    No length floor here. A short paragraph is fine, it merges with its
+    neighbours; length is judged on the finished chunk.
+    """
+    if not para or not para.strip():
+        return True
+    text = para.strip()
+    if _TABLE_HEADER.search(text) or _CITATION_NOISE.search(text):
+        return True
+    if sum(ch.isdigit() for ch in text) / max(len(text), 1) > MAX_DIGIT_RATIO:
+        return True
+    words = text.split()
+    alpha_words = [w for w in words if any(ch.isalpha() for ch in w)]
+    if not alpha_words:
+        return True
+    if sum(len(w) for w in alpha_words) / len(alpha_words) < MIN_AVG_WORD_LEN:
+        return True
+    return False
+
+
+def is_useful_chunk(content: str) -> bool:
+    """Is this chunk worth embedding and retrieving?
+
+    There was no gate here at all, so every fragment of a page became a chunk,
+    tables and reference lists included. Those are numerous, semantically
+    empty, and they win retrievals: asking "how does var work" returned Paris
+    Saint-Germain season tables and a citation fragment, while the "Video
+    assistant referee" article, fully chunked and fully embedded, was nowhere.
+    A vector store full of "Pos Nat Player Total" cannot answer anything, and
+    it dilutes everything stored beside it.
+    """
+    if not content:
+        return False
+    text = content.strip()
+    words = text.split()
+    if len(words) < MIN_CHUNK_WORDS:
+        return False
+    if _TABLE_HEADER.search(text) or _CITATION_NOISE.search(text):
+        return False
+    if sum(ch.isdigit() for ch in text) / max(len(text), 1) > MAX_DIGIT_RATIO:
+        return False
+    alpha_words = [w for w in words if any(ch.isalpha() for ch in w)]
+    if not alpha_words:
+        return False
+    if sum(len(w) for w in alpha_words) / len(alpha_words) < MIN_AVG_WORD_LEN:
+        return False
+    # Prose has sentences. A grid of cells has almost no terminal punctuation.
+    if text.count(".") + text.count("!") + text.count("?") < 1:
+        return False
+    return True
+
+
 def _split_into_chunks(text: str, max_tokens: int = 300) -> list[str]:
     """Split text into chunks of roughly max_tokens words, breaking at paragraph/sentence boundaries."""
     if not text:
@@ -22,6 +103,8 @@ def _split_into_chunks(text: str, max_tokens: int = 300) -> list[str]:
     for para in paragraphs:
         para = para.strip()
         if not para:
+            continue
+        if is_noise_fragment(para):
             continue
 
         words = para.split()
@@ -58,7 +141,9 @@ def _split_into_chunks(text: str, max_tokens: int = 300) -> list[str]:
     # Filter out very short chunks (less than 20 words)
     chunks = [c for c in chunks if len(c.split()) >= 20]
 
-    return chunks
+    # One gate, applied here, so chunk_page and chunk_all_pages cannot
+    # disagree about what is worth storing.
+    return [c for c in chunks if is_useful_chunk(c)]
 
 
 def chunk_page(conn: psycopg.Connection, page_id: int, title: str, body_text: str):
