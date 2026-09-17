@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchEngine, type SearchEngineState } from "@/hooks/useSearchEngine";
 import AIOverview from "@/components/AIOverview";
 import AIChat from "@/components/AIChat";
-import MatchCard from "@/components/MatchCard";
 import PipelineExplorer, { DetailPanel, type NodeId } from "@/components/PipelineExplorer";
 import { getStats, getStatsHistory, getSuggestions, type StatsHistory } from "@/lib/api";
 
@@ -187,13 +186,6 @@ const SerpSidePanel = memo(function SerpSidePanel({
               />
             )}
           </div>
-
-          {/* Sports card — live scores, fixtures, standings */}
-          {engine.searchData?.sports && (
-            <div>
-              <MatchCard data={engine.searchData.sports} />
-            </div>
-          )}
 
           {/* Results */}
           <div className="py-4 space-y-8">
@@ -406,23 +398,11 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fix: CSS zoom (1.2/1.3x on large screens) makes 100vh render larger than the viewport,
-  // clipping the bottom of the layout. Compute the correct height and expose as --vph.
-  useEffect(() => {
-    const update = () => {
-      const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-      document.documentElement.style.setProperty('--vph', `${window.innerHeight / zoom}px`);
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
   const isHero = !hasResults && !isSearching;
 
   return (
     <div
-      className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:fixed lg:top-0 lg:left-0 lg:right-0 lg:flex lg:flex-col min-h-screen lg:min-h-0"}`}
+      className={`bg-[var(--bg)] ${isHero ? "hero-lock h-full" : "lg:fixed lg:top-0 lg:left-0 lg:right-0 lg:flex lg:flex-col min-h-[var(--vph)] lg:min-h-0"}`}
       style={!isHero ? { height: 'var(--vph, 100vh)' } : undefined}
     >
       {/* ═══════════════════ Persistent header — always centered ═══════════════════ */}

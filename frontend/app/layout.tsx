@@ -14,14 +14,32 @@ export const metadata: Metadata = {
 };
 
 /**
- * Set the theme before first paint so a light-default page does not flash
- * white for a reader who chose dark. Runs from <head>, ahead of the body.
+ * Runs from <head>, ahead of the body, and does two things before first paint.
+ *
+ * 1. Sets the theme, so a light-default page does not flash white for a reader
+ *    who chose dark.
+ * 2. Sets --vph, the true viewport height in the zoomed coordinate space.
+ *    globals.css has a pure-CSS fallback; this overrides it with the measured
+ *    value so the app is correct regardless of how a browser resolves `vh`
+ *    under `zoom`, and stays correct when a mobile URL bar shows or hides.
+ *    Nothing in this app may use 100vh / h-screen / min-h-screen — see the
+ *    note in globals.css for why.
  */
-const THEME_INIT = `
+const BOOT_INIT = `
 try {
   var t = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', t);
 } catch (e) {}
+(function () {
+  var de = document.documentElement;
+  function vph() {
+    var z = parseFloat(getComputedStyle(de).zoom) || 1;
+    de.style.setProperty('--vph', (window.innerHeight / z) + 'px');
+  }
+  vph();
+  addEventListener('resize', vph);
+  addEventListener('orientationchange', vph);
+})();
 `;
 
 export default function RootLayout({
@@ -38,9 +56,10 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap"
         />
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script dangerouslySetInnerHTML={{ __html: BOOT_INIT }} />
       </head>
-      <body className={`${mono.variable} bg-[var(--bg)] text-[var(--text)] min-h-screen`}>
+      <body className={`${mono.variable} bg-[var(--bg)] text-[var(--text)]`}
+        style={{ minHeight: "var(--vph)" }}>
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>

@@ -58,7 +58,7 @@ function PipelineContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className="min-h-[var(--vph)] bg-[var(--bg)]">
       <div className="border-b border-[var(--border)] bg-[var(--bg-card)]">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3 mb-3">

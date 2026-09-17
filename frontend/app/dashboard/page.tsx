@@ -34,19 +34,19 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+    <div className="min-h-[var(--vph)] bg-[var(--bg)] flex items-center justify-center">
       <div className="text-[var(--text-dim)]">Loading dashboard...</div>
     </div>
   );
 
   if (!data) return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+    <div className="min-h-[var(--vph)] bg-[var(--bg)] flex items-center justify-center">
       <div className="text-red-400">Failed to load dashboard</div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-[var(--vph)] bg-[var(--bg)] text-[var(--text)]">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

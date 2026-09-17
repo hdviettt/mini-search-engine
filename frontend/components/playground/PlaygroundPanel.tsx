@@ -49,7 +49,7 @@ export default function PlaygroundPanel({
   ];
 
   return (
-    <div className="w-[380px] shrink-0 border-l border-[#1a1a3a] bg-[#0a0a18] overflow-y-auto h-[calc(100vh-80px)] sticky top-[80px]">
+    <div className="w-[380px] shrink-0 border-l border-[#1a1a3a] bg-[#0a0a18] overflow-y-auto h-[calc(var(--vph)-80px)] sticky top-[80px]">
       {/* Tab bar */}
       <div className="flex items-center border-b border-[#1a1a3a]">
         {tabs.map((tab) => (
