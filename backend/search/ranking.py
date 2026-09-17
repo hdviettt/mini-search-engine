@@ -36,7 +36,20 @@ CANDIDATE_POOL = 500
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "40"))
 
 # Cross-encoder logits below this are treated as "not actually relevant".
-RERANK_MIN_SCORE = -8.0
+#
+# -8.0 deleted 60% of everything the model scored: 144 of 240 candidates across
+# the eval, removed from the result set rather than demoted, and ten queries
+# with real answers lost their entire reranked head. That was tolerated because
+# the filter was also the only thing rejecting nonsense queries, and
+# zero-result precision depended on it.
+#
+# It no longer is. minimum-should-match now rejects nonsense upstream, at the
+# matching stage where it belongs, and took zero-result precision to 1.0 on its
+# own. So the threshold can go back to doing one job rather than two, and this
+# is the value to tune if recall looks thin.
+#
+# Env-overridable so it can be swept against a live instance.
+RERANK_MIN_SCORE = float(os.getenv("RERANK_MIN_SCORE", "-10.5"))
 
 # At most this many results from any single domain, so one site cannot own
 # the whole page.
