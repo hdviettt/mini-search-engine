@@ -39,7 +39,11 @@ def generate_snippet(body_text: str, query_terms: list[str], max_length: int = 2
     if not body_text:
         return ""
 
-    text = _CITATION_RE.sub("", body_text)
+    # Clean a window, not the whole document. Only the first 3000 characters
+    # are ever considered below, but these three substitutions were running
+    # over the entire body, which averages ~2000 words and runs to tens of
+    # kilobytes. 8000 leaves ample slack for whatever the cleaning removes.
+    text = _CITATION_RE.sub("", body_text[:8000])
     text = _EDIT_RE.sub("", text)
     text = _WHITESPACE_RE.sub(" ", text).strip()
 

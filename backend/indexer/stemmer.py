@@ -15,6 +15,7 @@ also stem "running" → "run" at query time for matching to work.
 """
 
 import re
+from functools import lru_cache
 
 
 def _measure(stem: str) -> int:
@@ -156,6 +157,12 @@ def _step5b(word: str) -> str:
     return word
 
 
+# Porter stemming is pure and deterministic, and natural language repeats
+# itself heavily: a football corpus is mostly a few thousand distinct words.
+# Snippet generation stems every word of every candidate sentence, which was
+# ~10,000 calls per search and about a second of the response. The cache is
+# bounded so it cannot grow without limit on a long-running process.
+@lru_cache(maxsize=200_000)
 def stem(word: str) -> str:
     """Apply the Porter stemming algorithm to a single word."""
     if len(word) <= 2:

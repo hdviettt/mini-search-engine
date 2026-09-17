@@ -35,6 +35,59 @@ _session = None
 _tokenizer = None
 
 
+def _cpu_allowance() -> int:
+    """How many CPUs this process may actually use, not how many it can see.
+
+    `os.cpu_count()` reports the host's cores. Inside a container that number
+    is a fiction: the cgroup quota is what the scheduler enforces. ONNX Runtime
+    defaults its intra-op pool to the visible count, so on this deployment it
+    was building a 48-thread pool against an 8-CPU quota and spending most of
+    its time context switching. Measured on a batch of 40 pairs at seq len 128:
+
+        48 threads (the default)   3322 ms     83.0 ms per candidate
+        16 threads                  424 ms     10.6 ms per candidate
+         8 threads (the quota)      247 ms      6.2 ms per candidate
+         4 threads                  556 ms     13.9 ms per candidate
+         1 thread                   1673 ms    41.8 ms per candidate
+
+    13x, for reading a file. Note 16 is worse than 8, which is the tell: past
+    the quota the threads are fighting each other, not the work.
+    """
+    override = os.getenv("RERANK_THREADS")
+    if override:
+        try:
+            return max(1, int(override))
+        except ValueError:
+            log.warning("RERANK_THREADS=%r is not an integer, ignoring", override)
+
+    # cgroup v2
+    try:
+        with open("/sys/fs/cgroup/cpu.max") as fh:
+            quota, period = fh.read().split()
+            if quota != "max":
+                return max(1, int(int(quota) / int(period)))
+    except (OSError, ValueError):
+        pass
+
+    # cgroup v1
+    try:
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us") as fh:
+            quota = int(fh.read())
+        with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us") as fh:
+            period = int(fh.read())
+        if quota > 0 and period > 0:
+            return max(1, quota // period)
+    except (OSError, ValueError):
+        pass
+
+    # Not containerised, or a cgroup layout we do not know. Affinity is the
+    # next most honest answer, then the raw core count.
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except AttributeError:
+        return max(1, os.cpu_count() or 1)
+
+
 def _model_dir() -> str:
     """Where the ONNX weights live.
 
@@ -73,8 +126,16 @@ def _get_model():
             )
             return None, None
 
-        log.info("Loading reranker model from %s...", model_dir)
-        _session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
+        threads = _cpu_allowance()
+        log.info("Loading reranker model from %s (intra_op_num_threads=%d)...", model_dir, threads)
+        opts = ort.SessionOptions()
+        # Size the intra-op pool to the CPU quota, see _cpu_allowance.
+        opts.intra_op_num_threads = threads
+        # One inference at a time per request, so there is no graph-level
+        # parallelism to win here; extra inter-op threads only add contention.
+        opts.inter_op_num_threads = 1
+        opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        _session = ort.InferenceSession(model_path, opts, providers=["CPUExecutionProvider"])
         _tokenizer = Tokenizer.from_file(tokenizer_path)
         _tokenizer.enable_truncation(max_length=MAX_LENGTH)
         _tokenizer.enable_padding(length=MAX_LENGTH, pad_id=0, pad_token="[PAD]")
