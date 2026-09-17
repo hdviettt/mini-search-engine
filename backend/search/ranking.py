@@ -103,30 +103,6 @@ _HOST_NOISE = frozenset({
 SITE_MATCH_RERANK_BONUS = 2.0
 
 
-# Authority, in the units the reranked head is sorted in.
-#
-# The cross-encoder scores topical relevance and nothing else. It has no way to
-# prefer an encyclopedia article over a comment piece that mentions the same
-# words more often, and once the news tier grew, that showed: "offside rule"
-# returned an opinion column about VAR first and did not have
-# "Offside (association football)" anywhere in the top six.
-#
-# PageRank already knows which pages the corpus treats as authoritative, but it
-# only reaches the combined score, which decides candidate selection and not the
-# order of the head. So it is reapplied here, the same way the site signal is.
-#
-# One logit at most. Authority should settle which of two comparably relevant
-# pages goes first, not drag a weak page up on reputation.
-AUTHORITY_RERANK_WEIGHT = 1.0
-
-
-def authority_rerank_bonus(normalised_pagerank: float) -> float:
-    """Logit bonus from a page's normalised PageRank, in [0, AUTHORITY_RERANK_WEIGHT]."""
-    if not normalised_pagerank or normalised_pagerank <= 0:
-        return 0.0
-    return AUTHORITY_RERANK_WEIGHT * min(1.0, normalised_pagerank)
-
-
 def site_match_rerank_bonus(query_tokens, url: str) -> float:
     """Logit bonus for a reranked result whose host the query named."""
     matched = site_match_multiplier(query_tokens, url) > 1.0

@@ -15,7 +15,6 @@ from search.ranking import (
     CANDIDATE_POOL,
     RERANK_MIN_SCORE,
     RERANK_TOP_K,
-    authority_rerank_bonus,
     combine_scores,
     dedupe_by_domain,
     freshness_multiplier,
@@ -125,9 +124,6 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
     )
 
     combined = combine_scores(pool_bm25, pagerank_scores, RANK_ALPHA)
-    # Kept for the rerank-space authority bonus below. combine_scores
-    # normalises internally but does not hand the result back.
-    norm_pagerank = normalize_scores(pagerank_scores)
 
     # One query gives both the freshness input and the URLs needed for
     # domain dedup, instead of a round-trip per result.
@@ -177,10 +173,8 @@ def search(conn: psycopg.Connection, query: str, page: int = 1, per_page: int = 
                 # only to `combined` it would decide which pages reach the
                 # model and then vanish, because the head is ordered by the
                 # model's scores alone.
-                rerank_scores[c["page_id"]] = (
-                    c["rerank_score"]
-                    + site_match_rerank_bonus(site_tokens, c.get("url") or "")
-                    + authority_rerank_bonus(norm_pagerank.get(c["page_id"], 0.0))
+                rerank_scores[c["page_id"]] = c["rerank_score"] + site_match_rerank_bonus(
+                    site_tokens, c.get("url") or ""
                 )
 
     # Reranked pages keep the reranker's order at the head; anything it judged
