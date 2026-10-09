@@ -2,8 +2,6 @@
 
 ### A search engine built from scratch to understand how Google really works.
 
-**[Live Demo](https://search.hoangducviet.work)** · **[Blog Series](https://hoangducviet.work/posts/building-a-mini-search-engine-1-why)**
-
 ![Demo](docs/demo.gif)
 
 ---
